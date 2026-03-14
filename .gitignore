@@ -1,0 +1,53 @@
+# ── Secrets & Configuration ──────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+.venv/
+venv/
+env/
+.Python
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.next/
+.nuxt/
+.output/
+*.local
+
+# ── Données métier sensibles ──────────────────────────────────────────────────
+*.xlsx
+*.xls
+*.csv
+data/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Build artifacts ───────────────────────────────────────────────────────────
+*.pyc
+*.pyo
+htmlcov/
+.coverage
+.pytest_cache/

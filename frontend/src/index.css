@@ -1,0 +1,680 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🎨 STYLE UPDATED — Full Premium HSL palette + Glassmorphism + Antigravity Design System */
+
+/* ============================================================
+   1. PREMIUM HSL DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Atlantic Re — Navy (primary brand) */
+  --navy-hue: 209;
+  --color-navy:        hsl(209, 28%, 24%);
+  --color-navy-dark:   hsl(209, 32%, 17%);
+  --color-navy-light:  hsl(209, 24%, 32%);
+  --color-navy-muted:  hsla(209, 28%, 24%, 0.08);
+  --color-navy-glass:  hsla(209, 28%, 24%, 0.55);
+
+  /* Atlantic Re — Green (accent) */
+  --green-hue: 83;
+  --color-green:       hsl(83, 52%, 36%);
+  --color-green-dark:  hsl(83, 54%, 27%);
+  --color-green-light: hsl(83, 50%, 45%);
+  --color-green-muted: hsla(83, 52%, 36%, 0.12);
+  --color-green-glow:  hsla(83, 52%, 36%, 0.35);
+
+  /* Neutrals */
+  --color-white:       hsl(0, 0%, 100%);
+  --color-off-white:   hsl(220, 20%, 97%);
+  --color-surface:     hsl(220, 18%, 96%);
+  --color-surface-2:   hsl(220, 16%, 93%);
+  --color-gray-100:    hsl(218, 22%, 93%);
+  --color-gray-200:    hsl(218, 18%, 88%);
+  --color-gray-300:    hsl(218, 14%, 80%);
+  --color-gray-400:    hsl(218, 12%, 68%);
+  --color-gray-500:    hsl(218, 10%, 55%);
+  --color-gray-600:    hsl(218, 12%, 42%);
+  --color-gray-700:    hsl(218, 16%, 30%);
+  --color-gray-900:    hsl(218, 22%, 14%);
+
+  /* Semantic */
+  --color-red:         hsl(358, 66%, 54%);
+  --color-red-muted:   hsla(358, 66%, 54%, 0.12);
+  --color-orange:      hsl(30, 88%, 66%);
+  --color-orange-muted:hsla(30, 88%, 66%, 0.15);
+  --color-emerald:     hsl(152, 56%, 39%);
+  --color-amber:       hsl(43, 96%, 56%);
+
+  /* Glassmorphism tokens */
+  --glass-bg:          hsla(0, 0%, 100%, 0.72);
+  --glass-border:      hsla(0, 0%, 100%, 0.28);
+  --glass-shadow:      0 8px 32px hsla(209, 28%, 14%, 0.12);
+  --glass-blur:        blur(16px);
+  --glass-blur-heavy:  blur(24px);
+
+  /* Antigravity / Depth */
+  --shadow-xs:  0 1px  3px hsla(209,28%,14%,0.06);
+  --shadow-sm:  0 2px  8px hsla(209,28%,14%,0.08);
+  --shadow-md:  0 4px 16px hsla(209,28%,14%,0.10);
+  --shadow-lg:  0 8px 32px hsla(209,28%,14%,0.12);
+  --shadow-xl:  0 16px 48px hsla(209,28%,14%,0.15);
+  --shadow-2xl: 0 24px 64px hsla(209,28%,14%,0.18);
+  --shadow-float: 0 20px 40px hsla(209,28%,14%,0.06), 0 4px 16px hsla(209,28%,14%,0.08);
+  --shadow-green-glow: 0 4px 20px hsla(83, 52%, 36%, 0.30);
+  --shadow-navy-glow:  0 4px 20px hsla(209, 28%, 24%, 0.30);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+
+  /* Border radii */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+}
+
+/* ============================================================
+   2. RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', 'Roboto', ui-sans-serif, system-ui, sans-serif;
+  background: var(--color-off-white);
+  color: var(--color-gray-700);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  line-height: 1.5;
+  /* Subtle dot-grid background for depth */
+  background-image: radial-gradient(circle, hsla(209,28%,50%,0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ============================================================
+   3. SCROLLBAR — Premium thin
+   ============================================================ */
+::-webkit-scrollbar           { width: 5px; height: 5px; }
+::-webkit-scrollbar-track     { background: transparent; }
+::-webkit-scrollbar-thumb     { background: var(--color-gray-300); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); }
+
+/* ============================================================
+   4. GLASSMORPHISM UTILITIES — .glass-card
+   ============================================================ */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: box-shadow var(--duration-normal) var(--ease-out),
+              transform    var(--duration-normal) var(--ease-out);
+  will-change: transform;
+}
+
+.glass-card:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+.glass-card-heavy {
+  background: hsla(0, 0%, 100%, 0.88);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.glass-card-navy {
+  background: var(--color-navy-glass);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid hsla(0,0%,100%,0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-navy-glow), var(--shadow-lg);
+}
+
+/* ============================================================
+   5. ANTIGRAVITY — Float & Depth effects
+   ============================================================ */
+.float-element {
+  box-shadow: var(--shadow-float);
+  transition: box-shadow var(--duration-normal) var(--ease-out),
+              transform    var(--duration-normal) var(--ease-out);
+  will-change: transform;
+}
+
+.float-element:hover {
+  box-shadow: var(--shadow-2xl);
+  transform: translateY(-4px) scale(1.01);
+}
+
+.depth-card {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-gray-100);
+  transition: box-shadow var(--duration-normal) var(--ease-out),
+              transform    var(--duration-normal) var(--ease-out);
+  will-change: transform;
+}
+
+.depth-card:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   6. SKELETON LOADERS
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 25%,
+    var(--color-gray-200)  50%,
+    var(--color-gray-100) 75%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   7. KEYFRAMES — Antigravity Animations
+   ============================================================ */
+@keyframes slideUpFade {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDownFade {
+  0%   { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideRightFade {
+  0%   { opacity: 0; transform: translateX(-12px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  0%   { opacity: 0; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes floatBob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
+
+@keyframes pulse-green {
+  0%   { box-shadow: 0 0 0 0   var(--color-green-glow); }
+  70%  { box-shadow: 0 0 0 8px hsla(83,52%,36%,0); }
+  100% { box-shadow: 0 0 0 0   hsla(83,52%,36%,0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ============================================================
+   8. DATA TABLE — Premium redesign
+   ============================================================ */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table thead th {
+  background: linear-gradient(
+    135deg,
+    var(--color-navy-dark)  0%,
+    var(--color-navy)       60%,
+    var(--color-navy-light) 100%
+  );
+  color: var(--color-white);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 13px 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  transition: background var(--duration-fast);
+}
+
+.data-table thead th:first-child { border-radius: var(--radius-md) 0 0 0; }
+.data-table thead th:last-child  { border-radius: 0 var(--radius-md) 0 0; }
+.data-table thead th:hover { filter: brightness(1.08); }
+
+.data-table tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-out),
+              box-shadow       var(--duration-fast) var(--ease-out);
+  background-color: var(--color-white);
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: hsl(220,20%,98.5%);
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--color-green-muted);
+  box-shadow: inset 3px 0 0 var(--color-green);
+}
+
+.data-table tbody td {
+  padding: 11px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-gray-100);
+  white-space: nowrap;
+  color: var(--color-gray-700);
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Staggered row entrance */
+.data-table tbody tr {
+  animation: slideUpFade var(--duration-normal) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-table tbody tr { animation: none; }
+}
+
+/* ============================================================
+   9. BUTTONS — Premium variants
+   ============================================================ */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-navy-dark) 0%, var(--color-navy-light) 100%);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-navy-glow), var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              filter var(--duration-fast);
+  will-change: transform;
+}
+
+.btn-primary:hover  { transform: translateY(-2px); box-shadow: var(--shadow-navy-glow), var(--shadow-md); filter: brightness(1.08); }
+.btn-primary:active { transform: translateY(0);    box-shadow: var(--shadow-sm); filter: brightness(0.96); }
+.btn-primary:disabled { opacity: 0.48; cursor: not-allowed; transform: none; filter: none; }
+
+.btn-secondary {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--color-navy);
+  border: 1.5px solid var(--color-navy-muted);
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal),
+              transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+  will-change: transform;
+}
+
+.btn-secondary:hover { background: var(--color-navy-muted); border-color: var(--color-navy); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--color-green-dark) 0%, var(--color-green) 60%, var(--color-green-light) 100%);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-green-glow), var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              filter var(--duration-fast);
+  will-change: transform;
+}
+
+.btn-accent:hover  { transform: translateY(-2px); box-shadow: var(--shadow-green-glow), var(--shadow-md); filter: brightness(1.08); }
+.btn-accent:active { transform: translateY(0);    box-shadow: var(--shadow-sm); }
+.btn-accent:disabled { opacity: 0.48; cursor: not-allowed; transform: none; filter: none; }
+
+.btn-danger {
+  background: linear-gradient(135deg, hsl(358,70%,40%) 0%, var(--color-red) 100%);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px hsla(358,66%,54%,0.30);
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              filter var(--duration-fast);
+  will-change: transform;
+}
+.btn-danger:hover  { transform: translateY(-2px); box-shadow: 0 6px 20px hsla(358,66%,54%,0.40); filter: brightness(1.08); }
+.btn-danger:active { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary, .btn-secondary, .btn-accent, .btn-danger {
+    transition: filter var(--duration-fast), opacity var(--duration-fast);
+    will-change: auto;
+  }
+  .btn-primary:hover, .btn-accent:hover, .btn-danger:hover { transform: none; }
+}
+
+/* ============================================================
+   10. INPUTS — Glass style
+   ============================================================ */
+.input-dark {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  color: var(--color-navy);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color var(--duration-fast),
+              box-shadow   var(--duration-fast);
+  outline: none;
+}
+
+.input-dark:focus {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 3px var(--color-green-muted);
+}
+
+.input-dark::placeholder { color: var(--color-gray-400); }
+
+/* ============================================================
+   11. TAB STYLES — Premium pill tabs
+   ============================================================ */
+.tab-btn {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-gray-500);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--color-navy);
+  background: var(--color-navy-muted);
+  transform: translateY(-1px);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--color-navy-dark), var(--color-navy-light));
+  color: var(--color-white);
+  border-bottom: 3px solid var(--color-green);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 hsla(0,0%,100%,0.15);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn, .tab-btn.active { transform: none; }
+}
+
+/* ============================================================
+   12. REACT-SELECT OVERRIDES
+   ============================================================ */
+.rs__control {
+  background: var(--glass-bg) !important;
+  border: 1.5px solid var(--color-gray-200) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--color-gray-700) !important;
+  min-height: 36px !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast) !important;
+}
+.rs__control:hover { border-color: var(--color-gray-400) !important; }
+.rs__control--is-focused {
+  border-color: var(--color-green) !important;
+  box-shadow: 0 0 0 3px var(--color-green-muted) !important;
+}
+.rs__menu {
+  background: hsla(0,0%,100%,0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--color-gray-200) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden !important;
+  box-shadow: var(--shadow-xl) !important;
+  z-index: 9999 !important;
+}
+.rs__option { font-size: 13px !important; cursor: pointer !important; color: var(--color-gray-700) !important; transition: background var(--duration-fast) !important; }
+.rs__option--is-focused  { background: var(--color-green-muted) !important; }
+.rs__option--is-selected { background: var(--color-green) !important; color: white !important; }
+.rs__multi-value         { background: var(--color-green-muted) !important; border-radius: var(--radius-sm) !important; }
+.rs__multi-value__label  { color: var(--color-navy) !important; font-size: 12px !important; font-weight: 500 !important; }
+.rs__multi-value__remove:hover { background: var(--color-green) !important; color: white !important; }
+.rs__placeholder    { color: var(--color-gray-400) !important; font-size: 13px !important; }
+.rs__single-value   { color: var(--color-navy) !important; font-size: 13px !important; font-weight: 500 !important; }
+.rs__indicator      { color: var(--color-gray-400) !important; }
+.rs__indicator:hover { color: var(--color-navy) !important; }
+.rs__indicator-separator { background: var(--color-gray-100) !important; }
+.rs__clear-indicator:hover { color: var(--color-red) !important; }
+
+/* ============================================================
+   13. RECHARTS OVERRIDES
+   ============================================================ */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--color-navy-glass) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid hsla(0,0%,100%,0.15) !important;
+  border-radius: var(--radius-lg) !important;
+  color: var(--color-white) !important;
+  font-size: 0.8rem !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: 10px 14px !important;
+}
+.recharts-tooltip-label { color: var(--color-green-light) !important; font-weight: 600 !important; margin-bottom: 4px !important; }
+.recharts-cartesian-axis-tick-value { fill: var(--color-gray-400); font-size: 11px; }
+.recharts-legend-item-text { color: var(--color-gray-600) !important; font-size: 12px; }
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--color-gray-100);
+  stroke-dasharray: 4 4;
+}
+
+/* ============================================================
+   14. RC-SLIDER OVERRIDES — Premium
+   ============================================================ */
+.rc-slider { height: 18px; padding: 6px 0; }
+.rc-slider-rail  { background: var(--color-gray-200); height: 4px; border-radius: var(--radius-full); }
+.rc-slider-track { background: linear-gradient(90deg, var(--color-green-dark), var(--color-green-light)); height: 4px; border-radius: var(--radius-full); }
+.rc-slider-handle {
+  background: var(--color-white);
+  border: 2.5px solid var(--color-green);
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  opacity: 1;
+  box-shadow: var(--shadow-sm), 0 0 0 0 var(--color-green-glow);
+  transition: transform var(--duration-normal) var(--ease-spring),
+              box-shadow var(--duration-normal);
+  will-change: transform;
+}
+.rc-slider-handle:hover,
+.rc-slider-handle:focus {
+  transform: scale(1.25);
+  box-shadow: var(--shadow-md), 0 0 0 5px var(--color-green-muted);
+  outline: none;
+  border-color: var(--color-green-dark);
+}
+.rc-slider-handle-dragging {
+  transform: scale(1.3) !important;
+  box-shadow: var(--shadow-md), 0 0 0 6px var(--color-green-muted) !important;
+}
+
+/* ============================================================
+   15. CHECKBOX — Branded
+   ============================================================ */
+input[type="checkbox"] {
+  accent-color: var(--color-green);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-green-muted);
+}
+
+/* ============================================================
+   16. ANIMATION UTILITY CLASSES
+   ============================================================ */
+.animate-slide-up    { animation: slideUpFade   var(--duration-slow)   var(--ease-out) both; }
+.animate-slide-down  { animation: slideDownFade var(--duration-normal) var(--ease-out) both; }
+.animate-slide-right { animation: slideRightFade var(--duration-normal) var(--ease-out) both; }
+.animate-scale-in    { animation: scaleIn       var(--duration-normal) var(--ease-out) both; }
+.animate-fade-in     { animation: fadeIn        var(--duration-normal) var(--ease-out) both; }
+.animate-float       { animation: floatBob 3s   ease-in-out infinite; }
+
+/* Stagger delays for child elements */
+.stagger-1  { animation-delay:  50ms; }
+.stagger-2  { animation-delay: 100ms; }
+.stagger-3  { animation-delay: 150ms; }
+.stagger-4  { animation-delay: 200ms; }
+.stagger-5  { animation-delay: 250ms; }
+.stagger-6  { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   17. GRADIENT UTILITIES
+   ============================================================ */
+.gradient-navy {
+  background: linear-gradient(135deg, var(--color-navy-dark) 0%, var(--color-navy) 50%, var(--color-navy-light) 100%);
+}
+.gradient-green {
+  background: linear-gradient(135deg, var(--color-green-dark) 0%, var(--color-green) 60%, var(--color-green-light) 100%);
+}
+.gradient-surface {
+  background: linear-gradient(160deg, var(--color-off-white) 0%, var(--color-surface-2) 100%);
+}
+
+/* ============================================================
+   18. PAGE TRANSITIONS
+   ============================================================ */
+.page-container {
+  animation: slideUpFade var(--duration-slow) var(--ease-out) both;
+}
+
+/* ============================================================
+   19. TOOLTIP UTILITY
+   ============================================================ */
+.tooltip {
+  position: relative;
+  display: inline-flex;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.92);
+  background: var(--color-navy-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--color-white);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid hsla(0,0%,100%,0.15);
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: var(--shadow-md);
+  transition: opacity var(--duration-fast), transform var(--duration-fast) var(--ease-out);
+  z-index: 50;
+}
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* ============================================================
+   20. FOCUS VISIBLE — Accessibility
+   ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
