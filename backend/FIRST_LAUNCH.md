@@ -28,6 +28,7 @@ uvicorn main:app --reload
 ```
 
 > Au démarrage, l'application :
+> - **Crée automatiquement la base de données MySQL** (ex: `atlantic_re`) si elle n'existe pas
 > - Crée automatiquement les tables manquantes
 > - Vérifie si un admin existe
 > - Crée l'admin par défaut si nécessaire

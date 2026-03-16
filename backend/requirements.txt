@@ -21,6 +21,7 @@ passlib==1.7.4               # needed only for sha256_crypt legacy hash verifica
 # ── Database ──────────────────────────────────────────────────────────────────
 sqlalchemy==2.0.29
 pymysql==1.1.1
+sqlalchemy-utils==0.41.2
 
 # ── Validation ────────────────────────────────────────────────────────────────
 pydantic==2.6.4
