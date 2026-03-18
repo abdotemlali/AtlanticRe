@@ -1,5 +1,5 @@
 // 🎨 STYLE UPDATED — Badge générique couvrant tous CONTRACT_STATUS + variantes sémantiques
-import React from 'react';
+
 
 // ─────────────────── Types ───────────────────
 type BadgeVariant =

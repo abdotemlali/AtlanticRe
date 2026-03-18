@@ -6,15 +6,17 @@ import { useData } from '../context/DataContext'
 import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
-  LogOut, RefreshCw, ChevronDown, UserX, Database
+  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-  { to: '/scoring', label: 'Scoring', icon: Target },
+  { to: '/analyse', label: 'Analyse', icon: BarChart2 },
   { to: '/comparaison', label: 'Comparaison', icon: GitCompare },
+  { to: '/scoring', label: 'Scoring', icon: Target },
   { to: '/recommandations', label: 'Recommandations', icon: Star },
+  { to: '/exposition', label: 'Exposition & Risques', icon: ShieldAlert },
 ]
 
 export default function Layout() {
@@ -102,7 +104,7 @@ export default function Layout() {
         {/* ───── ZONE 2: NAVIGATION ───── */}
         <nav
           className="flex items-center gap-0.5 flex-1 px-3 h-full overflow-x-auto"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsla(0,0%,100%,0.2) transparent', paddingBottom: '2px' }}
         >
           {navItems.map(({ to, label, icon: Icon, exact }) => (
             <NavLink
@@ -127,7 +129,7 @@ export default function Layout() {
                     className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
                     style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
                   />
-                  <span className="hidden xl:inline">{label}</span>
+                  <span>{label}</span>
                   {isActive && (
                     <span
                       className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
@@ -161,7 +163,7 @@ export default function Layout() {
                     className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
                     style={isActive ? { color: 'hsl(358,66%,66%)' } : undefined}
                   />
-                  <span className="hidden xl:inline">Inactifs</span>
+                  <span>Inactifs</span>
                   {isActive && (
                     <span
                       className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
@@ -195,7 +197,7 @@ export default function Layout() {
                     className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
                     style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
                   />
-                  <span className="hidden xl:inline">Administration</span>
+                  <span>Administration</span>
                   {isActive && (
                     <span
                       className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
@@ -336,7 +338,7 @@ export default function Layout() {
               {/* User info header */}
               <div className="px-4 py-3 border-b" style={{ borderColor: 'hsl(218,22%,93%)' }}>
                 <p className="text-sm font-semibold text-navy leading-tight">{user?.full_name || 'Administrateur'}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{user?.email || ''}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{(user as any)?.email || ''}</p>
               </div>
 
               {user?.role === 'admin' && (

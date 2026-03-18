@@ -16,6 +16,7 @@ export interface FilterState {
   pays_cedante: string[]
   courtier: string[]
   cedante: string[]
+  underwriting_years: number[]
   uw_year_min: number | null
   uw_year_max: number | null
   statuts: string[]
@@ -43,9 +44,10 @@ export const DEFAULT_FILTERS: FilterState = {
   pays_cedante: [],
   courtier: [],
   cedante: [],
+  underwriting_years: [],
   uw_year_min: null,
   uw_year_max: null,
-  statuts: ['CONFIRMED', 'CLOSED', 'ACCEPTED', 'OFFER LOGGED', 'COMMUTED', 'IDENTF'],
+  statuts: [],
   type_of_contract: [],
   prime_min: null,
   prime_max: null,
@@ -65,6 +67,7 @@ export interface KPISummary {
   avg_ulr: number
   total_sum_insured: number
   contract_count: number
+  ratio_resultat_prime: number
 }
 
 export interface FilterOptions {
@@ -126,7 +129,7 @@ const DEFAULT_SCORING: ScoringCriterion[] = [
 /** Build query params string from FilterState */
 export function filtersToParams(filters: FilterState): Record<string, string> {
   const params: Record<string, string> = {}
-  const add = (key: string, val: string[] | string | number | null | undefined) => {
+  const add = (key: string, val: string[] | number[] | string | number | null | undefined) => {
     if (val === null || val === undefined) return
     if (Array.isArray(val) && val.length > 0) params[key] = val.join(',')
     else if (typeof val === 'string' && val.trim()) params[key] = val
@@ -142,6 +145,7 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
   add('pays_cedante', filters.pays_cedante)
   add('courtier', filters.courtier)
   add('cedante', filters.cedante)
+  add('underwriting_years', filters.underwriting_years)
   add('uw_year_min', filters.uw_year_min ?? undefined)
   add('uw_year_max', filters.uw_year_max ?? undefined)
   add('statuts', filters.statuts)

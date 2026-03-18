@@ -58,6 +58,11 @@ def get_contracts(
             resultat=float(row["RESULTAT"]) if pd.notna(row.get("RESULTAT")) else None,
             inception_date=row["INCEPTION_DATE"].strftime("%d/%m/%Y") if pd.notna(row.get("INCEPTION_DATE")) else None,
             expiry_date=row["EXPIRY_DATE"].strftime("%d/%m/%Y") if pd.notna(row.get("EXPIRY_DATE")) else None,
+            date_accepted=row["DATE_ACCEPTED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_ACCEPTED")) else None,
+            date_confirmed=row["DATE_CONFIRMED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CONFIRMED")) else None,
+            date_closed=row["DATE_CLOSED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CLOSED")) else None,
+            date_cancelled=row["DATE_CANCELLED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CANCELLED")) else None,
+            date_saisie=row["DATE_SAISIE1"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_SAISIE1")) else None,
         )
 
     data = [to_contract(row) for _, row in page_df.iterrows()]

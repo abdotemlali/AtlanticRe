@@ -1,7 +1,8 @@
+import React from 'react';
 // 🎨 STYLE UPDATED — KPICards : float-element glassmorphism, stagger entrance, icônes avec gradient, useCountUp préservé
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from "react"
 import { useData } from '../context/DataContext'
-import { DollarSign, TrendingUp, TrendingDown, Shield, FileText, Activity } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, Shield, FileText, Activity, Percent } from 'lucide-react'
 import { formatCompact, formatPercent } from '../utils/formatters'
 import { KPICardSkeleton } from './ui/Skeleton'
 
@@ -133,6 +134,12 @@ export default function KPICards() {
   const resultAccent = resultPositive ? 'hsl(152,56%,39%)' : 'hsl(358,66%,54%)'
   const resultGlow = resultPositive ? 'hsla(152,56%,39%,0.12)' : 'hsla(358,66%,54%,0.12)'
 
+  // Ratio Résultat/Prime trend
+  const ratioResPrime = kpiSummary?.ratio_resultat_prime ?? 0
+  const ratioPositive = ratioResPrime >= 0
+  const ratioAccent = ratioPositive ? 'hsl(152,56%,39%)' : 'hsl(358,66%,54%)'
+  const ratioGlow = ratioPositive ? 'hsla(152,56%,39%,0.12)' : 'hsla(358,66%,54%,0.12)'
+
   const kpis: Omit<KPICardProps, 'index' | 'loading'>[] = [
     {
       label: 'Prime écrite',
@@ -183,6 +190,16 @@ export default function KPICards() {
       accentColor: 'hsl(83,50%,45%)',
       glowColor: 'hsla(83,50%,45%,0.12)',
       trend: 'neutral',
+    },
+    {
+      label: 'Ratio Résultat/Prime',
+      rawValue: kpiSummary?.ratio_resultat_prime,
+      formatFn: (val) => val !== undefined ? `${val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—',
+      sub: 'Rentabilité relative',
+      icon: <Percent />,
+      accentColor: ratioAccent,
+      glowColor: ratioGlow,
+      trend: ratioPositive ? 'positive' : 'negative',
     },
   ]
 

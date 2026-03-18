@@ -1,5 +1,5 @@
 // 🎨 STYLE UPDATED — Glassmorphism Card avec variantes float/glass/depth (Antigravity Design)
-import React from 'react';
+
 
 type CardVariant = 'glass' | 'depth' | 'navy' | 'flat';
 

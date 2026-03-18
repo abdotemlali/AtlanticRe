@@ -1,9 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, Shield, CheckCircle2, XCircle } from 'lucide-react'
 import api from '../utils/api'
 
+const RuleIndicator = ({ isValid, text }: { isValid: boolean, text: string }) => (
+    <div className="flex items-center gap-2 mb-1.5">
+        {isValid ? (
+            <CheckCircle2 size={14} className="text-[hsl(83,52%,36%)]" />
+        ) : (
+            <XCircle size={14} className="text-[var(--color-gray-200)]" />
+        )}
+        <span className={`text-[0.75rem] font-medium transition-colors ${isValid ? 'text-[hsl(83,52%,36%)]' : 'text-[var(--color-gray-500)]'}`}>
+            {text}
+        </span>
+    </div>
+)
 export default function ResetPassword() {
     const navigate = useNavigate()
     const location = useLocation()
@@ -60,24 +72,13 @@ export default function ResetPassword() {
 
     if (!token) return null
 
-    const RuleIndicator = ({ isValid, text }: { isValid: boolean, text: string }) => (
-        <div className="flex items-center gap-2 mb-1.5">
-            {isValid ? (
-                <CheckCircle2 size={14} className="text-[#6B8C2A]" />
-            ) : (
-                <XCircle size={14} className="text-[#CBD2DA]" />
-            )}
-            <span className={`text-[0.75rem] font-medium transition-colors ${isValid ? 'text-[#6B8C2A]' : 'text-[#7A8A99]'}`}>
-                {text}
-            </span>
-        </div>
-    )
+
 
     return (
         <div
             className="min-h-screen flex items-center justify-center relative overflow-hidden"
             style={{
-                background: 'linear-gradient(145deg, #1E2D3D 0%, #2D3E50 50%, #3D5166 100%)',
+                background: 'linear-gradient(145deg, #1E2D3D 0%, var(--color-navy) 50%, #3D5166 100%)',
                 backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.03) 2px, transparent 2px)',
                 backgroundSize: '30px 30px'
             }}
@@ -92,25 +93,25 @@ export default function ResetPassword() {
             >
                 {/* Logo */}
                 <div className="text-center mb-8 flex flex-col items-center">
-                    <div className="flex items-center justify-center font-extrabold text-4xl mb-2 text-[#2D3E50] border-2 border-[#2D3E50] rounded-xl px-4 py-2 bg-white">
-                        Atlantic<span className="text-[#6B8C2A]">Re</span>
+                    <div className="flex items-center justify-center font-extrabold text-4xl mb-2 text-[var(--color-navy)] border-2 border-[var(--color-navy)] rounded-xl px-4 py-2 bg-white">
+                        Atlantic<span className="text-[hsl(83,52%,36%)]">Re</span>
                     </div>
-                    <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#7A8A99] mb-1">CDG GROUP</p>
+                    <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-500)] mb-1">CDG GROUP</p>
                 </div>
 
                 {/* Title */}
-                <div className="mb-6 border-b border-[#EEF0F3] pb-4 text-center">
-                    <h1 className="text-xl font-bold" style={{ color: '#2D3E50' }}>Nouveau mot de passe</h1>
+                <div className="mb-6 border-b border-[var(--color-gray-100)] pb-4 text-center">
+                    <h1 className="text-xl font-bold" style={{ color: 'var(--color-navy)' }}>Nouveau mot de passe</h1>
                     <div className="flex justify-center items-center gap-2 mt-2">
-                        <Shield size={14} color="#6B8C2A" />
-                        <span className="text-xs font-medium" style={{ color: '#7A8A99' }}>Réinitialisation sécurisée</span>
+                        <Shield size={14} color="hsl(83,52%,36%)" />
+                        <span className="text-xs font-medium" style={{ color: 'var(--color-gray-500)' }}>Réinitialisation sécurisée</span>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* Nouveau Mot de Passe */}
                     <div>
-                        <label className="block text-[0.8rem] font-medium mb-1.5 uppercase letter-spacing-[0.05em]" style={{ color: '#4A5568' }}>
+                        <label className="block text-[0.8rem] font-medium mb-1.5 uppercase letter-spacing-[0.05em]" style={{ color: 'var(--color-gray-600)' }}>
                             Nouveau mot de passe
                         </label>
                         <div className="relative">
@@ -118,22 +119,22 @@ export default function ResetPassword() {
                                 type={showPass ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full text-sm py-2.5 px-3 pr-10 transition-colors outline-none text-[#2D3E50] placeholder-[#CBD2DA]"
+                                className="w-full text-sm py-2.5 px-3 pr-10 transition-colors outline-none text-[var(--color-navy)] placeholder-[var(--color-gray-200)]"
                                 style={{
-                                    border: '1.5px solid #CBD2DA',
+                                    border: '1.5px solid var(--color-gray-200)',
                                     borderRadius: 8,
                                     backgroundColor: '#FFFFFF',
                                 }}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = '#6B8C2A'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(107,140,42,0.15)' }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = '#CBD2DA'; e.currentTarget.style.boxShadow = 'none' }}
+                                onFocus={(e) => { e.currentTarget.style.borderColor = 'hsl(83,52%,36%)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(107,140,42,0.15)' }}
+                                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-gray-200)'; e.currentTarget.style.boxShadow = 'none' }}
                                 placeholder="••••••••"
                                 autoFocus
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPass(!showPass)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#2D3E50]"
-                                style={{ color: '#7A8A99' }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[var(--color-navy)]"
+                                style={{ color: 'var(--color-gray-500)' }}
                             >
                                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -142,7 +143,7 @@ export default function ResetPassword() {
 
                     {/* Confirmer Mot de Passe */}
                     <div>
-                        <label className="block text-[0.8rem] font-medium mb-1.5 uppercase letter-spacing-[0.05em]" style={{ color: '#4A5568' }}>
+                        <label className="block text-[0.8rem] font-medium mb-1.5 uppercase letter-spacing-[0.05em]" style={{ color: 'var(--color-gray-600)' }}>
                             Confirmer le mot de passe
                         </label>
                         <div className="relative">
@@ -150,21 +151,21 @@ export default function ResetPassword() {
                                 type={showConfirm ? 'text' : 'password'}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full text-sm py-2.5 px-3 pr-10 transition-colors outline-none text-[#2D3E50] placeholder-[#CBD2DA]"
+                                className="w-full text-sm py-2.5 px-3 pr-10 transition-colors outline-none text-[var(--color-navy)] placeholder-[var(--color-gray-200)]"
                                 style={{
-                                    border: '1.5px solid #CBD2DA',
+                                    border: '1.5px solid var(--color-gray-200)',
                                     borderRadius: 8,
                                     backgroundColor: '#FFFFFF',
                                 }}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = '#6B8C2A'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(107,140,42,0.15)' }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = '#CBD2DA'; e.currentTarget.style.boxShadow = 'none' }}
+                                onFocus={(e) => { e.currentTarget.style.borderColor = 'hsl(83,52%,36%)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(107,140,42,0.15)' }}
+                                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-gray-200)'; e.currentTarget.style.boxShadow = 'none' }}
                                 placeholder="••••••••"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowConfirm(!showConfirm)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[#2D3E50]"
-                                style={{ color: '#7A8A99' }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-[var(--color-navy)]"
+                                style={{ color: 'var(--color-gray-500)' }}
                             >
                                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -172,15 +173,15 @@ export default function ResetPassword() {
                     </div>
 
                     {/* Règles de sécurité in-place */}
-                    <div className="bg-[#F5F6F8] rounded-lg p-3 border border-[#EEF0F3]">
-                        <p className="text-[0.7rem] uppercase tracking-wider font-bold mb-2 text-[#4A5568]">Règles de sécurité :</p>
+                    <div className="bg-[var(--color-off-white)] rounded-lg p-3 border border-[var(--color-gray-100)]">
+                        <p className="text-[0.7rem] uppercase tracking-wider font-bold mb-2 text-[var(--color-gray-600)]">Règles de sécurité :</p>
                         <div className="grid grid-cols-2 gap-x-2">
                             <RuleIndicator isValid={rules.length} text="Minimum 8 caractères" />
                             <RuleIndicator isValid={rules.uppercase} text="Au moins 1 majuscule" />
                             <RuleIndicator isValid={rules.number} text="Au moins 1 chiffre" />
                             <RuleIndicator isValid={rules.special} text="1 caractère spécial" />
                         </div>
-                        <div className="mt-1 pt-2 border-t border-[#EEF0F3]">
+                        <div className="mt-1 pt-2 border-t border-[var(--color-gray-100)]">
                             <RuleIndicator isValid={rules.match} text="Les mots de passe correspondent" />
                         </div>
                     </div>
@@ -191,8 +192,8 @@ export default function ResetPassword() {
                         className="w-full justify-center py-3 flex items-center gap-2 font-bold text-white transition-all transform hover:-translate-y-[1px]"
                         style={{
                             background: isFormValid
-                                ? 'linear-gradient(135deg, #4E6820, #6B8C2A)'
-                                : 'linear-gradient(135deg, #7A8A99, #94A3B8)',
+                                ? 'linear-gradient(135deg, hsl(83,54%,27%), hsl(83,52%,36%))'
+                                : 'linear-gradient(135deg, var(--color-gray-500), #94A3B8)',
                             borderRadius: 8,
                             boxShadow: isFormValid ? '0 4px 12px rgba(107,140,42,0.3)' : 'none',
                             marginTop: 28,

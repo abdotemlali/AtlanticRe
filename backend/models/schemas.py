@@ -102,6 +102,7 @@ class KPISummary(BaseModel):
     avg_ulr: float
     total_sum_insured: float
     contract_count: int
+    ratio_resultat_prime: float
 
 class KPIByCountry(BaseModel):
     pays: str
@@ -207,6 +208,11 @@ class ContractSummary(BaseModel):
     resultat: Optional[float]
     inception_date: Optional[str]
     expiry_date: Optional[str]
+    date_accepted: Optional[str] = None
+    date_confirmed: Optional[str] = None
+    date_closed: Optional[str] = None
+    date_cancelled: Optional[str] = None
+    date_saisie: Optional[str] = None
 
 class PaginatedContracts(BaseModel):
     total: int

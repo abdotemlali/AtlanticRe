@@ -1,13 +1,16 @@
-// 🎨 STYLE UPDATED — Dashboard : layout propre, header premium, tabs pill, tab-content avec animate-scale-in
-import React, { useState } from 'react'
+import { useState, useEffect } from "react"
+import { useLocation } from 'react-router-dom'
 import FilterPanel from '../components/FilterPanel'
 import KPICards from '../components/KPICards'
+import DashboardAlerts from '../components/DashboardAlerts'
 import WorldMap from '../components/Charts/WorldMap'
 import EvolutionChart from '../components/Charts/EvolutionChart'
 import DistributionCharts from '../components/Charts/DistributionCharts'
 import PivotTable from '../components/Charts/PivotTable'
 import DataTable from '../components/DataTable'
-import { Map, TrendingUp, PieChart, Table, FileText } from 'lucide-react'
+import FinancesChart from '../components/Charts/FinancesChart'
+import RentabiliteChart from '../components/Charts/RentabiliteChart'
+import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2 } from 'lucide-react'
 
 const TABS = [
   { id: 'carte', label: 'Carte', icon: Map },
@@ -15,10 +18,21 @@ const TABS = [
   { id: 'repartition', label: 'Répartition', icon: PieChart },
   { id: 'pivot', label: 'Tableau croisé', icon: Table },
   { id: 'contrats', label: 'Détail contrats', icon: FileText },
+  { id: 'finances', label: 'Finances', icon: DollarSign },
+  { id: 'rentabilite', label: 'Rentabilité', icon: BarChart2 },
 ]
 
 export default function Dashboard() {
+  
   const [activeTab, setActiveTab] = useState('carte')
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('dashboard_tab')
+    if (stored) {
+      sessionStorage.removeItem('dashboard_tab')
+      setActiveTab(stored)
+    }
+  }, [])
 
   return (
     <div className="flex h-full" style={{ minHeight: '100vh' }}>
@@ -48,6 +62,9 @@ export default function Dashboard() {
         <div className="animate-slide-up stagger-2">
           <KPICards />
         </div>
+
+        {/* ─── Alerts Area ─── */}
+        <DashboardAlerts />
 
         {/* ─── Charts / Table area ─── */}
         <div
@@ -81,6 +98,8 @@ export default function Dashboard() {
             {activeTab === 'repartition' && <DistributionCharts />}
             {activeTab === 'pivot' && <PivotTable />}
             {activeTab === 'contrats' && <DataTable />}
+            {activeTab === 'finances' && <FinancesChart />}
+            {activeTab === 'rentabilite' && <RentabiliteChart />}
           </div>
         </div>
       </div>

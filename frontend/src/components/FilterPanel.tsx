@@ -1,11 +1,16 @@
+import React from 'react';
 // 🎨 STYLE UPDATED — FilterPanel : sidebar glassmorphism, sections collapsables avec transitions, reset badge premium
-import React, { useMemo } from 'react'
+import { useMemo } from "react"
 import Select from 'react-select'
 import { useData, FilterState } from '../context/DataContext'
-import { Filter, ChevronUp, RotateCcw } from 'lucide-react'
+import { Filter, ChevronUp, RotateCcw, X } from 'lucide-react'
 import { Skeleton } from './ui/Skeleton'
 
-const selectStyles = { classNamePrefix: 'rs' }
+const selectStyles = {
+  classNamePrefix: 'rs',
+  menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
+  menuPosition: 'fixed' as const,
+}
 
 /* ─── Collapsable Section ─── */
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -117,8 +122,9 @@ export default function FilterPanel() {
     if (filters.pays_cedante.length) n++
     if (filters.courtier.length) n++
     if (filters.cedante.length) n++
+    if (filters.underwriting_years.length) n++
     if (filters.uw_year_min || filters.uw_year_max) n++
-    if (filters.statuts.length !== STATUS_ALL.length - 1) n++
+    if (filters.statuts.length) n++
     if (filters.type_of_contract.length) n++
     return n
   }, [filters])
@@ -136,6 +142,74 @@ export default function FilterPanel() {
       </div>
     )
   }
+
+  // Generate Active Filter Chips
+  const activeChips: { label: string; onRemove: () => void }[] = []
+  const removeFilter = (key: keyof FilterState, value?: any) => {
+    setFilters(prev => {
+      const next = { ...prev }
+      if (Array.isArray(next[key]) && value) {
+        // @ts-ignore
+        next[key] = next[key].filter(v => v !== value)
+      } else {
+        // @ts-ignore
+        next[key] = Array.isArray(next[key]) ? [] : null
+      }
+      return next
+    })
+  }
+
+  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_risque', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts']
+  arrayFilters.forEach(k => {
+    const vals = filters[k] as string[] | number[]
+    if (vals && vals.length > 0) {
+      vals.forEach(v => {
+        activeChips.push({ label: String(v), onRemove: () => removeFilter(k, v) })
+      })
+    }
+  })
+
+  // Special cases for string/number filters
+  if (filters.int_spc_search) {
+    activeChips.push({ label: `Recherche: ${filters.int_spc_search}`, onRemove: () => removeFilter('int_spc_search') })
+  }
+  if (filters.uw_year_min) {
+    activeChips.push({ label: `Année Min: ${filters.uw_year_min}`, onRemove: () => removeFilter('uw_year_min') })
+  }
+  if (filters.uw_year_max) {
+    activeChips.push({ label: `Année Max: ${filters.uw_year_max}`, onRemove: () => removeFilter('uw_year_max') })
+  }
+  if (filters.prime_min) {
+    activeChips.push({ label: `Prime Min: ${filters.prime_min}`, onRemove: () => removeFilter('prime_min') })
+  }
+  if (filters.prime_max) {
+    activeChips.push({ label: `Prime Max: ${filters.prime_max}`, onRemove: () => removeFilter('prime_max') })
+  }
+  if (filters.ulr_min) {
+    activeChips.push({ label: `ULR Min: ${filters.ulr_min}%`, onRemove: () => removeFilter('ulr_min') })
+  }
+  if (filters.ulr_max) {
+    activeChips.push({ label: `ULR Max: ${filters.ulr_max}%`, onRemove: () => removeFilter('ulr_max') })
+  }
+  if (filters.share_min) {
+    activeChips.push({ label: `Part Min: ${filters.share_min}%`, onRemove: () => removeFilter('share_min') })
+  }
+  if (filters.share_max) {
+    activeChips.push({ label: `Part Max: ${filters.share_max}%`, onRemove: () => removeFilter('share_max') })
+  }
+  if (filters.commission_min) {
+    activeChips.push({ label: `Comm. Min: ${filters.commission_min}%`, onRemove: () => removeFilter('commission_min') })
+  }
+  if (filters.commission_max) {
+    activeChips.push({ label: `Comm. Max: ${filters.commission_max}%`, onRemove: () => removeFilter('commission_max') })
+  }
+  if (filters.courtage_min) {
+    activeChips.push({ label: `Court. Min: ${filters.courtage_min}%`, onRemove: () => removeFilter('courtage_min') })
+  }
+  if (filters.courtage_max) {
+    activeChips.push({ label: `Court. Max: ${filters.courtage_max}%`, onRemove: () => removeFilter('courtage_max') })
+  }
+
 
   return (
     <div
@@ -189,6 +263,28 @@ export default function FilterPanel() {
         </button>
       </div>
 
+      {/* ─── Active Filters Summary ─── */}
+      {activeChips.length > 0 && (
+        <div className="px-5 py-3 border-b border-[var(--color-gray-100)] bg-[var(--color-off-white)]">
+          <div className="flex flex-wrap gap-2">
+            {activeChips.map((chip, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold text-[var(--color-navy)] bg-white border border-[var(--color-gray-200)] shadow-sm animate-fade-in group"
+              >
+                {chip.label}
+                <button
+                  onClick={chip.onRemove}
+                  className="text-gray-400 group-hover:text-red-500 transition-colors"
+                >
+                  <X size={10} strokeWidth={3} />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ─── Filter sections ─── */}
       <div className="py-2">
         {/* INT_SPC */}
@@ -211,7 +307,7 @@ export default function FilterPanel() {
           <Select isMulti options={toOptions(filterOptions.cedantes)} {...selectStyles} placeholder="Cédante" value={toOptions(filters.cedante)} onChange={v => setFilters(f => ({ ...f, cedante: v.map(x => x.value) }))} />
           <div>
             <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Année de souscription</p>
-            <Select isMulti options={toNumOptions(filterOptions.underwriting_years)} {...selectStyles} placeholder="Toutes les années" value={filters.underwriting_years ? toNumOptions(filters.underwriting_years as any || []) : []} onChange={v => setFilters(f => ({ ...f, underwriting_years: v.length ? v.map(x => x.value) : null, uw_year_min: null, uw_year_max: null, } as any))} />
+            <Select isMulti options={toNumOptions(filterOptions.underwriting_years)} {...selectStyles} placeholder="Toutes les années" value={toNumOptions(filters.underwriting_years)} onChange={v => setFilters(f => ({ ...f, underwriting_years: v.map(x => x.value), uw_year_min: null, uw_year_max: null }))} />
           </div>
         </Section>
 

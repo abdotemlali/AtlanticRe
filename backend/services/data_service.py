@@ -212,12 +212,15 @@ def compute_kpi_summary(df: pd.DataFrame) -> Dict[str, Any]:
     if pd.isna(total_si):
         total_si = 0.0
 
+    ratio_resultat_prime = round(total_res / total_wp * 100, 2) if total_wp != 0 else 0.0
+
     return {
         "total_written_premium": round(_sanitize(total_wp), 2),
         "total_resultat": round(_sanitize(total_res), 2),
         "avg_ulr": round(_sanitize(avg_ulr), 2),
         "total_sum_insured": round(_sanitize(total_si), 2),
         "contract_count": len(df),
+        "ratio_resultat_prime": ratio_resultat_prime,
     }
 
 
