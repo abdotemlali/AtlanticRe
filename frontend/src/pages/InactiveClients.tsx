@@ -1,9 +1,11 @@
+import React from 'react';
 // 🎨 STYLE UPDATED — InactiveClients : AbsenceBadge HSL, StatutsTooltip glassmorphism, sliders CSS styled, pagination premium
-import React, { useState } from 'react'
+import { useState } from "react"
 import { useInactiveClients } from '../hooks/useInactiveClients'
 import { InactiveClient } from '../types/admin.types'
-import { UserX, Download, Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, AlertTriangle, Loader2 } from 'lucide-react'
+import { UserX, Download, Search, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, AlertTriangle, Loader2, Repeat } from 'lucide-react'
 import { TableSkeleton } from '../components/ui/Skeleton'
+import RenewalsAnalysis from '../components/Charts/RenewalsAnalysis'
 
 /* ─── Absence Badge — HSL Premium ─── */
 function AbsenceBadge({ years }: { years: number }) {
@@ -110,11 +112,23 @@ function SortTh({ label, field, currentSort, currentOrder, onSort }: {
    Main Page
    ───────────────────────────────────────────────────────────── */
 export default function InactiveClients() {
-    const { data, loading, exporting, error, params, analyze, sortBy, goToPage, exportExcel } = useInactiveClients()
+    const { data, loading, exporting, error, params, analyze, sortBy, exportExcel } = useInactiveClients()
     const [yearsInput, setYearsInput] = useState(2)
     const [contractsInput, setContractsInput] = useState(3)
+    const [paysFilter, setPaysFilter] = useState<string>('')
+    const [localPage, setLocalPage] = useState(1)
+    const localPageSize = 50
+    const [tab, setTab] = useState<'inactives' | 'renewals'>('inactives')
 
-    const totalPages = data ? Math.ceil(data.total / data.page_size) : 0
+    // Reset local page on new fetch or filter
+    React.useEffect(() => { setLocalPage(1) }, [data, paysFilter])
+
+    const uniqueCountries = data?.clients ? Array.from(new Set(data.clients.map(c => c.pays_cedante).filter(Boolean))).sort() : []
+
+    const displayedClients = data ? data.clients.filter(c => paysFilter === '' || c.pays_cedante === paysFilter) : []
+    const totalDisplayed = displayedClients.length
+    const totalPages = Math.max(1, Math.ceil(totalDisplayed / localPageSize))
+    const paginatedClients = displayedClients.slice((localPage - 1) * localPageSize, localPage * localPageSize)
 
     return (
         <div className="p-5 space-y-5 page-container" style={{ minHeight: '100vh' }}>
@@ -122,12 +136,12 @@ export default function InactiveClients() {
             {/* ─── Header ─── */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="animate-slide-up">
-                    <h1 className="text-lg font-bold text-navy flex items-center gap-2">
+                    <h1 className="text-lg font-bold text-[var(--color-navy)] flex items-center gap-2">
                         <span
                             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: 'hsla(358,66%,54%,0.12)', border: '1px solid hsla(358,66%,54%,0.25)' }}
                         >
-                            <UserX size={15} style={{ color: 'hsl(358,66%,54%)' }} />
+                            <UserX size={15} style={{ color: 'var(--color-red)' }} />
                         </span>
                         Clients Inactifs
                     </h1>
@@ -157,9 +171,27 @@ export default function InactiveClients() {
                 )}
             </div>
 
-            {/* ─── Parameters Card ─── */}
-            <div className="glass-card p-5 animate-slide-up stagger-2">
-                <h2 className="text-sm font-bold text-navy mb-4 flex items-center gap-2">
+            {/* ─── Tabs ─── */}
+            <div className="flex bg-[var(--color-gray-100)] p-1 rounded-xl w-fit">
+                <button
+                    onClick={() => setTab('inactives')}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'inactives' ? 'bg-white text-[var(--color-navy)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-navy)]'}`}
+                >
+                    <UserX size={16} /> Cédantes Inactives
+                </button>
+                <button
+                    onClick={() => setTab('renewals')}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'renewals' ? 'bg-white text-[var(--color-navy)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-navy)]'}`}
+                >
+                    <Repeat size={16} /> Renouvellements
+                </button>
+            </div>
+
+            {tab === 'inactives' ? (
+              <div className="space-y-5 animate-fade-in">
+                {/* ─── Parameters Card ─── */}
+                <div className="glass-card p-5 animate-slide-up stagger-2">
+                <h2 className="text-sm font-bold text-[var(--color-navy)] mb-4 flex items-center gap-2">
                     <span className="text-base">⚙️</span>
                     Paramètres de détection
                 </h2>
@@ -257,10 +289,10 @@ export default function InactiveClients() {
             {error && (
                 <div
                     className="glass-card p-4 flex items-center gap-3 animate-slide-up"
-                    style={{ borderLeft: '3px solid hsl(358,66%,54%)' }}
+                    style={{ borderLeft: '3px solid var(--color-red)' }}
                 >
-                    <AlertTriangle size={18} style={{ color: 'hsl(358,66%,54%)', flexShrink: 0 }} />
-                    <span className="text-sm font-medium" style={{ color: 'hsl(358,66%,54%)' }}>{error}</span>
+                    <AlertTriangle size={18} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-red)' }}>{error}</span>
                 </div>
             )}
 
@@ -271,10 +303,10 @@ export default function InactiveClients() {
                         className="w-16 h-16 rounded-2xl flex items-center justify-center"
                         style={{ background: 'hsla(358,66%,54%,0.08)' }}
                     >
-                        <UserX size={28} style={{ color: 'hsl(358,66%,54%)', opacity: 0.5 }} />
+                        <UserX size={28} style={{ color: 'var(--color-red)', opacity: 0.5 }} />
                     </div>
-                    <p className="text-sm font-medium text-gray-400">
-                        Configurez les paramètres et cliquez sur <strong className="text-navy">Analyser</strong>
+                    <p className="text-sm font-medium text-[var(--color-gray-500)]">
+                        Configurez les paramètres et cliquez sur <strong className="text-[var(--color-navy)]">Analyser</strong>
                     </p>
                 </div>
             )}
@@ -292,27 +324,50 @@ export default function InactiveClients() {
             {/* ─── Results ─── */}
             {data && !loading && (
                 <>
-                    {/* Summary badge */}
-                    <div className="flex items-center gap-3 flex-wrap animate-slide-up">
-                        <span
-                            className="text-sm font-bold px-4 py-1.5 rounded-full"
-                            style={{
-                                background: data.total === 0 ? 'hsla(83,52%,36%,0.12)' : 'hsla(358,66%,54%,0.12)',
-                                color: data.total === 0 ? 'hsl(83,54%,30%)' : 'hsl(358,66%,48%)',
-                                border: `1px solid ${data.total === 0 ? 'hsla(83,52%,36%,0.25)' : 'hsla(358,66%,54%,0.25)'}`,
-                            }}
-                        >
-                            {data.total === 0
-                                ? '✅ Aucune cédante inactive détectée'
-                                : `⚠️ ${data.total} cédante${data.total > 1 ? 's' : ''} inactive${data.total > 1 ? 's' : ''} détectée${data.total > 1 ? 's' : ''}`}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                            Seuil : ≥ {data.years_threshold} an{data.years_threshold > 1 ? 's' : ''} d'absence · ≥ {data.min_contracts} contrats
-                        </span>
+                    {/* Summary badge & Filter */}
+                    <div className="flex items-center justify-between gap-4 flex-wrap animate-slide-up">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <span
+                                className="text-sm font-bold px-4 py-1.5 rounded-full"
+                                style={{
+                                    background: totalDisplayed === 0 ? 'hsla(83,52%,36%,0.12)' : 'hsla(358,66%,54%,0.12)',
+                                    color: totalDisplayed === 0 ? 'hsl(83,54%,30%)' : 'var(--color-red)',
+                                    border: `1px solid ${totalDisplayed === 0 ? 'hsla(83,52%,36%,0.25)' : 'hsla(358,66%,54%,0.25)'}`,
+                                }}
+                            >
+                                {totalDisplayed === 0
+                                    ? '✅ Aucune cédante inactive'
+                                    : `⚠️ ${totalDisplayed} cédante${totalDisplayed > 1 ? 's' : ''} inactive${totalDisplayed > 1 ? 's' : ''}`}
+                            </span>
+                            <span className="text-xs text-[var(--color-gray-500)]">
+                                Seuil : ≥ {data.years_threshold} an{data.years_threshold > 1 ? 's' : ''} d'absence · ≥ {data.min_contracts} contrats
+                            </span>
+                        </div>
+                        
+                        {/* Filtre Pays */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-[var(--color-gray-500)]">PAYS :</span>
+                            <select 
+                                value={paysFilter} 
+                                onChange={(e) => setPaysFilter(e.target.value)}
+                                disabled={uniqueCountries.length === 0}
+                                className="text-sm py-1.5 px-3 rounded-lg border focus:outline-none min-w-[160px]"
+                                style={{ 
+                                    borderColor: 'var(--color-gray-200)', 
+                                    backgroundColor: 'var(--color-off-white)',
+                                    color: paysFilter ? 'var(--color-navy)' : 'var(--color-gray-500)'
+                                }}
+                            >
+                                <option value="">Tous les pays</option>
+                                {uniqueCountries.map(p => (
+                                    <option key={p} value={p}>{p}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Results table */}
-                    {data.clients.length > 0 && (
+                    {displayedClients.length > 0 && (
                         <>
                             <div
                                 className="glass-card overflow-hidden animate-slide-up stagger-2"
@@ -332,13 +387,13 @@ export default function InactiveClients() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {data.clients.map((client: InactiveClient, i: number) => (
+                                            {paginatedClients.map((client: InactiveClient, i: number) => (
                                                 <tr
                                                     key={`${client.cedant_code}-${i}`}
                                                     style={{ animationDelay: `${Math.min(i * 20, 200)}ms` }}
                                                 >
                                                     {/* Cedante name */}
-                                                    <td className="font-medium text-navy" style={{ maxWidth: 220 }}>
+                                                    <td className="font-medium text-[var(--color-navy)]" style={{ maxWidth: 220 }}>
                                                         <span
                                                             className="block overflow-hidden text-ellipsis whitespace-nowrap"
                                                             title={client.int_cedante}
@@ -352,9 +407,9 @@ export default function InactiveClients() {
                                                             {client.cedant_code}
                                                         </span>
                                                     </td>
-                                                    <td className="text-gray-500 text-xs">{client.pays_cedante || '—'}</td>
-                                                    <td className="text-right font-mono text-xs font-bold text-navy">{client.total_contracts}</td>
-                                                    <td className="text-center font-mono text-sm font-semibold text-navy">{client.last_year_active}</td>
+                                                    <td className="text-[var(--color-gray-500)] text-xs">{client.pays_cedante || '—'}</td>
+                                                    <td className="text-right font-mono text-xs font-bold text-[var(--color-navy)]">{client.total_contracts}</td>
+                                                    <td className="text-center font-mono text-sm font-semibold text-[var(--color-navy)]">{client.last_year_active}</td>
                                                     <td className="text-center"><AbsenceBadge years={client.years_absent} /></td>
                                                     <td><StatutsTooltip breakdown={client.statuts_breakdown} /></td>
                                                 </tr>
@@ -364,31 +419,31 @@ export default function InactiveClients() {
                                 </div>
                             </div>
 
-                            {/* ─── Pagination ─── */}
+                                {/* ─── Pagination ─── */}
                             {totalPages > 1 && (
-                                <div className="flex items-center justify-between flex-wrap gap-2 animate-fade-in">
-                                    <p className="text-xs text-gray-400 tabular-nums">
-                                        Page <span className="font-semibold text-navy">{data.page}</span> / {totalPages}
+                                <div className="flex items-center justify-between flex-wrap gap-2 animate-fade-in mt-4">
+                                    <p className="text-xs text-[var(--color-gray-500)] tabular-nums">
+                                        Page <span className="font-semibold text-[var(--color-navy)]">{localPage}</span> / {totalPages}
                                         <span className="mx-1">·</span>
-                                        {data.total} résultat{data.total > 1 ? 's' : ''}
+                                        {totalDisplayed} résultat{totalDisplayed > 1 ? 's' : ''}
                                     </p>
                                     <div className="flex items-center gap-1.5">
                                         <button
-                                            onClick={() => goToPage(data.page - 1)}
-                                            disabled={data.page <= 1}
+                                            onClick={() => setLocalPage(p => Math.max(1, p - 1))}
+                                            disabled={localPage <= 1}
                                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-250 disabled:opacity-35"
                                             style={{ border: '1px solid var(--color-gray-200)', color: 'var(--color-gray-600)' }}
-                                            onMouseEnter={e => { if (data.page > 1) e.currentTarget.style.background = 'var(--color-navy-muted)' }}
+                                            onMouseEnter={e => { if (localPage > 1) e.currentTarget.style.background = 'var(--color-navy-muted)' }}
                                             onMouseLeave={e => { e.currentTarget.style.background = '' }}
                                         >
                                             <ChevronLeft size={13} /> Précédent
                                         </button>
                                         <button
-                                            onClick={() => goToPage(data.page + 1)}
-                                            disabled={data.page >= totalPages}
+                                            onClick={() => setLocalPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={localPage >= totalPages}
                                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-250 disabled:opacity-35"
                                             style={{ border: '1px solid var(--color-gray-200)', color: 'var(--color-gray-600)' }}
-                                            onMouseEnter={e => { if (data.page < totalPages) e.currentTarget.style.background = 'var(--color-navy-muted)' }}
+                                            onMouseEnter={e => { if (localPage < totalPages) e.currentTarget.style.background = 'var(--color-navy-muted)' }}
                                             onMouseLeave={e => { e.currentTarget.style.background = '' }}
                                         >
                                             Suivant <ChevronRight size={13} />
@@ -399,6 +454,10 @@ export default function InactiveClients() {
                         </>
                     )}
                 </>
+            )}
+            </div>
+            ) : (
+                <RenewalsAnalysis />
             )}
         </div>
     )

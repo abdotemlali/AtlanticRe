@@ -54,14 +54,18 @@ def get_inactive_clients(
     )
     last_year["last_year_active"] = last_year["last_year_active"].astype(int)
 
-    # Pays cedante (mode)
+    # Pays cedante (le plus fréquent via vectorisation au lieu de python lambda mode qui est très lent)
     pays_col = "PAYS_CEDANTE" if "PAYS_CEDANTE" in df.columns else None
     if pays_col:
         pays = (
-            df.groupby(["INT_CEDANTE", "CEDANT_CODE"])[pays_col]
-            .agg(lambda s: s.mode().iloc[0] if not s.mode().empty else "")
-            .reset_index(name="pays_cedante")
-        )
+            df.dropna(subset=[pays_col])
+            .groupby(["INT_CEDANTE", "CEDANT_CODE", pays_col])
+            .size()
+            .reset_index(name="count")
+            .sort_values("count", ascending=False)
+            .drop_duplicates(["INT_CEDANTE", "CEDANT_CODE"])
+            .rename(columns={pays_col: "pays_cedante"})
+        )[["INT_CEDANTE", "CEDANT_CODE", "pays_cedante"]]
     else:
         pays = None
 
@@ -91,27 +95,30 @@ def get_inactive_clients(
 
     inactive["years_absent"] = reference_year - inactive["last_year_active"]
 
-    # ── Build statuts dict per client ─────────────────────────────────────────
-    def get_statuts(int_cedante: str, cedant_code: str) -> dict:
-        if statuts_breakdown is None:
-            return {}
-        mask = (
-            (statuts_breakdown["INT_CEDANTE"] == int_cedante) &
-            (statuts_breakdown["CEDANT_CODE"] == cedant_code)
+    # Pré-calculer un dict indexé par (INT_CEDANTE, CEDANT_CODE) via Pandas natif (unstack)
+    statuts_dict: dict = {}
+    if statuts_breakdown is not None and not statuts_breakdown.empty:
+        unstacked = (
+            statuts_breakdown.set_index(["INT_CEDANTE", "CEDANT_CODE", "CONTRACT_STATUS"])["cnt"]
+            .unstack(fill_value=0)
+            .astype(int)
         )
-        sub = statuts_breakdown[mask]
-        return {row["CONTRACT_STATUS"]: int(row["cnt"]) for _, row in sub.iterrows()}
+        statuts_dict = unstacked.to_dict(orient="index")
 
+    # On utilise to_dict("records") au lieu d'iterrows pour beaucoup plus de performances
+    inactive_records = inactive.to_dict("records")
     clients = []
-    for _, row in inactive.iterrows():
+    
+    for row in inactive_records:
+        key = (row["INT_CEDANTE"], row["CEDANT_CODE"])
         clients.append({
             "cedant_code":      row["CEDANT_CODE"],
             "int_cedante":      row["INT_CEDANTE"],
             "total_contracts":  int(row["total_contracts"]),
             "last_year_active": int(row["last_year_active"]),
             "years_absent":     int(row["years_absent"]),
-            "pays_cedante":     str(row.get("pays_cedante", "")),
-            "statuts_breakdown": get_statuts(row["INT_CEDANTE"], row["CEDANT_CODE"]),
+            "pays_cedante":     str(row.get("pays_cedante", "") if not pd.isna(row.get("pays_cedante")) else ""),
+            "statuts_breakdown": statuts_dict.get(key, {}),
         })
 
     return {
@@ -220,3 +227,43 @@ def export_inactive_clients_excel(
     workbook.close()
     output.seek(0)
     return output
+
+def get_renewal_analysis(df: pd.DataFrame) -> dict:
+    if df.empty or "RENEWALE_CONTRACT" not in df.columns or "UNDERWRITING_YEAR" not in df.columns:
+        return {"by_year": [], "by_cedante": []}
+    
+    df = df.copy()
+    df["UNDERWRITING_YEAR"] = pd.to_numeric(df["UNDERWRITING_YEAR"], errors="coerce")
+    df["is_renewal"] = df["RENEWALE_CONTRACT"].notna() & (df["RENEWALE_CONTRACT"].astype(str).str.strip() != "")
+    
+    # Par année
+    by_year = []
+    for year, group in df.dropna(subset=["UNDERWRITING_YEAR"]).groupby("UNDERWRITING_YEAR"):
+        total = len(group)
+        renewals = int(group["is_renewal"].sum())
+        by_year.append({
+            "year": int(year),
+            "total": total,
+            "renewals": renewals,
+            "new_business": total - renewals,
+            "retention_rate": round(renewals / total * 100, 1) if total > 0 else 0,
+        })
+    by_year.sort(key=lambda x: x["year"])
+    
+    # Par cédante top 15
+    by_cedante = []
+    for cedante, group in df.groupby("INT_CEDANTE"):
+        if not cedante:
+            continue
+        total = len(group)
+        renewals = int(group["is_renewal"].sum())
+        by_cedante.append({
+            "cedante": cedante,
+            "total": total,
+            "renewals": renewals,
+            "new_business": total - renewals,
+            "retention_rate": round(renewals / total * 100, 1) if total > 0 else 0,
+        })
+    by_cedante.sort(key=lambda x: x["total"], reverse=True)
+    
+    return {"by_year": by_year, "by_cedante": by_cedante[:15]}

@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps'
 import { useData, filtersToParams } from '../../context/DataContext'
 import api from '../../utils/api'
+import { API_ROUTES } from '../../constants/api'
 import { formatCompact, formatPercent } from '../../utils/formatters'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
@@ -12,6 +13,9 @@ interface CountryData {
   total_resultat: number
   avg_ulr: number
   contract_count: number
+  exposition?: number
+  sum_insured_100?: number
+  avg_share_signed?: number
 }
 
 interface TooltipState {
@@ -20,20 +24,71 @@ interface TooltipState {
 
 // Map French country names to standard English names using a simple lookup
 const COUNTRY_NAME_MAP: Record<string, string> = {
-  'MAROC': 'Morocco', 'FRANCE': 'France', 'SENEGAL': 'Senegal',
-  'COTE D\'IVOIRE': 'Ivory Coast', 'CAMEROUN': 'Cameroon', 'ALGERIE': 'Algeria',
-  'TUNISIE': 'Tunisia', 'EGYPTE': 'Egypt', "NIGER": "Niger", 'MALI': 'Mali',
-  'BURKINA FASO': 'Burkina Faso', 'CONGO': 'Congo', 'GABON': 'Gabon',
-  'GUINEE': 'Guinea', 'TOGO': 'Togo', 'BENIN': 'Benin', 'GHANA': 'Ghana',
-  'NIGERIA': 'Nigeria', 'KENYA': 'Kenya', 'TANZANIE': 'Tanzania',
-  'MOZAMBIQUE': 'Mozambique', 'ANGOLA': 'Angola', 'ZAMBIE': 'Zambia',
-  'ZIMBABWE': 'Zimbabwe', 'LIBYE': 'Libya', 'MAURITANIE': 'Mauritania',
-  'DUBAI': 'United Arab Emirates', 'EMIRATS ARABES': 'United Arab Emirates',
-  'ARABIE SAOUDITE': 'Saudi Arabia', 'BAHREIN': 'Bahrain', 'OMAN': 'Oman',
-  'JORDANIE': 'Jordan', 'LIBAN': 'Lebanon', 'IRAK': 'Iraq',
+  'MAROC': 'Morocco',
+  'ALGERIE': 'Algeria',
+  'TUNISIE': 'Tunisia',
+  'LIBYE': 'Libya',
+  'EGYPTE': 'Egypt',
+  'MAURITANIE': 'Mauritania',
+  'SENEGAL': 'Senegal',
+  'MALI': 'Mali',
+  'BURKINA FASO': 'Burkina Faso',
+  'NIGER': 'Niger',
+  'TOGO': 'Togo',
+  'BENIN': 'Benin',
+  'GHANA': 'Ghana',
+  'NIGERIA': 'Nigeria',
+  'CAMEROUN': 'Cameroon',
+  'GABON': 'Gabon',
+  'CONGO': 'Republic of the Congo',
+  'ANGOLA': 'Angola',
+  'NAMIBIE': 'Namibia',
+  'AFRIQUE DU SUD': 'South Africa',
+  'BOTSWANA': 'Botswana',
+  'ZIMBABWE': 'Zimbabwe',
+  'ZAMBIE': 'Zambia',
+  'MOZAMBIQUE': 'Mozambique',
+  'TANZANIE': 'Tanzania',
+  'KENYA': 'Kenya',
+  'OUGANDA': 'Uganda',
+  'RWANDA': 'Rwanda',
+  'SOMALIE': 'Somalia',
+  'ETHIOPIE': 'Ethiopia',
+  'DJIBOUTI': 'Djibouti',
+  'SOUDAN': 'Sudan',
+  'COTE D IVOIRE': 'Ivory Coast',
+  'ARABIE SAOUDITE': 'Saudi Arabia',
+  'EMIRATS ARABES UNIS': 'United Arab Emirates',
+  'KOWEIT': 'Kuwait',
+  'QATAR': 'Qatar',
+  'BAHREIN': 'Bahrain',
+  'OMAN': 'Oman',
+  'JORDANIE': 'Jordan',
+  'LIBAN': 'Lebanon',
+  'IRAK': 'Iraq',
+  'IRAN': 'Iran',
+  'SYRIE': 'Syria',
+  'TURQUIE': 'Turkey',
+  'PAKISTAN': 'Pakistan',
+  'INDE': 'India',
+  'SRI LANKA': 'Sri Lanka',
+  'BANGLADESH': 'Bangladesh',
+  'CHINE': 'China',
+  'TAIWAN': 'Taiwan',
+  'COREE DU SUD': 'South Korea',
+  'JAPON': 'Japan',
+  'SINGAPOUR': 'Singapore',
+  'MALAISIE': 'Malaysia',
+  'INDONESIE': 'Indonesia',
+  'VIETNAM': 'Vietnam',
+  'ASIE PACIFIQUE': 'Australia',
+  'EUROPE': 'France',
+  'MOYEN ORIENT': 'Saudi Arabia',
+  'MONDE ENTIER': 'Morocco',
+  'AFRIQUE': 'Nigeria',
 }
 
-export default function WorldMap() {
+export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' | 'exposition'}) {
   const { filters } = useData()
   const [countryData, setCountryData] = useState<CountryData[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,13 +97,19 @@ export default function WorldMap() {
   useEffect(() => {
     setLoading(true)
     const params = filtersToParams(filters)
-    api.get('/kpis/by-country', { params })
+    const endpoint = colorBy === 'exposition' ? API_ROUTES.EXPOSITION.BY_COUNTRY : API_ROUTES.KPIS.BY_COUNTRY
+    api.get(endpoint, { params })
       .then(r => setCountryData(r.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [filters])
+  }, [filters, colorBy])
 
-  const maxPremium = useMemo(() => Math.max(...countryData.map(d => d.total_written_premium), 1), [countryData])
+  const maxValue = useMemo(() => {
+    if (colorBy === 'exposition') {
+      return Math.max(...countryData.map(d => d.exposition || 0), 1)
+    }
+    return Math.max(...countryData.map(d => d.total_written_premium || 0), 1)
+  }, [countryData, colorBy])
 
   const dataByName = useMemo(() => {
     const map: Record<string, CountryData> = {}
@@ -63,7 +124,8 @@ export default function WorldMap() {
   const getColor = (geoName: string): string => {
     const d = dataByName[geoName.toLowerCase()]
     if (!d) return '#1a1a3a'
-    const ratio = d.total_written_premium / maxPremium
+    const metric = colorBy === 'exposition' ? (d.exposition || 0) : (d.total_written_premium || 0)
+    const ratio = metric / maxValue
     if (ratio > 0.7) return '#4361ee'
     if (ratio > 0.4) return '#7b9cff'
     if (ratio > 0.15) return '#4cc9f0'
@@ -128,17 +190,28 @@ export default function WorldMap() {
         >
           <p className="text-sm font-semibold text-white mb-2">{tooltip.data.pays}</p>
           <div className="space-y-1 text-xs" style={{ color: '#94a3b8' }}>
-            <p>Prime écrite : <span className="text-white font-medium">{formatCompact(tooltip.data.total_written_premium)}</span></p>
-            <p>Loss Ratio : <span className="text-white font-medium">{formatPercent(tooltip.data.avg_ulr)}</span></p>
-            <p>Résultat : <span className={`font-medium ${tooltip.data.total_resultat >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCompact(tooltip.data.total_resultat)}</span></p>
-            <p>Contrats : <span className="text-white font-medium">{tooltip.data.contract_count}</span></p>
+            {colorBy === 'exposition' ? (
+              <>
+                <p>Exposition : <span className="text-white font-medium">{formatCompact(tooltip.data.exposition || 0)}</span></p>
+                <p>Somme assurée : <span className="text-white font-medium">{formatCompact(tooltip.data.sum_insured_100 || 0)}</span></p>
+                <p>Part moy. : <span className="text-white font-medium">{tooltip.data.avg_share_signed || 0}%</span></p>
+                <p>Contrats : <span className="text-white font-medium">{tooltip.data.contract_count}</span></p>
+              </>
+            ) : (
+              <>
+                <p>Prime écrite : <span className="text-white font-medium">{formatCompact(tooltip.data.total_written_premium || 0)}</span></p>
+                <p>Loss Ratio : <span className="text-white font-medium">{formatPercent(tooltip.data.avg_ulr || 0)}</span></p>
+                <p>Résultat : <span className={`font-medium ${(tooltip.data.total_resultat || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCompact(tooltip.data.total_resultat || 0)}</span></p>
+                <p>Contrats : <span className="text-white font-medium">{tooltip.data.contract_count}</span></p>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {/* Legend */}
       <div className="absolute bottom-3 left-3 flex items-center gap-2">
-        <p className="text-xs" style={{ color: '#94a3b8' }}>Prime écrite :</p>
+        <p className="text-xs" style={{ color: '#94a3b8' }}>{colorBy === 'exposition' ? 'Exposition :' : 'Prime écrite :'}</p>
         {['Faible', 'Modérée', 'Élevée', 'Très élevée'].map((l, i) => (
           <div key={i} className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm" style={{ background: ['#1f2f55', '#2a4a7a', '#4cc9f0', '#4361ee'][i] }} />

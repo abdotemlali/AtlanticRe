@@ -1,5 +1,5 @@
 // 🎨 STYLE UPDATED — PivotTable : harmonisé avec DataTable (glass, badges, couleurs HSL, sort icons, export btn premium)
-import React, { useState } from 'react'
+import { useState } from "react"
 import Select from 'react-select'
 import { useData, filtersToParams } from '../../context/DataContext'
 import api from '../../utils/api'

@@ -16,7 +16,7 @@ def get_inactive_clients(
     years_threshold: int = Query(2, ge=1, le=20, description="Nombre d'années d'absence minimum"),
     min_contracts:   int = Query(3, ge=1, le=1000, description="Nombre minimum de contrats historiques"),
     page:            int = Query(1, ge=1),
-    page_size:       int = Query(50, ge=1, le=500),
+    page_size:       int = Query(5000, ge=1, le=5000),
     sort_by:         str = Query("last_year", description="Champ de tri : last_year | total_contracts | years_absent | int_cedante"),
     sort_order:      str = Query("desc", pattern="^(asc|desc)$"),
     _: dict = Depends(require_role("admin", "souscripteur")),
@@ -37,10 +37,8 @@ def get_inactive_clients(
     reverse = sort_order == "desc"
     clients = sorted(clients, key=lambda x: x.get(sort_field, 0), reverse=reverse)
 
-    # ── Pagination ────────────────────────────────────────────────────────────
+    # ── Pagination (Removed backend slice so frontend can filter globally) ─
     total = len(clients)
-    start = (page - 1) * page_size
-    end   = start + page_size
 
     return {
         "total":          total,
@@ -49,7 +47,7 @@ def get_inactive_clients(
         "years_threshold": years_threshold,
         "min_contracts":  min_contracts,
         "reference_year": result["reference_year"],
-        "clients":        clients[start:end],
+        "clients":        clients,
     }
 
 
@@ -82,7 +80,15 @@ def export_inactive_clients(
     )
 
     return StreamingResponse(
-        iter([output.read()]),
+        output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=clients_inactifs.xlsx"},
+        headers={"Content-Disposition": f"attachment; filename=clients_inactifs.xlsx"}
     )
+
+@router.get("/renewals")
+def get_renewals(
+    _: dict = Depends(require_role("admin", "souscripteur")),
+):
+    df = get_df()
+    from services.client_service import get_renewal_analysis
+    return get_renewal_analysis(df)

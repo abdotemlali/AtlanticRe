@@ -1,5 +1,5 @@
 // 🎨 STYLE UPDATED — DataTable : lignes animées (stagger), pagination pill moderne, sorts stylisés, StatusBadge
-import React, { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from "react"
 import { useData, filtersToParams } from '../context/DataContext'
 import api from '../utils/api'
 import { formatDate, formatCompact, formatPercent, truncate } from '../utils/formatters'
@@ -7,6 +7,7 @@ import { ArrowUp, ArrowDown, ArrowUpDown, Search, ChevronLeft, ChevronRight } fr
 import ExportButton from './ExportButton'
 import { StatusBadge } from './ui/Badge'
 import { TableSkeleton } from './ui/Skeleton'
+import PipelineView from './PipelineView'
 
 interface Contract {
   policy_id: string
@@ -23,6 +24,11 @@ interface Contract {
   resultat: number | null
   inception_date: string | null
   expiry_date: string | null
+  date_accepted: string | null
+  date_confirmed: string | null
+  date_closed: string | null
+  date_cancelled: string | null
+  date_saisie: string | null
 }
 
 export default function DataTable() {
@@ -35,6 +41,7 @@ export default function DataTable() {
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortDesc, setSortDesc] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,6 +113,24 @@ export default function DataTable() {
 
       {/* ─── Toolbar ─── */}
       <div className="flex items-center gap-3 flex-wrap">
+        {/* View Toggle */}
+        <div className="flex bg-[var(--color-gray-100)] rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-[var(--color-navy)]' : 'text-[var(--color-gray-500)] hover:text-[var(--color-navy)]'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            Table
+          </button>
+          <button
+            onClick={() => setViewMode('pipeline')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'pipeline' ? 'bg-white shadow-sm text-[var(--color-navy)]' : 'text-[var(--color-gray-500)] hover:text-[var(--color-navy)]'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            Pipeline
+          </button>
+        </div>
+
         {/* Search */}
         <div className="relative flex-1 min-w-[220px] max-w-xs">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -142,6 +167,8 @@ export default function DataTable() {
       >
         {loading ? (
           <TableSkeleton rows={10} columns={13} />
+        ) : viewMode === 'pipeline' ? (
+          <PipelineView data={data} />
         ) : (
           <table className="data-table">
             <thead>

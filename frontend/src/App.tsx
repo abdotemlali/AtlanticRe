@@ -13,6 +13,8 @@ import Admin from './pages/Admin'
 import ResetPassword from './pages/ResetPassword'
 import ChangePassword from './pages/ChangePassword'
 import InactiveClients from './pages/InactiveClients'
+import Analysis from './pages/Analysis'
+import ExpositionRisques from './pages/ExpositionRisques'
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuth()
@@ -42,6 +44,8 @@ function AppRoutes() {
         <Route path="scoring" element={<MarketSelection />} />
         <Route path="comparaison" element={<Comparison />} />
         <Route path="recommandations" element={<Recommendations />} />
+        <Route path="analyse" element={<Analysis />} />
+        <Route path="exposition" element={<ExpositionRisques />} />
         <Route
           path="inactive-clients"
           element={

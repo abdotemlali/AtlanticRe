@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from "react"
 import api from '../utils/api'
 
 import { Users, Settings, FileText, Plus, Edit2, Check, X, Trash2, Shield } from 'lucide-react'
@@ -18,7 +18,7 @@ interface EditForm extends Omit<UserUpdate, 'password'> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   admin: { bg: '#1E2D3D', color: '#FFFFFF' },
-  souscripteur: { bg: '#4E6820', color: '#FFFFFF' },
+  souscripteur: { bg: 'hsl(83,54%,27%)', color: '#FFFFFF' },
   lecteur: { bg: '#516070', color: '#FFFFFF' },
 }
 
@@ -157,7 +157,7 @@ function EditModal({
               disabled={isSelf}
               className="w-4 h-4 cursor-pointer"
             />
-            <span className="text-xs" style={{ color: form.active ? '#6B8C2A' : '#94a3b8' }}>
+            <span className="text-xs" style={{ color: form.active ? 'hsl(83,52%,36%)' : '#94a3b8' }}>
               {form.active ? 'Actif' : 'Inactif'}
             </span>
           </div>
@@ -290,7 +290,7 @@ export default function Admin() {
       )}
 
       <div>
-        <h1 className="text-xl font-bold text-white mb-1">Administration</h1>
+        <h1 className="text-xl font-bold text-[var(--color-navy)] mb-1">Administration</h1>
         <p className="text-sm" style={{ color: '#94a3b8' }}>Gestion des utilisateurs, configuration et logs — Admin uniquement</p>
       </div>
 
@@ -398,7 +398,7 @@ export default function Admin() {
                             className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
                             title="Modifier"
                             style={{
-                              background: 'linear-gradient(135deg, #2D3E50, #3D5166)',
+                              background: 'linear-gradient(135deg, var(--color-navy), #3D5166)',
                               color: 'white',
                               borderRadius: '6px',
                             }}
@@ -414,7 +414,7 @@ export default function Admin() {
                             style={{
                               background: isSelf
                                 ? '#3a3a5a'
-                                : 'linear-gradient(135deg, #A02020, #D64045)',
+                                : 'linear-gradient(135deg, hsl(358,66%,40%), var(--color-red))',
                               color: isSelf ? '#64748b' : 'white',
                               borderRadius: '6px',
                               padding: '4px 10px',
@@ -480,7 +480,7 @@ export default function Admin() {
                   const actionColor =
                     l.action === 'LOGIN' ? { bg: 'rgba(45,198,83,0.1)', color: '#2dc653' } :
                       l.action === 'LOGOUT' ? { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8' } :
-                        l.action === 'DELETE_USER' ? { bg: 'rgba(214,64,69,0.15)', color: '#D64045' } :
+                        l.action === 'DELETE_USER' ? { bg: 'rgba(214,64,69,0.15)', color: 'var(--color-red)' } :
                           { bg: 'rgba(67,97,238,0.1)', color: '#4361ee' }
                   return (
                     <tr key={i}>

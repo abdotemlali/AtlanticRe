@@ -66,6 +66,7 @@ export interface KPISummary {
     avg_ulr: number
     total_sum_insured: number
     contract_count: number
+    ratio_resultat_prime: number
 }
 
 export interface KPIByCountry extends KPISummary {

@@ -1,5 +1,5 @@
 // 🎨 STYLE UPDATED — Button Premium avec variantes primary/secondary/accent/danger/ghost + sizes
-import React from 'react';
+
 import { Loader2 } from 'lucide-react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'ghost';

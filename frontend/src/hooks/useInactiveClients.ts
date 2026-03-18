@@ -14,7 +14,7 @@ export const useInactiveClients = () => {
         years_threshold: 2,
         min_contracts: 3,
         page: 1,
-        page_size: 50,
+        page_size: 5000,
         sort_by: 'last_year',
         sort_order: 'desc',
     })
@@ -29,7 +29,14 @@ export const useInactiveClients = () => {
             const res = await api.get(API_ROUTES.CLIENTS.INACTIVE, { params: p })
             setData(res.data)
         } catch (e: any) {
-            setError(e?.response?.data?.detail || 'Erreur lors de l\'analyse')
+            const detail = e?.response?.data?.detail
+            if (typeof detail === 'string') {
+                setError(detail)
+            } else if (Array.isArray(detail)) {
+                setError(detail.map((d: any) => d.msg || 'Erreur').join(', '))
+            } else {
+                setError('Erreur lors de l\'analyse')
+            }
         } finally {
             setLoading(false)
         }
