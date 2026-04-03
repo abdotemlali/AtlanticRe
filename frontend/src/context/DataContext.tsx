@@ -19,8 +19,10 @@ export interface FilterState {
   underwriting_years: number[]
   uw_year_min: number | null
   uw_year_max: number | null
+  uw_years: number[]           // C1: exact year list (non-contiguous), priority over uw_year_min/max
   statuts: string[]
   type_of_contract: string[]
+  type_cedante: string[]
   prime_min: number | null
   prime_max: number | null
   ulr_min: number | null
@@ -47,8 +49,10 @@ export const DEFAULT_FILTERS: FilterState = {
   underwriting_years: [],
   uw_year_min: null,
   uw_year_max: null,
+  uw_years: [],
   statuts: [],
   type_of_contract: [],
+  type_cedante: [],
   prime_min: null,
   prime_max: null,
   ulr_min: null,
@@ -81,8 +85,10 @@ export interface FilterOptions {
   courtiers: string[]
   cedantes: string[]
   underwriting_years: number[]
+  uw_year_default?: number
   statuts: string[]
   type_of_contract: string[]
+  type_cedante_options: string[]
 }
 
 export interface ScoringCriterion {
@@ -101,9 +107,14 @@ export interface DataStatus {
 }
 
 interface DataContextType {
-  filters: FilterState
-  setFilters: React.Dispatch<React.SetStateAction<FilterState>>
+  filters: FilterState           // Alias pour backward compatibility = appliedFilters
+  appliedFilters: FilterState
+  draftFilters: FilterState
+  setFilters: React.Dispatch<React.SetStateAction<FilterState>> // Alias vers setDraftFilters
+  setDraftFilters: React.Dispatch<React.SetStateAction<FilterState>>
+  applyFilters: () => void
   resetFilters: () => void
+  resetToDefaultYear: () => void   // C3: reset year filter to uw_year_default (year N)
   filterOptions: FilterOptions | null
   kpiSummary: KPISummary | null
   kpiLoading: boolean
@@ -126,6 +137,8 @@ const DEFAULT_SCORING: ScoringCriterion[] = [
   { key: 'share_written', label: 'Part souscrite (Share)', weight: 5, threshold: 5, direction: 'higher_is_better' },
 ]
 
+import { useDebounce } from '../hooks/useDebounce'
+
 /** Build query params string from FilterState */
 export function filtersToParams(filters: FilterState): Record<string, string> {
   const params: Record<string, string> = {}
@@ -145,11 +158,16 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
   add('pays_cedante', filters.pays_cedante)
   add('courtier', filters.courtier)
   add('cedante', filters.cedante)
-  add('underwriting_years', filters.underwriting_years)
-  add('uw_year_min', filters.uw_year_min ?? undefined)
-  add('uw_year_max', filters.uw_year_max ?? undefined)
+  // C1: uw_years (exact list) takes priority — send as uw_years_raw for backend
+  if (filters.uw_years.length > 0) {
+    params['uw_years_raw'] = filters.uw_years.join(',')
+  } else {
+    if (filters.uw_year_min != null) params['uw_year_min'] = String(filters.uw_year_min)
+    if (filters.uw_year_max != null) params['uw_year_max'] = String(filters.uw_year_max)
+  }
   add('statuts', filters.statuts)
   add('type_of_contract', filters.type_of_contract)
+  add('type_cedante', filters.type_cedante)
   add('prime_min', filters.prime_min ?? undefined)
   add('prime_max', filters.prime_max ?? undefined)
   add('ulr_min', filters.ulr_min ?? undefined)
@@ -163,8 +181,23 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
   return params
 }
 
+/**
+ * Same as filtersToParams but strips ALL year-related params.
+ * Use this for time-series endpoints (by-year, evolution) that must span all years.
+ */
+export function filtersToParamsNoYear(filters: FilterState): Record<string, string> {
+  const params = filtersToParams(filters)
+  delete params['uw_year_min']
+  delete params['uw_year_max']
+  delete params['uw_years_raw']
+  delete params['underwriting_years']
+  return params
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
+  const [draftFilters, setDraftFilters] = useState<FilterState>(DEFAULT_FILTERS)
+  const appliedFilters = useDebounce(draftFilters, 300)
+  
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
   const [kpiSummary, setKpiSummary] = useState<KPISummary | null>(null)
   const [kpiLoading, setKpiLoading] = useState(false)
@@ -174,7 +207,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const kpiTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadFilterOptions = useCallback(() => {
-    api.get(API_ROUTES.DATA.FILTER_OPTIONS).then((r) => setFilterOptions(r.data)).catch(console.error)
+    api.get(API_ROUTES.DATA.FILTER_OPTIONS).then((r) => {
+      setFilterOptions(r.data)
+      // Feature 1: auto-init year filter to most recent year (only if no year filter is active)
+      const defaultYear: number | undefined = r.data.uw_year_default
+      if (defaultYear) {
+        setDraftFilters(prev => {
+          if (prev.uw_year_min === null && prev.uw_year_max === null) {
+            return { ...prev, uw_year_min: defaultYear, uw_year_max: defaultYear }
+          }
+          return prev
+        })
+      }
+    }).catch(console.error)
     api.get(API_ROUTES.DATA.STATUS).then((r) => setDataStatus(r.data)).catch(console.error)
   }, [])
 
@@ -183,7 +228,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     kpiTimer.current = setTimeout(async () => {
       setKpiLoading(true)
       try {
-        const params = filtersToParams(filters)
+        const params = filtersToParams(appliedFilters)
         const r = await api.get(API_ROUTES.KPIS.SUMMARY, { params })
         setKpiSummary(r.data)
       } catch (e) {
@@ -192,7 +237,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setKpiLoading(false)
       }
     }, 400)
-  }, [filters])
+  }, [appliedFilters])
 
   const refreshData = useCallback(async () => {
     setRefreshing(true)
@@ -204,7 +249,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [loadFilterOptions, loadKPIs])
 
-  const resetFilters = useCallback(() => setFilters(DEFAULT_FILTERS), [])
+  const applyFilters = useCallback(() => {}, []) // Synchro est gérée automatiquement via useDebounce 
+  const resetFilters = useCallback(() => setDraftFilters(DEFAULT_FILTERS), [])
+
+  // C3: Reset year filter to default year N (from filterOptions)
+  const resetToDefaultYear = useCallback(() => {
+    const defaultYear = filterOptions?.uw_year_default
+    if (defaultYear) {
+      setDraftFilters(prev => ({
+        ...prev,
+        uw_years: [],
+        uw_year_min: defaultYear,
+        uw_year_max: defaultYear,
+      }))
+    }
+  }, [filterOptions?.uw_year_default])
 
   // Load on mount
   useEffect(() => {
@@ -218,7 +277,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      filters, setFilters, resetFilters,
+      filters: appliedFilters,
+      appliedFilters,
+      draftFilters,
+      setFilters: setDraftFilters,
+      setDraftFilters,
+      applyFilters,
+      resetFilters, resetToDefaultYear,
       filterOptions, kpiSummary, kpiLoading, dataStatus,
       scoringCriteria, setScoringCriteria,
       refreshData, refreshing,

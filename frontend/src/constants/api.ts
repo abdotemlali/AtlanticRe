@@ -17,6 +17,7 @@ export const API_ROUTES = {
         BY_BRANCH: '/kpis/by-branch',
         PROFIT_COMMISSION_BY_BRANCH: '/kpis/profit-commission-by-branch',
         BY_BROKER: '/kpis/by-broker',
+        TOP_BROKERS: '/kpis/top-brokers',
         BY_YEAR: '/kpis/by-year',
         PIVOT: '/kpis/pivot',
         BY_CONTRACT_TYPE: '/kpis/by-contract-type',
@@ -28,6 +29,7 @@ export const API_ROUTES = {
         PROFILE: '/kpis/cedante/profile',
         BY_YEAR: '/kpis/cedante/by-year',
         BY_BRANCH: '/kpis/cedante/by-branch',
+        FAC_SATURATION: '/kpis/cedante/fac-saturation',  // B3
     },
     MARKET: {
         PROFILE: '/kpis/market/profile',
@@ -37,6 +39,7 @@ export const API_ROUTES = {
         PROFILE: '/kpis/country/profile',
         BY_YEAR: '/kpis/country/by-year',
         BY_BRANCH: '/kpis/country/by-branch',
+        BY_CONTRACT_TYPE: '/kpis/by-country-contract-type', // A5
     },
     EXPOSITION: {
         BY_COUNTRY: '/kpis/exposition/by-country',

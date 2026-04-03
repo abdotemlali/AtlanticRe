@@ -7,6 +7,7 @@ import logging
 
 import core.config as config
 from models.schemas import FilterParams
+from services.classification_rules import classify_cedante, classify_lob
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,24 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
     raw = _safe_date(raw, date_cols)
     raw = _parse_int_spc(raw)
 
+    # Derive TYPE_CEDANTE from cedante name (INT_CEDANTE) — same logic as Excel formula on col L
+    # =SI(OU(
+    #   DROITE(" "&MINUSCULE(SUPPRESPACE(L))...) = " re" | " ré"
+    #   CHERCHE(" reinsurance"|" reins"|" réassurance" dans " "&MINUSCULE(SUPPRESPACE(L)))
+    # ) → "Réassureur" ; sinon "Assureur direct"
+    if "TYPE_CEDANTE" not in raw.columns:
+        if "INT_CEDANTE" in raw.columns:
+            raw["TYPE_CEDANTE"] = raw["INT_CEDANTE"].apply(classify_cedante)
+        else:
+            raw["TYPE_CEDANTE"] = "ASSUREUR DIRECT"
+
+    # Derive VIE_NON_VIE if missing
+    if "VIE_NON_VIE" not in raw.columns:
+        if "INT_BRANCHE" in raw.columns:
+            raw["VIE_NON_VIE"] = raw["INT_BRANCHE"].apply(classify_lob)
+        else:
+            raw["VIE_NON_VIE"] = "NON_VIE"
+
     # Normalize string columns
     str_cols = ["CONTRACT_STATUS", "TYPE_OF_CONTRACT", "INT_BROKER", "BROKER_CODE",
                 "INT_CEDANTE", "CEDANT_CODE", "INT_PAYS_COURTIER", "PAYS_CEDANTE",
@@ -95,6 +114,11 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
 
 
 def get_df() -> pd.DataFrame:
+    """
+    Retourne une référence au DataFrame global en lecture seule.
+    Aucune copie complète n'est effectuée ici : pandas créera automatiquement
+    de nouvelles instances (vues/df) lors de l'application des filtres successifs.
+    """
     if _df is None:
         try:
             load_excel()
@@ -102,7 +126,7 @@ def get_df() -> pd.DataFrame:
             logger.error(f"Impossible de charger le fichier Excel : {e}")
             # Return empty DataFrame with expected columns
             return pd.DataFrame()
-    return _df.copy()
+    return _df
 
 
 def get_status() -> Dict[str, Any]:
@@ -114,14 +138,64 @@ def get_status() -> Dict[str, Any]:
     }
 
 
-def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
-    """Apply all filters cumulatively on the DataFrame."""
+def apply_identity_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
+    """
+    Filtres identitaires — représentent QUI est dans le portefeuille.
+    Applique : années de souscription, cédante, courtier, périmètre, statuts, type_cedante.
+    NE modifie PAS la nature des contrats retenus (branche, pays, etc.).
+    Utilisé seul pour calculer les attributs globaux d'une cédante (diversification, type, etc.)
+    """
     if df.empty:
         return df
 
-    # INT_SPC decomposed filters
+    # Périmètre SPC
     if params.perimetre:
         df = df[df["INT_SPC_PERIMETRE"].isin(params.perimetre)]
+
+    # Cédante & Courtier
+    if params.cedante:
+        df = df[df["INT_CEDANTE"].isin(params.cedante)]
+    if params.courtier:
+        df = df[df["INT_BROKER"].isin(params.courtier)]
+
+    # Années de souscription — uw_years a la priorité sur uw_year_min/max
+    if params.uw_years:
+        df = df[df["UNDERWRITING_YEAR"].isin(params.uw_years)]
+    elif params.uw_year_min is not None and params.uw_year_max is not None:
+        df = df[
+            (df["UNDERWRITING_YEAR"] >= params.uw_year_min) &
+            (df["UNDERWRITING_YEAR"] <= params.uw_year_max)
+        ]
+    elif params.uw_year_min is not None:
+        df = df[df["UNDERWRITING_YEAR"] >= params.uw_year_min]
+    elif params.uw_year_max is not None:
+        df = df[df["UNDERWRITING_YEAR"] <= params.uw_year_max]
+    elif params.underwriting_years:
+        df = df[df["UNDERWRITING_YEAR"].isin(params.underwriting_years)]
+
+    # Statut contrat
+    if params.statuts:
+        df = df[df["CONTRACT_STATUS"].isin(params.statuts)]
+
+    # Type cédante (colonne dérivée)
+    if params.type_cedante:
+        if "TYPE_CEDANTE" in df.columns:
+            df = df[df["TYPE_CEDANTE"].isin(params.type_cedante)]
+
+    return df
+
+
+def apply_analysis_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
+    """
+    Filtres d'analyse — affinent la vue analytique (QUOI dans le portefeuille).
+    Applique : branche, sous-branche, pays risque, pays cédante, type de contrat, spécialité.
+    Ces filtres NE DOIVENT PAS être appliqués lors du calcul d'attributs globaux
+    comme la diversification par branches ou le type de cédante.
+    """
+    if df.empty:
+        return df
+
+    # SPC decomposed (type & spécialité)
     if params.type_contrat_spc:
         df = df[df["INT_SPC_TYPE"].isin(params.type_contrat_spc)]
     if params.specialite:
@@ -129,35 +203,33 @@ def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
     if params.int_spc_search:
         df = df[df["INT_SPC"].str.contains(params.int_spc_search, case=False, na=False)]
 
-    # Business filters
+    # Branche & sous-branche
     if params.branche:
         df = df[df["INT_BRANCHE"].isin(params.branche)]
     if params.sous_branche:
         df = df[df["INT_SBRANCHE"].isin(params.sous_branche)]
+
+    # Géographie
     if params.pays_risque:
         df = df[df["PAYS_RISQUE"].isin(params.pays_risque)]
     if params.pays_cedante:
         df = df[df["PAYS_CEDANTE"].isin(params.pays_cedante)]
-    if params.courtier:
-        df = df[df["INT_BROKER"].isin(params.courtier)]
-    if params.cedante:
-        df = df[df["INT_CEDANTE"].isin(params.cedante)]
 
-    # UW Year
-    if params.underwriting_years:
-        df = df[df["UNDERWRITING_YEAR"].isin(params.underwriting_years)]
-    if params.uw_year_min is not None:
-        df = df[df["UNDERWRITING_YEAR"] >= params.uw_year_min]
-    if params.uw_year_max is not None:
-        df = df[df["UNDERWRITING_YEAR"] <= params.uw_year_max]
-
-    # Status & type
-    if params.statuts:
-        df = df[df["CONTRACT_STATUS"].isin(params.statuts)]
+    # Type de contrat
     if params.type_of_contract:
         df = df[df["TYPE_OF_CONTRACT"].isin(params.type_of_contract)]
 
-    # Financial range filters
+    return df
+
+
+def apply_financial_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
+    """
+    Filtres financiers — seuils numériques sur les indicateurs.
+    Applique : prime, ULR, part souscrite, commission, courtage.
+    """
+    if df.empty:
+        return df
+
     if params.prime_min is not None:
         df = df[df["WRITTEN_PREMIUM"].fillna(0) >= params.prime_min]
     if params.prime_max is not None:
@@ -179,6 +251,19 @@ def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
     if params.courtage_max is not None:
         df = df[df["BROKERAGE_RATE"].fillna(0) <= params.courtage_max]
 
+    return df
+
+
+def apply_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFrame:
+    """
+    Fonction composite rétrocompatible — enchaîne les trois couches de filtres dans l'ordre.
+    Tous les endpoints existants continuent de fonctionner sans modification.
+    Les routes nécessitant une vue partielle (ex: /cedante/profile) peuvent appeler
+    apply_identity_filters() seul pour préserver les attributs globaux.
+    """
+    df = apply_identity_filters(df, params)
+    df = apply_analysis_filters(df, params)
+    df = apply_financial_filters(df, params)
     return df
 
 
@@ -240,6 +325,13 @@ def get_filter_options(df: pd.DataFrame) -> Dict[str, Any]:
             sub = df[df["INT_BRANCHE"] == br]["INT_SBRANCHE"]
             sous_branche[br] = sorted([v for v in sub.dropna().unique().tolist() if str(v).strip()])
 
+    # UW Year default (most recent)
+    uw_years = sorted([int(y) for y in df["UNDERWRITING_YEAR"].dropna().unique().tolist()]) if "UNDERWRITING_YEAR" in df.columns else []
+    uw_year_default = int(df["UNDERWRITING_YEAR"].dropna().max()) if "UNDERWRITING_YEAR" in df.columns and not df["UNDERWRITING_YEAR"].dropna().empty else None
+
+    # Type cédante options
+    type_cedante_options = unique_sorted(df["TYPE_CEDANTE"]) if "TYPE_CEDANTE" in df.columns else []
+
     return {
         "perimetre": perimetre,
         "type_contrat_spc": type_spc,
@@ -250,7 +342,9 @@ def get_filter_options(df: pd.DataFrame) -> Dict[str, Any]:
         "pays_cedante": unique_sorted(df["PAYS_CEDANTE"]) if "PAYS_CEDANTE" in df.columns else [],
         "courtiers": unique_sorted(df["INT_BROKER"]) if "INT_BROKER" in df.columns else [],
         "cedantes": unique_sorted(df["INT_CEDANTE"]) if "INT_CEDANTE" in df.columns else [],
-        "underwriting_years": sorted([int(y) for y in df["UNDERWRITING_YEAR"].dropna().unique().tolist()]) if "UNDERWRITING_YEAR" in df.columns else [],
+        "underwriting_years": uw_years,
+        "uw_year_default": uw_year_default,
         "statuts": unique_sorted(df["CONTRACT_STATUS"]) if "CONTRACT_STATUS" in df.columns else [],
         "type_of_contract": unique_sorted(df["TYPE_OF_CONTRACT"]) if "TYPE_OF_CONTRACT" in df.columns else [],
+        "type_cedante_options": type_cedante_options,
     }

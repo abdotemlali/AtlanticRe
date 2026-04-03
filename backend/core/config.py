@@ -10,7 +10,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 # Chemin du fichier Excel (modifiable via Admin)
 EXCEL_FILE_PATH = os.getenv(
     "EXCEL_FILE_PATH",
-    r"C:\Users\SMAIKI\Downloads\Template_data_filled (1).xlsx"
+    r"C:\Users\TEMLALI\Downloads\Template_data_filled (1).xlsx"
 )
 EXCEL_SHEET_NAME = "Feuil2"
 

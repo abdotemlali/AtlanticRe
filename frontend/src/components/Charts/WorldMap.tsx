@@ -181,28 +181,35 @@ export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' 
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 rounded-lg p-3 pointer-events-none shadow-xl"
+          className="fixed z-50 rounded-xl pointer-events-none"
           style={{
-            left: tooltip.x + 12, top: tooltip.y - 10,
-            background: '#16213e', border: '1px solid #2a2a4a',
-            minWidth: 180,
+            left: tooltip.x + 14, top: tooltip.y - 14,
+            background: 'hsla(209,28%,18%,0.92)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid hsla(0,0%,100%,0.12)',
+            boxShadow: '0 16px 48px hsla(209,28%,14%,0.30)',
+            minWidth: 190,
+            padding: '10px 14px',
           }}
         >
-          <p className="text-sm font-semibold text-white mb-2">{tooltip.data.pays}</p>
-          <div className="space-y-1 text-xs" style={{ color: '#94a3b8' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'hsl(83,50%,55%)', letterSpacing: '0.06em', marginBottom: 6, textTransform: 'uppercase' }}>
+            {tooltip.data.pays}
+          </p>
+          <div className="space-y-1" style={{ fontSize: '0.75rem' }}>
             {colorBy === 'exposition' ? (
               <>
-                <p>Exposition : <span className="text-white font-medium">{formatCompact(tooltip.data.exposition || 0)}</span></p>
-                <p>Somme assurée : <span className="text-white font-medium">{formatCompact(tooltip.data.sum_insured_100 || 0)}</span></p>
-                <p>Part moy. : <span className="text-white font-medium">{tooltip.data.avg_share_signed || 0}%</span></p>
-                <p>Contrats : <span className="text-white font-medium">{tooltip.data.contract_count}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Exposition : <span style={{ color: '#fff', fontWeight: 700 }}>{formatCompact(tooltip.data.exposition || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Somme assurée : <span style={{ color: '#fff', fontWeight: 700 }}>{formatCompact(tooltip.data.sum_insured_100 || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Part moy. : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.avg_share_signed || 0}%</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Contrats : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.contract_count}</span></p>
               </>
             ) : (
               <>
-                <p>Prime écrite : <span className="text-white font-medium">{formatCompact(tooltip.data.total_written_premium || 0)}</span></p>
-                <p>Loss Ratio : <span className="text-white font-medium">{formatPercent(tooltip.data.avg_ulr || 0)}</span></p>
-                <p>Résultat : <span className={`font-medium ${(tooltip.data.total_resultat || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCompact(tooltip.data.total_resultat || 0)}</span></p>
-                <p>Contrats : <span className="text-white font-medium">{tooltip.data.contract_count}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Prime écrite : <span style={{ color: 'hsl(83,50%,55%)', fontWeight: 700 }}>{formatCompact(tooltip.data.total_written_premium || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Loss Ratio : <span style={{ color: (tooltip.data.avg_ulr || 0) > 100 ? 'hsl(358,66%,54%)' : (tooltip.data.avg_ulr || 0) > 70 ? 'hsl(43,96%,56%)' : 'hsl(152,56%,39%)', fontWeight: 700 }}>{formatPercent(tooltip.data.avg_ulr || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Résultat : <span style={{ color: (tooltip.data.total_resultat || 0) >= 0 ? 'hsl(152,56%,39%)' : 'hsl(358,66%,54%)', fontWeight: 700 }}>{formatCompact(tooltip.data.total_resultat || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Contrats : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.contract_count}</span></p>
               </>
             )}
           </div>

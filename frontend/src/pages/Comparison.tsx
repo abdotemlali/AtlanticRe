@@ -1,9 +1,13 @@
 import React from 'react';
 import { useState, useEffect, useRef } from "react"
+import { useLocation } from 'react-router-dom'
 import Select from 'react-select'
 import api from '../utils/api'
-import { useData, filtersToParams } from '../context/DataContext'
+import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
+import { getScopedParams } from '../utils/pageFilterScopes'
+import ActiveFiltersBar from '../components/ActiveFiltersBar'
+import PageFilterPanel from '../components/PageFilterPanel'
 import RadarChartComponent from '../components/Charts/RadarChartComponent'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -87,6 +91,7 @@ const KPIRow = ({ label, valA, valB, formatFn, inverse = false }: { label: strin
 
 export default function Comparison() {
   const { filterOptions, filters } = useData()
+  const location = useLocation()
   const [mode, setMode] = useState<'market' | 'country' | 'cedante'>(() => {
     if (sessionStorage.getItem('compare_cedante_a')) return 'cedante'
     if (sessionStorage.getItem('compare_country_a')) return 'country'
@@ -119,7 +124,7 @@ export default function Comparison() {
   // Build market options
   useEffect(() => {
     if (mode === 'market') {
-      api.get('/comparison/markets', { params: filtersToParams(filters) }).then(res => {
+      api.get('/comparison/markets', { params: getScopedParams(location.pathname, filters) }).then(res => {
         if (res.data) {
           setMarketOptions(res.data.map((m: any) => ({
             value: `${m.pays}||${m.branche}`,
@@ -130,7 +135,7 @@ export default function Comparison() {
         }
       }).catch(console.error)
     } else if (mode === 'country') {
-      api.get('/kpis/by-country', { params: filtersToParams(filters) }).then(res => {
+      api.get('/kpis/by-country', { params: getScopedParams(location.pathname, filters) }).then(res => {
         if (res.data) {
           setMarketOptions(res.data.map((c: any) => ({
             value: c.pays,
@@ -141,7 +146,7 @@ export default function Comparison() {
         }
       }).catch(console.error)
     } else if (mode === 'cedante') {
-      api.get('/kpis/by-cedante', { params: { ...filtersToParams(filters), top: 1000 } }).then(res => {
+      api.get('/kpis/by-cedante', { params: { ...getScopedParams(location.pathname, filters), top: 1000 } }).then(res => {
         if (res.data) {
           setMarketOptions(res.data.map((c: any) => ({
             value: c.cedante,
@@ -152,7 +157,7 @@ export default function Comparison() {
         }
       }).catch(console.error)
     }
-  }, [filters, mode])
+  }, [filters, mode, location.pathname])
 
   // Process pending pre-fills once market options are available
   useEffect(() => {
@@ -213,7 +218,7 @@ export default function Comparison() {
           market_a_branche: marketA.branche,
           market_b_pays: marketB.pays,
           market_b_branche: marketB.branche,
-          ...filtersToParams(filters),
+          ...getScopedParams(location.pathname, filters),
         }
         const res = await api.get('/comparison', { params })
         setResult(res.data)
@@ -221,7 +226,7 @@ export default function Comparison() {
         const params = {
           market_a_pays: marketA.pays,
           market_b_pays: marketB.pays,
-          ...filtersToParams(filters),
+          ...getScopedParams(location.pathname, filters),
         }
         const res = await api.get('/comparison/by-country', { params })
         setResult(res.data)
@@ -229,7 +234,7 @@ export default function Comparison() {
         const params = {
           cedante_a: marketA.pays,
           cedante_b: marketB.pays,
-          ...filtersToParams(filters),
+          ...getScopedParams(location.pathname, filters),
         }
         const res = await api.get('/comparison/by-cedante', { params })
         const mapCedante = (c: any) => ({
@@ -360,7 +365,9 @@ export default function Comparison() {
   , [mode, optionsB.length, componentsWithVirtual])
 
   return (
-    <div className="p-6 space-y-6 min-h-[100vh] bg-[var(--color-off-white)]">
+    <div className="p-6 space-y-4 min-h-[100vh] bg-[var(--color-off-white)]">
+      <ActiveFiltersBar />
+      <PageFilterPanel />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-[var(--color-navy)] mb-1">Comparaison de portefeuilles</h1>

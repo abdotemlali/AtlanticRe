@@ -65,8 +65,10 @@ class FilterOptions(BaseModel):
     courtiers: List[str]
     cedantes: List[str]
     underwriting_years: List[int]
+    uw_year_default: Optional[int] = None
     statuts: List[str]
     type_of_contract: List[str]
+    type_cedante_options: List[str] = []
 
 class FilterParams(BaseModel):
     perimetre: Optional[List[str]] = None
@@ -82,8 +84,10 @@ class FilterParams(BaseModel):
     underwriting_years: Optional[List[int]] = None
     uw_year_min: Optional[int] = None
     uw_year_max: Optional[int] = None
+    uw_years: Optional[List[int]] = None  # exact list — priority over uw_year_min/max
     statuts: Optional[List[str]] = None
     type_of_contract: Optional[List[str]] = None
+    type_cedante: Optional[List[str]] = None
     prime_min: Optional[float] = None
     prime_max: Optional[float] = None
     ulr_min: Optional[float] = None

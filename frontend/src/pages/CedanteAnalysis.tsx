@@ -1,13 +1,18 @@
 import { useState, useEffect, useMemo } from "react"
-import { useNavigate } from 'react-router-dom'
-import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
-import { useData, filtersToParams } from '../context/DataContext'
+import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
+import { getScopedParams } from '../utils/pageFilterScopes'
+import ActiveFiltersBar from '../components/ActiveFiltersBar'
+import PageFilterPanel from '../components/PageFilterPanel'
+import { EmptyState } from '../components/ui/EmptyState'
+import { useFetch } from '../hooks/useFetch'
 
 interface CedanteProfile {
   cedante: string
@@ -20,9 +25,13 @@ interface CedanteProfile {
   avg_commission: number
   avg_profit_comm_rate: number
   avg_brokerage_rate: number
+  type_cedante?: string  // B1
+  branches_actives?: number  // B2
+  fac_saturation_alerts?: string[] // B3
 }
 
-// Reusing HSL colors from DistributionCharts
+type VieNonVieView = 'ALL' | 'VIE' | 'NON_VIE'  // A3
+
 const COLORS = [
   'hsl(209,28%,24%)', // Navy (dark)
   'hsl(83,52%,36%)', // Green (primary)
@@ -39,6 +48,7 @@ const COLORS = [
 export default function CedanteAnalysis() {
   const { filters, filterOptions, setFilters } = useData()
   const navigate = useNavigate()
+  const location = useLocation()
   
   const [selectedCedante, setSelectedCedante] = useState<string | null>(null)
   
@@ -46,6 +56,14 @@ export default function CedanteAnalysis() {
   const [yearData, setYearData] = useState<any[]>([])
   const [branchData, setBranchData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+
+  // A3 — Vie/Non-vie toggle (local to this page)
+  const [vieView, setVieView] = useState<VieNonVieView>('ALL')
+
+  // B2 — Diversification params (pure local state, never persisted)
+  const [totalBranches, setTotalBranches] = useState(12)
+  const [seuilVert, setSeuilVert] = useState(40)
+  const [showDiversifParams, setShowDiversifParams] = useState(false)
 
   // Sort State for Commissions Table
   const [sortCol, setSortCol] = useState<string>('total_written_premium')
@@ -55,24 +73,27 @@ export default function CedanteAnalysis() {
     return (filterOptions?.cedantes || []).map(c => ({ value: c, label: c }))
   }, [filterOptions?.cedantes])
 
+  // Params centralisés via useMemo (avec fallback vers undefined si pass de cédante pour bloquer `useFetch`)
+  const params = useMemo(() => {
+    if (!selectedCedante) return undefined
+    const vieParam = vieView !== 'ALL' ? { vie_non_vie_view: vieView } : {}
+    return { ...getScopedParams(location.pathname, filters), cedante: selectedCedante, ...vieParam }
+  }, [selectedCedante, vieView, filters, location.pathname])
+
+  // Décomposition des 3 appels via useFetch
+  const { data: profileRes, loading: l1 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.PROFILE : null, params)
+  const { data: yearRes, loading: l2 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_YEAR : null, params)
+  const { data: branchRes, loading: l3 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_BRANCH : null, params)
+
   useEffect(() => {
-    if (!selectedCedante) return
-    
-    setLoading(true)
-    const params = { ...filtersToParams(filters), cedante: selectedCedante }
-    
-    Promise.all([
-      api.get(API_ROUTES.CEDANTE.PROFILE, { params }),
-      api.get(API_ROUTES.CEDANTE.BY_YEAR, { params }),
-      api.get(API_ROUTES.CEDANTE.BY_BRANCH, { params })
-    ]).then(([profRes, yearRes, branchRes]) => {
-      setProfile(profRes.data)
-      setYearData(yearRes.data)
-      setBranchData(branchRes.data)
-    }).catch(console.error)
-      .finally(() => setLoading(false))
-      
-  }, [filters, selectedCedante])
+    if (profileRes) setProfile(profileRes)
+    if (yearRes) setYearData(yearRes)
+    if (branchRes) setBranchData(branchRes)
+  }, [profileRes, yearRes, branchRes])
+
+  useEffect(() => {
+    setLoading(l1 || l2 || l3)
+  }, [l1, l2, l3])
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -96,7 +117,9 @@ export default function CedanteAnalysis() {
 
   if (!selectedCedante) {
     return (
-      <div className="space-y-6 animate-fade-in p-2">
+      <div className="space-y-4 animate-fade-in p-2">
+        <ActiveFiltersBar />
+        <PageFilterPanel />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md">
           <div className="flex items-center gap-3">
@@ -132,10 +155,12 @@ export default function CedanteAnalysis() {
         </div>
 
         {/* Empty State */}
-        <div className="flex flex-col items-center justify-center h-[50vh] text-center opacity-60">
-          <Building2 size={64} className="mb-4 text-[var(--color-gray-400)]" />
-          <h2 className="text-lg font-bold text-[var(--color-navy)]">Sélectionnez une cédante</h2>
-          <p className="text-sm mt-1">Choisissez une cédante dans le menu déroulant pour afficher son analyse détaillée.</p>
+        <div className="h-[50vh] flex items-center justify-center p-4">
+          <EmptyState 
+            title="Sélectionnez une cédante" 
+            message="Choisissez une cédante dans le menu déroulant pour afficher son analyse détaillée." 
+            icon={<Building2 size={48} className="mb-4 text-[var(--color-gray-400)]" />} 
+          />
         </div>
       </div>
     )
@@ -167,7 +192,33 @@ export default function CedanteAnalysis() {
             <Building2 size={20} className="text-[var(--color-navy)]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[var(--color-navy)] line-clamp-1" title={selectedCedante}>{selectedCedante}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-bold text-[var(--color-navy)] line-clamp-1" title={selectedCedante}>{selectedCedante}</h1>
+              {/* B1 — Badge type cédante */}
+              {profile?.type_cedante && (
+                <span style={{
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  ...(profile.type_cedante === 'REASSUREUR'
+                    ? { background: 'hsla(160,84%,39%,0.15)', border: '1px solid hsla(160,84%,39%,0.4)', color: '#6bffb8' }
+                    : { background: 'hsla(213,94%,68%,0.15)', border: '1px solid hsla(213,94%,68%,0.4)', color: '#4F8EF7' }
+                  ),
+                }}>
+                  {profile.type_cedante === 'REASSUREUR' ? 'Réassureur' : 'Assureur direct'}
+                </span>
+              )}
+
+              {/* B3 — Alerte globale de saturation FAC */}
+              {profile?.fac_saturation_alerts && profile.fac_saturation_alerts.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-[hsl(358,66%,54%,0.1)] border border-[hsl(358,66%,54%,0.3)] text-[hsl(358,66%,54%)] px-3 py-1 rounded-full text-[11px] font-bold animate-pulse">
+                  <AlertTriangle size={12} />
+                  <span>Saturation FAC ({profile.fac_saturation_alerts.length} Branche{profile.fac_saturation_alerts.length > 1 ? 's' : ''})</span>
+                </div>
+              )}
+            </div>
             <p className="text-sm text-[var(--color-gray-500)] mt-0.5">{profile?.pays_cedante || 'Pays non spécifié'}</p>
           </div>
         </div>
@@ -224,8 +275,32 @@ export default function CedanteAnalysis() {
         </div>
       ) : profile && (
         <>
+          {/* A3 — Vie/Non-vie toggle */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase">Vue :</span>
+            {(['ALL', 'VIE', 'NON_VIE'] as VieNonVieView[]).map(v => (
+              <button
+                key={v}
+                onClick={() => setVieView(v)}
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: vieView === v ? '1px solid var(--color-navy)' : '1px solid var(--color-gray-200)',
+                  background: vieView === v ? 'var(--color-navy)' : 'white',
+                  color: vieView === v ? 'white' : 'var(--color-gray-500)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {v === 'ALL' ? 'Tous' : v === 'VIE' ? 'Vie' : 'Non-vie'}
+              </button>
+            ))}
+          </div>
+
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
              <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-100)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                 <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Prime Écrite</span>
                 <span className="text-2xl font-mono font-bold text-[var(--color-navy)]">{formatCompact(profile.total_written_premium)}</span>
@@ -259,6 +334,57 @@ export default function CedanteAnalysis() {
                 <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Commission (Moy.)</span>
                 <span className="text-2xl font-mono font-bold text-[var(--color-navy)]">{(profile.avg_commission || 0).toFixed(1)}%</span>
              </div>
+             {/* B2 — Carte Indicateur de diversification */}
+             {(() => {
+               const activeBranchesCount = profile?.branches_actives || 0;
+               const rawPct = Math.round((activeBranchesCount / totalBranches) * 100);
+               const pct = Math.min(rawPct, 100); // Plafonnier à 100%
+               const good = pct >= seuilVert;
+               const colorCode = good ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)';
+               
+               return (
+                 <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-100)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between relative overflow-visible">
+                   <div className="flex justify-between items-start mb-2">
+                     <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider leading-tight">Diversification<br/>(Branches)</span>
+                     <button onClick={() => setShowDiversifParams(!showDiversifParams)} className="p-1 text-gray-400 hover:text-[var(--color-navy)] transition-colors rounded hover:bg-gray-50">
+                       <Settings size={14} />
+                     </button>
+                   </div>
+                   
+                   <div>
+                     <div className="flex items-center gap-2 mb-1">
+                       <span className="text-2xl font-mono font-bold" style={{ color: colorCode }}>{rawPct}%</span>
+                     </div>
+                     <div className="h-1.5 w-full bg-[var(--color-gray-100)] rounded-full overflow-hidden mb-1">
+                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: colorCode }} />
+                     </div>
+                     <div className="text-[10px] font-bold" style={{ color: colorCode }}>
+                       {activeBranchesCount} / {totalBranches} actives
+                     </div>
+                   </div>
+
+                   {/* UI Locale pour ajuster N et Seuil */}
+                   {showDiversifParams && (
+                     <div className="absolute top-10 right-0 z-50 bg-white border border-gray-100 shadow-xl rounded-lg w-48 p-3 text-xs">
+                       <div className="mb-3">
+                         <label className="flex justify-between text-gray-500 mb-1 font-bold">
+                           <span>Réf. Branches (N)</span>
+                           <span>{totalBranches}</span>
+                         </label>
+                         <input type="range" min="1" max="20" value={totalBranches} onChange={e => setTotalBranches(Number(e.target.value))} className="w-full accent-[var(--color-navy)]" />
+                       </div>
+                       <div>
+                         <label className="flex justify-between text-gray-500 mb-1 font-bold">
+                           <span>Seuil Vert (%)</span>
+                           <span>{seuilVert}%</span>
+                         </label>
+                         <input type="range" min="10" max="100" step="5" value={seuilVert} onChange={e => setSeuilVert(Number(e.target.value))} className="w-full accent-[var(--color-navy)]" />
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               );
+             })()}
           </div>
 
           {/* Evolution historique */}
@@ -390,6 +516,118 @@ export default function CedanteAnalysis() {
              </div>
           </div>
 
+          {/* Rapport de Diversification */}
+          {(() => {
+            // Calcul strict en Backend
+            const activeBranchesCount = profile?.branches_actives || 0;
+              
+            return (
+            <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-6 mb-6 overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-1.5 h-full" style={{ background: ((activeBranchesCount / totalBranches) * 100) >= seuilVert ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)' }} />
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--color-navy)] flex items-center gap-2">
+                    <PieChart size={20} />
+                    Rapport de Diversification par Branche
+                  </h3>
+                  <p className="text-sm text-[var(--color-gray-500)] mt-1">
+                    Analyse de la répartition de l'activité sur l'ensemble des branches du marché.
+                  </p>
+                </div>
+                
+                {/* Paramètres accessibles directement */}
+                <div className="flex items-center gap-4 bg-[var(--color-off-white)] p-3 rounded-lg border border-[var(--color-gray-200)]">
+                  <label className="flex items-center gap-2 text-xs font-bold text-[var(--color-gray-500)] uppercase">
+                    Total branches (N):
+                    <input type="number" min={1} max={30} value={totalBranches} onChange={e => setTotalBranches(Number(e.target.value))}
+                      className="w-16 rounded border border-[var(--color-gray-200)] p-1.5 text-center text-[var(--color-navy)] font-mono" />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold text-[var(--color-gray-500)] uppercase">
+                    Seuil Minimum:
+                    <div className="relative">
+                      <input type="number" min={1} max={100} value={seuilVert} onChange={e => setSeuilVert(Number(e.target.value))}
+                        className="w-16 rounded border border-[var(--color-gray-200)] p-1.5 pr-4 text-center text-[var(--color-navy)] font-mono" />
+                      <span className="absolute right-1.5 top-[7px] text-xs font-bold text-[var(--color-gray-400)]">%</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Score & Gauge */}
+                <div className="flex flex-col justify-center">
+                  {(() => {
+                    const pct = Math.round((activeBranchesCount / totalBranches) * 100)
+                    const good = pct >= seuilVert
+                    const colorCode = good ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)'
+                    
+                    return (
+                      <div className="bg-[var(--color-off-white)] rounded-xl p-6 border border-[var(--color-gray-100)] text-center">
+                        <div className="mb-2 uppercase text-xs font-bold tracking-wider" style={{ color: colorCode }}>
+                          {good ? '✓ Portefeuille Diversifié' : '⚠ Concentration de risque élevée'}
+                        </div>
+                        <div className="text-5xl font-mono font-bold mb-2" style={{ color: colorCode }}>
+                          {pct}%
+                        </div>
+                        <div className="text-sm font-medium text-[var(--color-gray-500)] mb-4">
+                          <span className="font-bold text-[var(--color-navy)]">{activeBranchesCount}</span> branches actives sur <span className="font-bold text-[var(--color-navy)]">{totalBranches}</span> existantes
+                        </div>
+                        
+                        <div className="w-full bg-[var(--color-gray-200)] h-3 rounded-full overflow-hidden relative border border-[var(--color-gray-300)]">
+                          {/* Jauge */}
+                          <div className="h-full rounded-full transition-all duration-1000 ease-out" 
+                               style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: colorCode }} />
+                          {/* Indicateur de seuil visuel */}
+                          <div className="absolute top-0 bottom-0 w-[2px] bg-[var(--color-navy)] opacity-50 z-10"
+                               style={{ left: `${seuilVert}%` }} title={`Seuil: ${seuilVert}%`} />
+                        </div>
+                        <div className="flex justify-between text-[10px] font-bold text-[var(--color-gray-400)] mt-1.5 px-1">
+                          <span>0%</span>
+                          <span className="relative" style={{ left: `calc(${seuilVert}% - 50%)`, color: 'var(--color-navy)' }}>{seuilVert}% (Seuil)</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Détail (Liste des branches) */}
+                <div>
+                  <h4 className="text-sm font-bold text-[var(--color-navy)] mb-3">Détail des branches explorées</h4>
+                  <div className="max-h-[220px] overflow-y-auto pr-2 custom-scroll">
+                    <ul className="space-y-2">
+                       {sortedBranchData.map((b, i) => (
+                         <li key={i} className="flex justify-between items-center p-2 rounded bg-[hsla(83,52%,36%,0.05)] border border-[hsla(83,52%,36%,0.1)]">
+                           <div className="flex items-center gap-2">
+                             <CheckCircle size={14} color="hsl(83,52%,36%)" />
+                             <span className="text-xs font-bold text-[var(--color-navy)]">{b.branche}</span>
+                             {profile?.fac_saturation_alerts?.includes(b.branche) && (
+                               <span title="Saturation FAC"><AlertTriangle size={12} color="hsl(358,66%,54%)" className="animate-pulse" /></span>
+                             )}
+                           </div>
+                           <span className="text-[10px] font-mono font-bold text-[var(--color-gray-500)]">{formatCompact(b.total_written_premium)} prime</span>
+                         </li>
+                       ))}
+                       
+                       {/* Simulate inactive branches if N > active branches */}
+                       {totalBranches > activeBranchesCount && [...Array(totalBranches - activeBranchesCount)].map((_, i) => (
+                         <li key={`inactive-${i}`} className="flex justify-between items-center p-2 rounded bg-white border border-[var(--color-gray-200)] opacity-60">
+                           <div className="flex items-center gap-2">
+                             <div className="w-3.5 h-3.5 rounded-full border-2 border-[var(--color-gray-300)]" />
+                             <span className="text-xs font-semibold text-[var(--color-gray-500)] italic">Branche non explorée</span>
+                           </div>
+                           <span className="text-[10px] font-mono text-[var(--color-gray-400)]">0 prime</span>
+                         </li>
+                       ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            )
+          })()}
+
           {/* Commissions & Rates Table */}
           <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] overflow-hidden">
              <div className="p-4 border-b border-[var(--color-gray-100)] flex items-center gap-2 bg-[var(--color-off-white)]">
@@ -429,7 +667,14 @@ export default function CedanteAnalysis() {
                          
                          return (
                            <tr key={i} className="border-b border-[var(--color-gray-100)] last:border-0 hover:bg-[hsla(0,0%,0%,0.02)] transition-colors">
-                              <td className="py-3 px-4 text-xs font-bold text-[var(--color-navy)]">{b.branche}</td>
+                              <td className="py-3 px-4 text-xs font-bold text-[var(--color-navy)]">
+                                <div className="flex items-center gap-2">
+                                  {b.branche}
+                                  {profile?.fac_saturation_alerts?.includes(b.branche) && (
+                                    <span title="Saturation FAC"><AlertTriangle size={14} color="hsl(358,66%,54%)" /></span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="py-3 px-4 text-xs font-mono text-right">{formatCompact(b.total_written_premium)}</td>
                               <td className="py-3 px-4 text-xs font-mono font-bold text-right">
                                  {b.avg_ulr !== null && (

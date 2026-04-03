@@ -37,8 +37,21 @@ export function formatCompact(value: number | null | undefined): string {
 /** Format date to JJ/MM/AAAA */
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
-  // Already formatted by backend as DD/MM/YYYY
+  // Already formatted as DD/MM/YYYY → return as-is
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value
+  // Handle DD-MM-YY or DD/MM/YY (2-digit year) → convert to DD/MM/YYYY
+  const shortDate = /^(\d{2})[-\/](\d{2})[-\/](\d{2})$/.exec(value)
+  if (shortDate) {
+    const [, dd, mm, yy] = shortDate
+    const year = parseInt(yy, 10) <= 30 ? `20${yy}` : `19${yy}`
+    return `${dd}/${mm}/${year}`
+  }
+  // Handle DD-MM-YYYY (dashes with 4-digit year)
+  const dashDate = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value)
+  if (dashDate) {
+    const [, dd, mm, yyyy] = dashDate
+    return `${dd}/${mm}/${yyyy}`
+  }
   try {
     const d = new Date(value)
     if (isNaN(d.getTime())) return value

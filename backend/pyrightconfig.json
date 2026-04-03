@@ -1,0 +1,16 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "include": ["."],
+  "exclude": ["**/node_modules", "**/tests"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportGeneralTypeIssues": "warning"
+}

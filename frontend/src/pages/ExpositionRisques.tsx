@@ -1,10 +1,15 @@
 import React from 'react';
 import { useEffect, useState, useMemo } from "react"
+import { useLocation } from 'react-router-dom'
 import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
-import { useData, filtersToParams } from '../context/DataContext'
+import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
+import { getScopedParams } from '../utils/pageFilterScopes'
+import ActiveFiltersBar from '../components/ActiveFiltersBar'
+import PageFilterPanel from '../components/PageFilterPanel'
+import { useFetch } from '../hooks/useFetch'
 import WorldMap from '../components/Charts/WorldMap'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts'
@@ -87,6 +92,7 @@ const KPICard = ({ title, value, isPercentage = false }: { title: string, value:
 
 export default function ExpositionRisques() {
   const { filters } = useData()
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [loadingRisks, setLoadingRisks] = useState(true)
   
@@ -96,28 +102,28 @@ export default function ExpositionRisques() {
   
   const [sortField, setSortField] = useState<keyof TopRisk>('exposition')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const params = useMemo(() => getScopedParams(location.pathname, filters), [filters, location.pathname])
+  const topParams = useMemo(() => {
+    return { ...params, top: 20 }
+  }, [params])
+
+  const { data: countryData, loading: l1 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_COUNTRY, params)
+  const { data: branchFetch, loading: l2 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_BRANCH, params)
+  const { data: risksData, loading: l3 } = useFetch<any[]>(API_ROUTES.EXPOSITION.TOP_RISKS, topParams)
 
   useEffect(() => {
-    setLoading(true)
-    const params = filtersToParams(filters)
-    
-    Promise.all([
-      api.get(API_ROUTES.EXPOSITION.BY_COUNTRY, { params }),
-      api.get(API_ROUTES.EXPOSITION.BY_BRANCH, { params })
-    ]).then(([countryRes, branchRes]) => {
-      setByCountry(countryRes.data || [])
-      setByBranch(branchRes.data || [])
-    }).catch(console.error).finally(() => setLoading(false))
-  }, [filters])
+    if (countryData) setByCountry(countryData)
+    if (branchFetch) setByBranch(branchFetch)
+    if (risksData) setTopRisks(risksData)
+  }, [countryData, branchFetch, risksData])
 
   useEffect(() => {
-    setLoadingRisks(true)
-    const params = { ...filtersToParams(filters), top: 20 }
-    api.get(API_ROUTES.EXPOSITION.TOP_RISKS, { params })
-      .then(res => setTopRisks(res.data || []))
-      .catch(console.error)
-      .finally(() => setLoadingRisks(false))
-  }, [filters])
+    setLoading(l1 || l2)
+  }, [l1, l2])
+
+  useEffect(() => {
+    setLoadingRisks(l3)
+  }, [l3])
 
   const kpis = useMemo(() => {
     let exp = 0, sumInt = 0, shareSum = 0
@@ -155,7 +161,9 @@ export default function ExpositionRisques() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-fade-in">
+    <div className="p-6 space-y-4 max-w-[1600px] mx-auto animate-fade-in">
+      <ActiveFiltersBar />
+      <PageFilterPanel />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-navy)] mb-1 flex items-center gap-2">
@@ -167,6 +175,24 @@ export default function ExpositionRisques() {
           </p>
         </div>
       </div>
+
+      {/* Bandeau contexte — visibilité accrue quand un filtre cedante/courtier est actif */}
+      {(filters.cedante?.length > 0 || filters.courtier?.length > 0) && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-navy)]/20 bg-[var(--color-navy)]/6 backdrop-blur-md text-sm font-semibold text-[var(--color-navy)] shadow-sm">
+          <ShieldAlert size={16} className="shrink-0 opacity-70" />
+          <span>
+            Exposition affichée pour
+            {filters.cedante?.length > 0 && (
+              <> : <span className="font-bold">{filters.cedante.join(', ')}</span>
+              </>
+            )}
+            {filters.courtier?.length > 0 && (
+              <> — Courtier : <span className="font-bold">{filters.courtier.join(', ')}</span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         <KPICard title="Exposition Totale" value={kpis.exposition} />

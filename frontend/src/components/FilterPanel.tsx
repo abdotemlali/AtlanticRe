@@ -1,6 +1,8 @@
 import React from 'react';
 // 🎨 STYLE UPDATED — FilterPanel : sidebar glassmorphism, sections collapsables avec transitions, reset badge premium
-import { useMemo } from "react"
+// F1: UW Year en 1ère position avec toggle 3 modes | F2: Type cédante checkboxes
+// C1: uw_years (non-contiguous multi-year) | C3: resetToDefaultYear
+import { useMemo, useState } from "react"
 import Select from 'react-select'
 import { useData, FilterState } from '../context/DataContext'
 import { Filter, ChevronUp, RotateCcw, X } from 'lucide-react'
@@ -54,7 +56,7 @@ function RangeRow({
   label: string; minKey: keyof FilterState; maxKey: keyof FilterState;
   min: number; max: number; step?: number; suffix?: string;
 }) {
-  const { filters, setFilters } = useData()
+  const { draftFilters: filters, setDraftFilters: setFilters } = useData()
   const curMin = (filters[minKey] as number | null) ?? min
   const curMax = (filters[maxKey] as number | null) ?? max
 
@@ -95,8 +97,96 @@ const STATUS_DOTS: Record<string, string> = {
   COMMUTED: '#f59e0b', IDENTF: '#8b5cf6',
 }
 
+/* ─── UW Year Mode toggle ─── */
+type YearMode = 'specific' | 'multiple' | 'all'
+
+function YearFilter({ uwYears }: { uwYears: number[] }) {
+  const { draftFilters: filters, setDraftFilters: setFilters } = useData()
+  const [mode, setMode] = useState<YearMode>(() => {
+    if (filters.uw_years.length > 0) return 'multiple'
+    if (filters.uw_year_min !== null && filters.uw_year_min === filters.uw_year_max) return 'specific'
+    if (filters.uw_year_min === null && filters.uw_year_max === null) return 'all'
+    return 'specific'
+  })
+
+  const switchMode = (newMode: YearMode) => {
+    setMode(newMode)
+    // Always clear uw_years on mode switch (C1)
+    if (newMode === 'all') {
+      setFilters(f => ({ ...f, uw_years: [], uw_year_min: null, uw_year_max: null, underwriting_years: [] }))
+    } else if (newMode === 'specific') {
+      const defaultYear = filters.uw_year_min ?? filters.uw_years[0] ?? (uwYears.length ? uwYears[uwYears.length - 1] : null)
+      setFilters(f => ({ ...f, uw_years: [], uw_year_min: defaultYear, uw_year_max: defaultYear, underwriting_years: [] }))
+    } else {
+      // multiple — reset min/max, user will select
+      setFilters(f => ({ ...f, uw_years: [], uw_year_min: null, uw_year_max: null, underwriting_years: [] }))
+    }
+  }
+
+  const pillStyle = (active: boolean) => ({
+    padding: '3px 8px',
+    borderRadius: 6,
+    fontSize: '0.68rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    border: 'none',
+    background: active ? 'var(--color-navy)' : 'transparent',
+    color: active ? '#fff' : 'var(--color-gray-500)',
+    transition: 'all .2s',
+  })
+
+  return (
+    <div className="space-y-2">
+      {/* Mode toggle pills */}
+      <div
+        className="flex gap-1 p-0.5 rounded-lg"
+        style={{ background: 'var(--color-gray-100)' }}
+      >
+        <button style={pillStyle(mode === 'specific')} onClick={() => switchMode('specific')}>Spécifique</button>
+        <button style={pillStyle(mode === 'multiple')} onClick={() => switchMode('multiple')}>Plusieurs</button>
+        <button style={pillStyle(mode === 'all')} onClick={() => switchMode('all')}>Toutes</button>
+      </div>
+
+      {/* Controls per mode */}
+      {mode === 'specific' && (
+        <select
+          className="input-dark text-xs py-1.5 w-full"
+          value={filters.uw_year_min ?? ''}
+          onChange={e => {
+            const y = Number(e.target.value)
+            setFilters(f => ({ ...f, uw_year_min: y, uw_year_max: y }))
+          }}
+        >
+          {uwYears.slice().reverse().map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      )}
+
+      {mode === 'multiple' && (
+        <Select
+          isMulti
+          options={toNumOptions(uwYears)}
+          {...selectStyles}
+          placeholder="Sélectionner les années…"
+          value={toNumOptions(filters.uw_years.length > 0 ? filters.uw_years : filters.underwriting_years)}
+          onChange={v => {
+            // C1: set uw_years (exact, non-contiguous list) and clear min/max
+            const selected = v.map(x => x.value)
+            setFilters(f => ({ ...f, uw_years: selected, uw_year_min: null, uw_year_max: null, underwriting_years: [] }))
+          }}
+        />
+      )}
+
+      {mode === 'all' && (
+        <p className="text-[0.72rem] text-gray-400 italic px-1">Aucun filtre temporel appliqué</p>
+      )}
+    </div>
+  )
+}
+
 export default function FilterPanel() {
-  const { filters, setFilters, resetFilters, filterOptions } = useData()
+  const { draftFilters: filters, setDraftFilters: setFilters, resetFilters, resetToDefaultYear, filterOptions } = useData()
 
   const subBrancheOptions = useMemo(() => {
     if (!filterOptions?.sous_branche) return []
@@ -126,6 +216,7 @@ export default function FilterPanel() {
     if (filters.uw_year_min || filters.uw_year_max) n++
     if (filters.statuts.length) n++
     if (filters.type_of_contract.length) n++
+    if (filters.type_cedante.length) n++
     return n
   }, [filters])
 
@@ -159,7 +250,7 @@ export default function FilterPanel() {
     })
   }
 
-  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_risque', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts']
+  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_risque', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
   arrayFilters.forEach(k => {
     const vals = filters[k] as string[] | number[]
     if (vals && vals.length > 0) {
@@ -173,11 +264,15 @@ export default function FilterPanel() {
   if (filters.int_spc_search) {
     activeChips.push({ label: `Recherche: ${filters.int_spc_search}`, onRemove: () => removeFilter('int_spc_search') })
   }
-  if (filters.uw_year_min) {
-    activeChips.push({ label: `Année Min: ${filters.uw_year_min}`, onRemove: () => removeFilter('uw_year_min') })
-  }
-  if (filters.uw_year_max) {
-    activeChips.push({ label: `Année Max: ${filters.uw_year_max}`, onRemove: () => removeFilter('uw_year_max') })
+  if (filters.uw_year_min && filters.uw_year_min === filters.uw_year_max) {
+    activeChips.push({ label: `Année: ${filters.uw_year_min}`, onRemove: () => setFilters(f => ({ ...f, uw_year_min: null, uw_year_max: null })) })
+  } else {
+    if (filters.uw_year_min) {
+      activeChips.push({ label: `Année Min: ${filters.uw_year_min}`, onRemove: () => removeFilter('uw_year_min') })
+    }
+    if (filters.uw_year_max) {
+      activeChips.push({ label: `Année Max: ${filters.uw_year_max}`, onRemove: () => removeFilter('uw_year_max') })
+    }
   }
   if (filters.prime_min) {
     activeChips.push({ label: `Prime Min: ${filters.prime_min}`, onRemove: () => removeFilter('prime_min') })
@@ -210,6 +305,9 @@ export default function FilterPanel() {
     activeChips.push({ label: `Court. Max: ${filters.courtage_max}%`, onRemove: () => removeFilter('courtage_max') })
   }
 
+  const typeCedanteOptions = filterOptions.type_cedante_options?.length
+    ? filterOptions.type_cedante_options
+    : ['ASSUREUR', 'REASSUREUR']
 
   return (
     <div
@@ -252,9 +350,9 @@ export default function FilterPanel() {
         </div>
 
         <button
-          onClick={resetFilters}
+          onClick={() => { resetFilters(); resetToDefaultYear() }}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[0.7rem] font-semibold text-gray-500 transition-all duration-250"
-          title="Réinitialiser tous les filtres"
+          title="Réinitialiser tous les filtres (remet l'année N)"
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-red-muted)'; e.currentTarget.style.color = 'var(--color-red)' }}
           onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = '' }}
         >
@@ -287,6 +385,37 @@ export default function FilterPanel() {
 
       {/* ─── Filter sections ─── */}
       <div className="py-2">
+
+        {/* ── FEATURE 1: Année de souscription (1ère position) ── */}
+        <Section title="Année de souscription">
+          <YearFilter uwYears={filterOptions.underwriting_years} />
+        </Section>
+
+        <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
+
+        {/* ── FEATURE 2: Type cédante ── */}
+        <Section title="Type cédante">
+          <div className="space-y-1.5">
+            {typeCedanteOptions.map(t => (
+              <label key={t} className="flex items-center gap-2.5 cursor-pointer group px-1 py-0.5 rounded transition-colors hover:bg-navy-muted">
+                <input
+                  type="checkbox"
+                  checked={filters.type_cedante.includes(t)}
+                  onChange={e => {
+                    const next = e.target.checked ? [...filters.type_cedante, t] : filters.type_cedante.filter(x => x !== t)
+                    setFilters(f => ({ ...f, type_cedante: next }))
+                  }}
+                />
+                <span className="text-[0.82rem] font-medium text-gray-600 group-hover:text-navy transition-colors capitalize">
+                  {t === 'REASSUREUR' ? 'Réassureur' : t === 'ASSUREUR' ? 'Assureur' : t}
+                </span>
+              </label>
+            ))}
+          </div>
+        </Section>
+
+        <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
+
         {/* INT_SPC */}
         <Section title="Spécialité">
           <Select isMulti options={toOptions(filterOptions.perimetre)} {...selectStyles} placeholder="Périmètre (AE, AM)" value={toOptions(filters.perimetre)} onChange={v => setFilters(f => ({ ...f, perimetre: v.map(x => x.value) }))} />
@@ -305,10 +434,6 @@ export default function FilterPanel() {
           <Select isMulti options={toOptions(filterOptions.pays_cedante)} {...selectStyles} placeholder="Pays cédante" value={toOptions(filters.pays_cedante)} onChange={v => setFilters(f => ({ ...f, pays_cedante: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.courtiers)} {...selectStyles} placeholder="Courtier" value={toOptions(filters.courtier)} onChange={v => setFilters(f => ({ ...f, courtier: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.cedantes)} {...selectStyles} placeholder="Cédante" value={toOptions(filters.cedante)} onChange={v => setFilters(f => ({ ...f, cedante: v.map(x => x.value) }))} />
-          <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Année de souscription</p>
-            <Select isMulti options={toNumOptions(filterOptions.underwriting_years)} {...selectStyles} placeholder="Toutes les années" value={toNumOptions(filters.underwriting_years)} onChange={v => setFilters(f => ({ ...f, underwriting_years: v.map(x => x.value), uw_year_min: null, uw_year_max: null }))} />
-          </div>
         </Section>
 
         <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />

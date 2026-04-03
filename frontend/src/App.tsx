@@ -15,6 +15,9 @@ import ChangePassword from './pages/ChangePassword'
 import InactiveClients from './pages/InactiveClients'
 import Analysis from './pages/Analysis'
 import ExpositionRisques from './pages/ExpositionRisques'
+import CedanteAnalysis from './pages/CedanteAnalysis'
+import FacSaturation from './pages/FacSaturation'
+import TopBrokers from './pages/TopBrokers'
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuth()
@@ -45,7 +48,10 @@ function AppRoutes() {
         <Route path="comparaison" element={<Comparison />} />
         <Route path="recommandations" element={<Recommendations />} />
         <Route path="analyse" element={<Analysis />} />
+        <Route path="analyse-cedante" element={<CedanteAnalysis />} />
         <Route path="exposition" element={<ExpositionRisques />} />
+        <Route path="fac-saturation" element={<FacSaturation />} />
+        <Route path="top-brokers" element={<TopBrokers />} />
         <Route
           path="inactive-clients"
           element={

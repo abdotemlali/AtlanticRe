@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { useData, filtersToParams } from '../../context/DataContext'
+import { useData, filtersToParamsNoYear } from '../../context/DataContext'
 import api from '../../utils/api'
 import { formatCompact } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
@@ -67,7 +67,7 @@ export default function EvolutionChart() {
 
   useEffect(() => {
     setLoading(true)
-    api.get('/kpis/by-year', { params: filtersToParams(filters) })
+    api.get('/kpis/by-year', { params: filtersToParamsNoYear(filters) })
       .then(r => setData(r.data))
       .catch(console.error)
       .finally(() => setLoading(false))

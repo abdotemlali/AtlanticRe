@@ -42,6 +42,16 @@ def get_contracts(
             if isinstance(val, (np.floating,)): return float(val)
             if isinstance(val, pd.Timestamp): return val.strftime("%d/%m/%Y")
             return val
+        def format_date(val):
+            if pd.isna(val): return None
+            if hasattr(val, "strftime"):
+                return val.strftime("%d/%m/%Y")
+            val_str = str(val).strip()
+            if not val_str: return None
+            try:
+                return pd.to_datetime(val_str, dayfirst=True).strftime("%d/%m/%Y")
+            except:
+                return val_str.replace("-", "/")
 
         return ContractSummary(
             policy_id=str(row.get("POLICY_SEQUENCE_NUMBER", "")),
@@ -56,13 +66,13 @@ def get_contracts(
             written_premium=float(row["WRITTEN_PREMIUM"]) if pd.notna(row.get("WRITTEN_PREMIUM")) else None,
             ulr=float(row["ULR"]) if pd.notna(row.get("ULR")) else None,
             resultat=float(row["RESULTAT"]) if pd.notna(row.get("RESULTAT")) else None,
-            inception_date=row["INCEPTION_DATE"].strftime("%d/%m/%Y") if pd.notna(row.get("INCEPTION_DATE")) else None,
-            expiry_date=row["EXPIRY_DATE"].strftime("%d/%m/%Y") if pd.notna(row.get("EXPIRY_DATE")) else None,
-            date_accepted=row["DATE_ACCEPTED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_ACCEPTED")) else None,
-            date_confirmed=row["DATE_CONFIRMED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CONFIRMED")) else None,
-            date_closed=row["DATE_CLOSED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CLOSED")) else None,
-            date_cancelled=row["DATE_CANCELLED"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_CANCELLED")) else None,
-            date_saisie=row["DATE_SAISIE1"].strftime("%d/%m/%Y") if pd.notna(row.get("DATE_SAISIE1")) else None,
+            inception_date=format_date(row.get("INCEPTION_DATE")),
+            expiry_date=format_date(row.get("EXPIRY_DATE")),
+            date_accepted=format_date(row.get("DATE_ACCEPTED")),
+            date_confirmed=format_date(row.get("DATE_CONFIRMED")),
+            date_closed=format_date(row.get("DATE_CLOSED")),
+            date_cancelled=format_date(row.get("DATE_CANCELLED")),
+            date_saisie=format_date(row.get("DATE_SAISIE1")),
         )
 
     data = [to_contract(row) for _, row in page_df.iterrows()]

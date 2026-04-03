@@ -1,4 +1,5 @@
 // 🎨 STYLE UPDATED — DistributionCharts : palette HSL riche, ChartCard glass, tooltips glass, gradients premium
+// F4: Labels % sur PieCharts | F6: Toggle FAC/Traité sur Top cédantes
 import { useEffect, useState } from "react"
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
@@ -46,6 +47,22 @@ const GlassTooltip = ({ active, payload, label, isBar = false }: any) => {
     </div>
   )
 }
+
+// 🎨 Feature 4 — % labels inside PieChart slices
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  if (percent < 0.04) return null
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.6
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
+      fontSize={11} fontWeight={700} style={{ pointerEvents: 'none' }}>
+      {`${(percent * 100).toFixed(1)}%`}
+    </text>
+  )
+}
+
 
 // 🎨 Glass ChartCard
 const ChartCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -139,6 +156,9 @@ export default function DistributionCharts() {
   const [cedanteData, setCedanteData] = useState<any[]>([]) // NEW
   const [countryData, setCountryData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  // Feature 6: FAC/Traité/Tous toggle for cedante chart
+  type CedanteView = 'ALL' | 'FAC' | 'TREATY'
+  const [cedanteView, setCedanteView] = useState<CedanteView>('ALL')
 
   useEffect(() => {
     const params = filtersToParams(filters)
@@ -147,7 +167,7 @@ export default function DistributionCharts() {
       api.get('/kpis/by-branch', { params }),
       api.get('/kpis/by-contract-type', { params }), // NEW
       api.get('/kpis/by-broker', { params: { ...params, top: 10 } }),
-      api.get('/kpis/by-cedante', { params: { ...params, top: 10 } }), // NEW
+      api.get('/kpis/by-cedante', { params: { ...params, top: 10, type_contrat_view: cedanteView === 'ALL' ? undefined : cedanteView } }), // F6
       api.get('/kpis/by-country', { params }),
     ]).then(([br, contType, bk, ced, co]) => {
       setBranchData(br.data)
@@ -165,7 +185,7 @@ export default function DistributionCharts() {
       
       setCountryData(mappedCountryData.slice(0, 10))
     }).catch(console.error).finally(() => setLoading(false))
-  }, [filters])
+  }, [filters, cedanteView])
 
   if (loading) {
     return (
@@ -212,6 +232,8 @@ export default function DistributionCharts() {
               animationDuration={900}
               animationEasing="ease-out"
               stroke="none"
+              labelLine={false}
+              label={renderCustomLabel}
             >
               {contractTypePieData.map((entry, i) => (
                 <Cell
@@ -251,6 +273,8 @@ export default function DistributionCharts() {
               animationDuration={900}
               animationEasing="ease-out"
               stroke="none"
+              labelLine={false}
+              label={renderCustomLabel}
             >
               {branchPieData.map((entry, i) => (
                 <Cell
@@ -323,6 +347,22 @@ export default function DistributionCharts() {
 
       {/* BAR (horizontal) — top 10 cedantes */}
       <ChartCard title="Top 10 cédantes par prime écrite">
+        {/* Feature 6: FAC / Traité / Tous toggle */}
+        <div className="flex gap-1 mb-3 p-0.5 rounded-lg w-fit" style={{ background: 'var(--color-gray-100)' }}>
+          {(['ALL', 'FAC', 'TREATY'] as const).map(view => (
+            <button
+              key={view}
+              onClick={() => setCedanteView(view)}
+              className="text-[0.68rem] font-bold px-2.5 py-1 rounded-md transition-all duration-200"
+              style={{
+                background: cedanteView === view ? 'var(--color-navy)' : 'transparent',
+                color: cedanteView === view ? '#fff' : 'var(--color-gray-500)',
+              }}
+            >
+              {view === 'ALL' ? 'Tous' : view === 'FAC' ? 'Facultatif' : 'Traité'}
+            </button>
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={cedanteData} layout="vertical" margin={{ left: 10, right: 24 }}>
             <defs>

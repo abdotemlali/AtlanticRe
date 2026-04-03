@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from models.schemas import FilterParams
 from routers.auth import get_current_user
-from services.data_service import get_df, apply_filters, compute_kpi_summary, get_status, get_filter_options, load_excel
+from services.data_service import get_df, apply_filters, apply_identity_filters, apply_analysis_filters, apply_financial_filters, compute_kpi_summary, get_status, get_filter_options, load_excel
 from routers.auth import require_role
 from repositories.log_repository import add_log
 
@@ -22,6 +22,7 @@ def parse_filter_params(
     cedante: Optional[str] = Query(None),
     uw_year_min: Optional[int] = Query(None),
     uw_year_max: Optional[int] = Query(None),
+    uw_years_raw: Optional[str] = Query(None),  # C1: exact list e.g. "2019,2021,2022"
     statuts: Optional[str] = Query(None),
     type_of_contract: Optional[str] = Query(None),
     prime_min: Optional[float] = Query(None),
@@ -34,9 +35,19 @@ def parse_filter_params(
     commission_max: Optional[float] = Query(None),
     courtage_min: Optional[float] = Query(None),
     courtage_max: Optional[float] = Query(None),
+    type_cedante: Optional[str] = Query(None),
 ) -> FilterParams:
     def split_list(s):
         return [v.strip() for v in s.split(",") if v.strip()] if s else None
+
+    def split_list_int(s: Optional[str]) -> Optional[list]:
+        """Parse CSV string to List[int]. Ex: '2019,2021' → [2019, 2021]"""
+        if not s:
+            return None
+        try:
+            return [int(v.strip()) for v in s.split(",") if v.strip()]
+        except ValueError:
+            return None
 
     return FilterParams(
         perimetre=split_list(perimetre), type_contrat_spc=split_list(type_contrat_spc),
@@ -44,8 +55,11 @@ def parse_filter_params(
         branche=split_list(branche), sous_branche=split_list(sous_branche),
         pays_risque=split_list(pays_risque), pays_cedante=split_list(pays_cedante),
         courtier=split_list(courtier), cedante=split_list(cedante),
-        uw_year_min=uw_year_min, uw_year_max=uw_year_max, statuts=split_list(statuts),
+        uw_year_min=uw_year_min, uw_year_max=uw_year_max,
+        uw_years=split_list_int(uw_years_raw),
+        statuts=split_list(statuts),
         type_of_contract=split_list(type_of_contract),
+        type_cedante=split_list(type_cedante),
         prime_min=prime_min, prime_max=prime_max, ulr_min=ulr_min, ulr_max=ulr_max,
         share_min=share_min, share_max=share_max, commission_min=commission_min,
         commission_max=commission_max, courtage_min=courtage_min, courtage_max=courtage_max,
@@ -95,7 +109,19 @@ def kpis_financial_breakdown(
         "profit_commission_pct": round(profit_commission / written_premium * 100, 1) if written_premium else 0,
         "tax_pct": round(tax / written_premium * 100, 1) if written_premium else 0,
         "resultat_pct": round(resultat / written_premium * 100, 1) if written_premium else 0,
+        "resultat_pct": round(resultat / written_premium * 100, 1) if written_premium else 0,
     }
+
+
+def apply_view_filters(df, contract_type_view: Optional[str], vie_non_vie_view: Optional[str]):
+    if contract_type_view == "FAC" and "TYPE_OF_CONTRACT" in df.columns:
+        df = df[df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    elif contract_type_view == "TREATY" and "TYPE_OF_CONTRACT" in df.columns:
+        df = df[~df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    if vie_non_vie_view and vie_non_vie_view != "ALL" and "VIE_NON_VIE" in df.columns:
+        df = df[df["VIE_NON_VIE"] == vie_non_vie_view]
+    return df
+
 
 @router.get("/alerts")
 def kpis_alerts(
@@ -125,10 +151,54 @@ def kpis_alerts(
     return result
 
 
-@router.get("/by-country")
-def kpis_by_country(filters: FilterParams = Depends(parse_filter_params), _: dict = Depends(get_current_user)):
+@router.get("/top-brokers")
+def kpis_top_brokers(
+    limit: int = Query(20),
+    sort_by: str = Query("total_written_premium"),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
     df = get_df()
     df = apply_filters(df, filters)
+    if df.empty or "INT_BROKER" not in df.columns:
+        return []
+
+    result = []
+    # Dropna to avoid empty brokers and exclude "DIRECT" if user only wants actual brokers
+    for broker, group in df.groupby("INT_BROKER"):
+        if not broker or str(broker).strip() == "" or str(broker).strip().upper() == "NAN":
+            continue
+        kpis = compute_kpi_summary(group)
+        result.append({
+            "broker": str(broker).strip(),
+            "total_written_premium": kpis["total_written_premium"],
+            "total_resultat": kpis["total_resultat"],
+            "avg_ulr": kpis["avg_ulr"],
+            "contract_count": kpis["contract_count"]
+        })
+    
+    # Sort
+    sort_key = sort_by if sort_by in ["total_written_premium", "total_resultat", "avg_ulr", "contract_count"] else "total_written_premium"
+    reverse_sort = True if sort_key != "avg_ulr" else False  # ULR is usually better if lower, but typically we sort by largest volume
+    if sort_key == "avg_ulr":
+        # Keep None values at the end
+        result.sort(key=lambda x: x[sort_key] if x[sort_key] is not None else float('inf'), reverse=False)
+    else:
+        result.sort(key=lambda x: x[sort_key] if x[sort_key] is not None else -f"inf", reverse=reverse_sort)
+
+    return result[:limit]
+
+
+@router.get("/by-country")
+def kpis_by_country(
+    contract_type_view: Optional[str] = Query(None),  # A1: "FAC" | "TREATY" | None
+    vie_non_vie_view: Optional[str] = Query(None),    # A2: "VIE" | "NON_VIE" | None
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user)
+):
+    df = get_df()
+    df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     if df.empty or "PAYS_RISQUE" not in df.columns:
         return []
     result = []
@@ -225,11 +295,21 @@ def kpis_by_contract_type(filters: FilterParams = Depends(parse_filter_params), 
 
 
 @router.get("/by-cedante")
-def kpis_by_cedante(top: int = Query(10), filters: FilterParams = Depends(parse_filter_params), _: dict = Depends(get_current_user)):
+def kpis_by_cedante(
+    top: int = Query(10),
+    type_contrat_view: Optional[str] = Query(None),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user)
+):
     df = get_df()
     df = apply_filters(df, filters)
     if df.empty or "INT_CEDANTE" not in df.columns:
         return []
+    # Feature 6: filter by FAC or TREATY
+    if type_contrat_view == "FAC" and "TYPE_OF_CONTRACT" in df.columns:
+        df = df[df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    elif type_contrat_view == "TREATY" and "TYPE_OF_CONTRACT" in df.columns:
+        df = df[~df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
     result = []
     for cedante, group in df.groupby("INT_CEDANTE"):
         if not cedante:
@@ -309,21 +389,81 @@ def kpis_pivot(request: dict, _: dict = Depends(get_current_user)):
 @router.get("/cedante/profile")
 def cedante_profile(
     cedante: str = Query(...),
+    vie_non_vie_view: Optional[str] = Query(None),  # A3
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
-    df = get_df()
-    df = apply_filters(df, filters)
-    group = df[df["INT_CEDANTE"] == cedante]
-    if group.empty:
+    df_raw = get_df()
+
+    # ── df_identity : filtres identitaires uniquement (années, périmètre, statuts)
+    # Ne jamais appliquer branche/pays ici pour préserver les attributs globaux
+    df_identity = apply_identity_filters(df_raw, filters)
+    identity_group = df_identity[df_identity["INT_CEDANTE"] == cedante]
+
+    # A3 — Vie/Non-vie peut être appliqué sur les deux vues
+    if vie_non_vie_view and "VIE_NON_VIE" in identity_group.columns:
+        identity_group = identity_group[identity_group["VIE_NON_VIE"] == vie_non_vie_view]
+
+    if identity_group.empty:
         return {}
-    kpis = compute_kpi_summary(group)
-    avg_share = round(float(pd.to_numeric(group["SHARE_SIGNED"], errors="coerce").mean()), 2) if "SHARE_SIGNED" in group.columns else 0.0
-    avg_commission = round(float(pd.to_numeric(group["COMMI"], errors="coerce").mean()), 2) if "COMMI" in group.columns else 0.0
-    avg_profit_comm = round(float(pd.to_numeric(group["PROFIT_COMM_RATE"], errors="coerce").mean()), 2) if "PROFIT_COMM_RATE" in group.columns else 0.0
-    avg_brokerage = round(float(pd.to_numeric(group["BROKERAGE_RATE"], errors="coerce").mean()), 2) if "BROKERAGE_RATE" in group.columns else 0.0
-    pays_cedante = group["PAYS_CEDANTE"].mode().iloc[0] if "PAYS_CEDANTE" in group.columns and not group["PAYS_CEDANTE"].mode().empty else ""
+
+    # ── Attributs globaux calculés sur df_identity (jamais altérés par branche/pays)
+    pays_cedante = identity_group["PAYS_CEDANTE"].mode().iloc[0] if "PAYS_CEDANTE" in identity_group.columns and not identity_group["PAYS_CEDANTE"].mode().empty else ""
+    type_cedante = "ASSUREUR DIRECT"
+    if "TYPE_CEDANTE" in identity_group.columns and not identity_group["TYPE_CEDANTE"].mode().empty:
+        type_cedante = str(identity_group["TYPE_CEDANTE"].mode().iloc[0])
+
+    # B2 — Diversification par branches (toujours sur identité complète, jamais filtrée par branche)
+    branches_actives = 0
+    if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns:
+        branch_sums = identity_group.groupby("INT_BRANCHE")["WRITTEN_PREMIUM"].apply(
+            lambda x: pd.to_numeric(x, errors="coerce").fillna(0).sum()
+        )
+        branches_actives = int((branch_sums > 0).sum())
+    elif "INT_BRANCHE" in identity_group.columns:
+        branches_actives = int(identity_group["INT_BRANCHE"].dropna().nunique())
+
+    # B3 — Alerte Saturation FAC (Calculé sur le portefeuille brut)
+    fac_saturation_alerts = []
+    has_type = "TYPE_OF_CONTRACT" in identity_group.columns
+    has_spc_type = "INT_SPC_TYPE" in identity_group.columns
+    if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns and (has_type or has_spc_type):
+        fac_mask = pd.Series(False, index=identity_group.index)
+        if has_type: fac_mask = fac_mask | (identity_group["TYPE_OF_CONTRACT"] == "FAC")
+        if has_spc_type: fac_mask = fac_mask | (identity_group["INT_SPC_TYPE"] == "FAC")
+        
+        fac_group = identity_group[fac_mask]
+        
+        # Grouper par branche, compter les lignes (affaires) et sommer les primes
+        for branche, br_df in fac_group.groupby("INT_BRANCHE"):
+            count = len(br_df)
+            prime = pd.to_numeric(br_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()
+            if count > 5 and prime > 1000000:
+                fac_saturation_alerts.append(str(branche))
+
+    # ── df_analysis : tous les filtres appliqués (pour les KPIs des graphiques)
+    df_analysis = apply_analysis_filters(apply_financial_filters(df_identity, filters), filters)
+    analysis_group = df_analysis[df_analysis["INT_CEDANTE"] == cedante]
+    if vie_non_vie_view and "VIE_NON_VIE" in analysis_group.columns:
+        analysis_group = analysis_group[analysis_group["VIE_NON_VIE"] == vie_non_vie_view]
+
+    # KPIs d'analyse — reflètent les filtres actifs
+    kpis = compute_kpi_summary(analysis_group) if not analysis_group.empty else compute_kpi_summary(identity_group)
+
+    avg_share = round(float(pd.to_numeric(analysis_group["SHARE_SIGNED"] if not analysis_group.empty else identity_group["SHARE_SIGNED"], errors="coerce").mean()), 2) if "SHARE_SIGNED" in identity_group.columns else 0.0
+    avg_commission = round(float(pd.to_numeric(analysis_group["COMMI"] if not analysis_group.empty else identity_group["COMMI"], errors="coerce").mean()), 2) if "COMMI" in identity_group.columns else 0.0
+    avg_profit_comm = round(float(pd.to_numeric(analysis_group["PROFIT_COMM_RATE"] if not analysis_group.empty else identity_group["PROFIT_COMM_RATE"], errors="coerce").mean()), 2) if "PROFIT_COMM_RATE" in identity_group.columns else 0.0
+    avg_brokerage = round(float(pd.to_numeric(analysis_group["BROKERAGE_RATE"] if not analysis_group.empty else identity_group["BROKERAGE_RATE"], errors="coerce").mean()), 2) if "BROKERAGE_RATE" in identity_group.columns else 0.0
+
+    # filtered_view = True si des filtres d'analyse ou financiers sont actifs
+    filtered_view = bool(
+        filters.branche or filters.sous_branche or filters.pays_risque or
+        filters.pays_cedante or filters.type_of_contract or filters.type_contrat_spc or
+        filters.specialite or filters.prime_min is not None or filters.prime_max is not None or
+        filters.ulr_min is not None or filters.ulr_max is not None
+    )
+
     return {
         **kpis,
         "cedante": cedante,
@@ -332,19 +472,32 @@ def cedante_profile(
         "avg_commission": avg_commission,
         "avg_profit_comm_rate": avg_profit_comm,
         "avg_brokerage_rate": avg_brokerage,
+        "type_cedante": type_cedante,         # B1 — calculé sur df_identity
+        "branches_actives": branches_actives,  # B2 — calculé sur df_identity (immunisé contre filtre branche)
+        "fac_saturation_alerts": fac_saturation_alerts, # Alerte métier ciblée
+        "filtered_view": filtered_view,        # indique au frontend si une vue partielle est active
     }
 
 
 @router.get("/cedante/by-year")
 def cedante_by_year(
     cedante: str = Query(...),
+    vie_non_vie_view: Optional[str] = Query(None),  # A3
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
+    
+    # ── Règle Métier : L'évolution historique ne doit pas être tronquée par le filtre de l'année
+    filters.uw_years = None
+    filters.uw_year_min = None
+    filters.uw_year_max = None
+    
     df = get_df()
     df = apply_filters(df, filters)
     group = df[df["INT_CEDANTE"] == cedante]
+    if vie_non_vie_view and "VIE_NON_VIE" in group.columns:
+        group = group[group["VIE_NON_VIE"] == vie_non_vie_view]
     if group.empty:
         return []
     group = group[group["UNDERWRITING_YEAR"].notna()].copy()
@@ -360,6 +513,7 @@ def cedante_by_year(
 @router.get("/cedante/by-branch")
 def cedante_by_branch(
     cedante: str = Query(...),
+    vie_non_vie_view: Optional[str] = Query(None),  # A3
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
@@ -367,6 +521,8 @@ def cedante_by_branch(
     df = get_df()
     df = apply_filters(df, filters)
     group = df[df["INT_CEDANTE"] == cedante]
+    if vie_non_vie_view and "VIE_NON_VIE" in group.columns:
+        group = group[group["VIE_NON_VIE"] == vie_non_vie_view]
     if group.empty:
         return []
     result = []
@@ -493,12 +649,15 @@ def exposition_top_risks(
 def market_profile(
     pays: str = Query(...),
     branche: str = Query(...),
+    contract_type_view: Optional[str] = Query(None),
+    vie_non_vie_view: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     group = df[(df["PAYS_RISQUE"] == pays) & (df["INT_BRANCHE"] == branche)]
     if group.empty:
         return {}
@@ -522,12 +681,15 @@ def market_profile(
 def market_by_year(
     pays: str = Query(...),
     branche: str = Query(...),
+    contract_type_view: Optional[str] = Query(None),
+    vie_non_vie_view: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     group = df[(df["PAYS_RISQUE"] == pays) & (df["INT_BRANCHE"] == branche)]
     if group.empty: return []
     group = group[group["UNDERWRITING_YEAR"].notna()].copy()
@@ -543,12 +705,15 @@ def market_by_year(
 @router.get("/country/profile")
 def country_profile(
     pays: str = Query(...),
+    contract_type_view: Optional[str] = Query(None),
+    vie_non_vie_view: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     group = df[df["PAYS_RISQUE"] == pays]
     if group.empty: return {}
     kpis = compute_kpi_summary(group)
@@ -569,12 +734,15 @@ def country_profile(
 @router.get("/country/by-year")
 def country_by_year(
     pays: str = Query(...),
+    contract_type_view: Optional[str] = Query(None),
+    vie_non_vie_view: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     group = df[df["PAYS_RISQUE"] == pays]
     if group.empty: return []
     group = group[group["UNDERWRITING_YEAR"].notna()].copy()
@@ -590,12 +758,15 @@ def country_by_year(
 @router.get("/country/by-branch")
 def country_by_branch(
     pays: str = Query(...),
+    contract_type_view: Optional[str] = Query(None),
+    vie_non_vie_view: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
+    df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
     group = df[df["PAYS_RISQUE"] == pays]
     if group.empty: return []
     result = []
@@ -615,3 +786,81 @@ def country_by_branch(
         })
     result.sort(key=lambda x: x["total_written_premium"], reverse=True)
     return result
+
+
+@router.get("/cedante/fac-saturation")
+def cedante_fac_saturation(
+    cedante: str = Query(...),
+    seuil_prime: float = Query(1_000_000),   # B3: modifiable, default 1M DH
+    seuil_affaires: int = Query(5),           # B3: modifiable, default 5 affaires
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    df = get_df()
+    df = apply_filters(df, filters)
+    df_cedante = df[df["INT_CEDANTE"] == cedante] if "INT_CEDANTE" in df.columns else df[:0]
+    if "TYPE_OF_CONTRACT" in df_cedante.columns:
+        df_cedante = df_cedante[df_cedante["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    if df_cedante.empty or "INT_BRANCHE" not in df_cedante.columns:
+        return []
+    result = []
+    for branche in df_cedante["INT_BRANCHE"].dropna().unique():
+        if not branche:
+            continue
+        df_br = df_cedante[df_cedante["INT_BRANCHE"] == branche]
+        total_prime = float(df_br["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in df_br.columns else 0.0
+        nb_affaires = int(len(df_br))
+        is_saturated = (total_prime > seuil_prime) and (nb_affaires > seuil_affaires)
+        result.append({
+            "branche": branche,
+            "total_prime_fac": round(total_prime, 2),
+            "nb_affaires_fac": nb_affaires,
+            "is_saturated": is_saturated,
+            "seuil_prime": seuil_prime,
+            "seuil_affaires": seuil_affaires,
+        })
+    return sorted(result, key=lambda x: x["total_prime_fac"], reverse=True)
+
+
+@router.get("/by-country-contract-type")
+def kpis_by_country_contract_type(
+    vie_non_vie_view: Optional[str] = Query(None),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+    df = apply_view_filters(df, None, vie_non_vie_view)
+    if df.empty or "PAYS_RISQUE" not in df.columns or "TYPE_OF_CONTRACT" not in df.columns:
+        return []
+        
+    df["TYPE_CLEAN"] = df["TYPE_OF_CONTRACT"].fillna("").astype(str)
+    df["ContractMode"] = "TREATY"
+    df.loc[df["TYPE_CLEAN"].str.upper().str.contains("FAC", na=False), "ContractMode"] = "FAC"
+    
+    result = []
+    for pays, group in df.groupby("PAYS_RISQUE"):
+        if not pays: continue
+        total_prime = float(group["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in group.columns else 0.0
+        
+        fac_group = group[group["ContractMode"] == "FAC"]
+        treaty_group = group[group["ContractMode"] == "TREATY"]
+        
+        fac_prime = float(fac_group["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in fac_group.columns else 0.0
+        treaty_prime = float(treaty_group["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in treaty_group.columns else 0.0
+        
+        fac_count = int(len(fac_group))
+        treaty_count = int(len(treaty_group))
+        
+        result.append({
+            "pays": pays,
+            "total_written_premium": round(total_prime, 2),
+            "fac_written_premium": round(fac_prime, 2),
+            "treaty_written_premium": round(treaty_prime, 2),
+            "fac_contract_count": fac_count,
+            "treaty_contract_count": treaty_count,
+            "total_contract_count": len(group)
+        })
+        
+    return sorted(result, key=lambda x: x["total_written_premium"], reverse=True)

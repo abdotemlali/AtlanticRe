@@ -6,17 +6,20 @@ import { useData } from '../context/DataContext'
 import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
-  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert
+  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-  { to: '/analyse', label: 'Analyse', icon: BarChart2 },
+  { to: '/analyse', label: 'Analyse Globale', icon: BarChart2 },
+  { to: '/analyse-cedante', label: 'Analyse Cédante', icon: PieChart },
   { to: '/comparaison', label: 'Comparaison', icon: GitCompare },
   { to: '/scoring', label: 'Scoring', icon: Target },
   { to: '/recommandations', label: 'Recommandations', icon: Star },
-  { to: '/exposition', label: 'Exposition & Risques', icon: ShieldAlert },
+  { to: '/fac-saturation', label: 'Saturation FAC', icon: ShieldAlert },
+  { to: '/top-brokers', label: 'Courtiers', icon: Target },
+  { to: '/exposition', label: 'Exposition & Risques', icon: Target },
 ]
 
 export default function Layout() {
