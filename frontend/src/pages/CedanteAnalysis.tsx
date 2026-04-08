@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal } from 'lucide-react'
+import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import { API_ROUTES } from '../constants/api'
@@ -9,7 +9,6 @@ import { formatCompact, formatPercent } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import { getScopedParams } from '../utils/pageFilterScopes'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import { EmptyState } from '../components/ui/EmptyState'
 import { useFetch } from '../hooks/useFetch'
 
 interface CedanteProfile {
@@ -373,17 +372,27 @@ export default function CedanteAnalysis() {
       .sort((a, b) => b.total_written_premium - a.total_written_premium)
   }, [branchData, branchDataAll, draftFilters.branche, isBranchFilterActive])
 
+  // ── Top 15 Cédantes globales (pour l'état vide) ────────────────────────────
+  const topCedantesParams = useMemo(
+    () => getScopedParams(location.pathname, draftFilters),
+    [draftFilters, location.pathname]
+  )
+  const { data: topCedantesGlobalRes } = useFetch<any[]>(
+    !selectedCedante ? API_ROUTES.KPIS.BY_CEDANTE : null,
+    topCedantesParams
+  )
+  const topCedantesGlobal = useMemo(() => {
+    if (!topCedantesGlobalRes) return []
+    return [...topCedantesGlobalRes]
+      .filter((c: any) => c.total_written_premium > 0)
+      .sort((a: any, b: any) => b.total_written_premium - a.total_written_premium)
+      .slice(0, 15)
+  }, [topCedantesGlobalRes])
+
   if (!selectedCedante) {
     return (
-      <div className="space-y-4 animate-fade-in p-2">
+      <div className="space-y-6 animate-fade-in p-2">
         <ActiveFiltersBar />
-        <div className="sticky top-0 z-40 bg-[var(--color-off-white)] pt-1">
-          <CedantePageFilters
-            brancheScope={brancheScope}
-            onBrancheScopeChange={applyBrancheScope}
-            brancheOptions={brancheOptions}
-          />
-        </div>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md">
           <div className="flex items-center gap-3">
@@ -395,9 +404,9 @@ export default function CedanteAnalysis() {
               <p className="text-sm text-[var(--color-gray-500)] mt-0.5">Explorez les performances par cédante</p>
             </div>
           </div>
-          
+
           <div className="w-full md:w-80 z-50">
-            <Select 
+            <Select
               options={cedanteOptions}
               onChange={(v) => setSelectedCedante(v?.value || null)}
               placeholder="Rechercher une cédante..."
@@ -418,13 +427,71 @@ export default function CedanteAnalysis() {
           </div>
         </div>
 
-        {/* Empty State */}
-        <div className="h-[50vh] flex items-center justify-center p-4">
-          <EmptyState 
-            title="Sélectionnez une cédante" 
-            message="Choisissez une cédante dans le menu déroulant pour afficher son analyse détaillée." 
-            icon={<Building2 size={48} className="mb-4 text-[var(--color-gray-400)]" />} 
-          />
+        {/* Top 15 Cédantes */}
+        {topCedantesGlobal.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-5 animate-slide-up">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={18} className="text-[var(--color-navy)]" />
+              <h3 className="text-sm font-bold text-[var(--color-navy)]">Performance Globale — Top 15 Cédantes</h3>
+              <span className="ml-auto px-2 py-1 rounded-lg text-[10px] font-bold text-[var(--color-gray-500)] bg-[var(--color-gray-100)]">
+                Cliquez sur une barre pour analyser la cédante
+              </span>
+            </div>
+
+            <div className="h-[500px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topCedantesGlobal}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-gray-100)" />
+                  <XAxis type="number" tickFormatter={(val) => formatCompact(val)} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--color-gray-500)' }} />
+                  <YAxis type="category" dataKey="cedante" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-gray-500)', width: 160 }} width={160} />
+                  <RechartsTooltip
+                    cursor={{ fill: 'hsla(209,28%,24%,0.04)' }}
+                    content={({ active, payload }: any) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      const ulr = d.avg_ulr
+                      const ulrCol = ulr === null ? 'var(--color-gray-400)' : ulr > 100 ? 'hsl(358,66%,54%)' : ulr > 70 ? 'hsl(30,88%,56%)' : 'hsl(83,52%,36%)'
+                      return (
+                        <div className="bg-white/95 backdrop-blur-md p-3 rounded-lg shadow-xl border border-[var(--color-gray-100)] text-xs">
+                          <p className="font-bold mb-2 text-[var(--color-navy)]">{d.cedante}</p>
+                          <div className="flex justify-between gap-4">
+                            <span className="opacity-70">Prime Écrite:</span>
+                            <span className="font-mono font-bold text-[var(--color-navy)]">{formatCompact(d.total_written_premium)}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 mt-1">
+                            <span className="opacity-70">ULR:</span>
+                            <span className="font-mono font-bold" style={{ color: ulrCol }}>{formatPercent(ulr)}</span>
+                          </div>
+                          <p className="text-[10px] italic text-[var(--color-gray-400)] mt-3">Cliquez pour voir l'analyse complète</p>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Bar dataKey="total_written_premium" radius={[0, 4, 4, 0]}>
+                    {topCedantesGlobal.map((_: any, index: number) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill="var(--color-navy)"
+                        className="cursor-pointer transition-opacity hover:opacity-80"
+                        onClick={() => {
+                          setSelectedCedante(topCedantesGlobal[index].cedante)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        <div className="text-center">
+          <p className="text-sm text-[var(--color-gray-500)]">Sélectionnez une cédante en haut pour afficher l'analyse détaillée.</p>
         </div>
       </div>
     )

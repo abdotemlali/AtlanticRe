@@ -74,20 +74,48 @@ def _get_country_kpis(df_filtered, df_all_years, pays: str) -> dict:
     }
 
 
+def _format_branche_label(requested_branches: Optional[List[str]], available_branches: set) -> str:
+    if not requested_branches:
+        return "Toutes branches"
+    req_set = set(requested_branches)
+    
+    if req_set == {"VIE"}:
+        return "Vie"
+        
+    non_vie = available_branches - {"VIE"}
+    if req_set == available_branches:
+        return "Toutes branches"
+    elif non_vie and req_set == non_vie:
+        return "Non-Vie"
+    else:
+        return ", ".join(sorted(req_set))
+
+
 # AJOUTÉ — helper pour KPIs d'un pays avec branches optionnelles
-def _get_country_kpis_with_branches(df_filtered, df_all_years, pays: str, branches: Optional[List[str]] = None) -> dict:
-    """Calcule les KPIs d'un pays, filtré optionnellement par une liste de branches."""
+def _get_country_kpis_with_branches(df_filtered, df_all_years, pays: str, branches: Optional[List[str]] = None, vie_view: Optional[str] = None) -> dict:
+    """Calcule les KPIs d'un pays, filtré optionnellement par branches et/ou Vie/Non-Vie."""
     group = df_filtered[df_filtered["PAYS_RISQUE"] == pays]
     group_all = df_all_years[df_all_years["PAYS_RISQUE"] == pays]
 
-    # Appliquer le filtre branche si fourni et non vide
+    available_branches = set(df_filtered[df_filtered["PAYS_RISQUE"] == pays]["INT_BRANCHE"].dropna().unique()) \
+        if "INT_BRANCHE" in df_filtered.columns else set()
+
+    # Filtre Vie / Non-Vie par pays
+    if vie_view == "VIE" and "INT_BRANCHE" in group.columns:
+        group = group[group["INT_BRANCHE"] == "VIE"]
+        group_all = group_all[group_all["INT_BRANCHE"] == "VIE"]
+    elif vie_view == "NON_VIE" and "INT_BRANCHE" in group.columns:
+        group = group[group["INT_BRANCHE"] != "VIE"]
+        group_all = group_all[group_all["INT_BRANCHE"] != "VIE"]
+
+    # Filtre branche spécifique si fourni
     if branches:
         group = group[group["INT_BRANCHE"].isin(branches)]
         group_all = group_all[group_all["INT_BRANCHE"].isin(branches)]
 
     kpis = compute_kpi_summary(group)
 
-    branche_label = ", ".join(branches) if branches else "Toutes branches"
+    branche_label = _format_branche_label(branches, available_branches)
 
     by_year = []
     if "UNDERWRITING_YEAR" in group_all.columns and not group_all.empty:
@@ -265,6 +293,8 @@ def comparison_by_country_detail(
     year: Optional[str] = Query(None, description="Années de souscription (comma-separated)"),
     contract_type: Optional[str] = Query(None, description="Type de contrat (comma-separated)"),
     spc_type: Optional[str] = Query(None, description="Type SPC : FAC, TTY ou TTE (comma-separated)"),
+    vie_non_vie_1: Optional[str] = Query(None, description="Filtre VIE ou NON_VIE pour le pays 1"),
+    vie_non_vie_2: Optional[str] = Query(None, description="Filtre VIE ou NON_VIE pour le pays 2"),
     _: dict = Depends(get_current_user),
 ):
     """
@@ -312,13 +342,13 @@ def comparison_by_country_detail(
         if spc_types and "INT_SPC_TYPE" in df_all.columns:
             df_all = df_all[df_all["INT_SPC_TYPE"].isin(spc_types)]
 
-    # Parser les branches
+    # Parser les branches par pays
     b1 = [b.strip() for b in branches_1.split(",") if b.strip()] if branches_1 else []
     b2 = [b.strip() for b in branches_2.split(",") if b.strip()] if branches_2 else []
 
-    # Calculer les KPIs pour chaque pays + branches
-    market_a = _get_country_kpis_with_branches(df, df_all, country_1, b1 if b1 else None)
-    market_b = _get_country_kpis_with_branches(df, df_all, country_2, b2 if b2 else None)
+    # Calculer les KPIs pour chaque pays avec leur scope Vie/Non-Vie individuel
+    market_a = _get_country_kpis_with_branches(df, df_all, country_1, b1 if b1 else None, vie_view=vie_non_vie_1)
+    market_b = _get_country_kpis_with_branches(df, df_all, country_2, b2 if b2 else None, vie_view=vie_non_vie_2)
 
     radar_a, radar_b = _compute_radar(market_a, market_b)
     market_a["radar"] = radar_a
@@ -328,6 +358,36 @@ def comparison_by_country_detail(
         "market_a": market_a,
         "market_b": market_b,
     }
+
+
+@router.get("/branches-by-cedante")
+def get_branches_by_cedante(
+    cedante: str = Query(..., description="Nom de la cédante"),
+    spc_type: Optional[str] = Query(None),
+    contract_type: Optional[str] = Query(None),
+    year: Optional[str] = Query(None),
+    _: dict = Depends(get_current_user),
+):
+    """Retourne la liste des branches disponibles pour une cédante. Le filtrage Vie/Non-Vie est géré côté client."""
+    df = get_df()
+    if df.empty or "INT_CEDANTE" not in df.columns:
+        return []
+    df = df[df["INT_CEDANTE"] == cedante]
+    if year:
+        years = [int(y.strip()) for y in year.split(",") if y.strip().isdigit()]
+        if years and "UNDERWRITING_YEAR" in df.columns:
+            df = df[df["UNDERWRITING_YEAR"].isin(years)]
+    if contract_type:
+        types = [t.strip() for t in contract_type.split(",") if t.strip()]
+        if types and "TYPE_OF_CONTRACT" in df.columns:
+            df = df[df["TYPE_OF_CONTRACT"].isin(types)]
+    if spc_type:
+        spc_types = [s.strip() for s in spc_type.split(",") if s.strip()]
+        if spc_types and "INT_SPC_TYPE" in df.columns:
+            df = df[df["INT_SPC_TYPE"].isin(spc_types)]
+    if df.empty or "INT_BRANCHE" not in df.columns:
+        return []
+    return sorted([b for b in df["INT_BRANCHE"].dropna().unique().tolist() if str(b).strip()])
 
 
 @router.get("/cedantes")
@@ -351,6 +411,10 @@ def get_available_cedantes(
 def comparison_by_cedante(
     cedante_a: str = Query(...),
     cedante_b: str = Query(...),
+    branches_a: Optional[str] = Query(None, description="Branches cédante A (comma-separated)"),
+    branches_b: Optional[str] = Query(None, description="Branches cédante B (comma-separated)"),
+    vie_non_vie_a: Optional[str] = Query(None, description="Filtre VIE ou NON_VIE pour cédante A"),
+    vie_non_vie_b: Optional[str] = Query(None, description="Filtre VIE ou NON_VIE pour cédante B"),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
@@ -360,14 +424,28 @@ def comparison_by_cedante(
     df_analysis_no_year = _strip_year_filter(df_raw, filters)
     df_identity = apply_identity_filters(df_raw, filters)
 
-    def get_cedante_kpis(cedante: str) -> dict:
+    br_a = [b.strip() for b in branches_a.split(",") if b.strip()] if branches_a else []
+    br_b = [b.strip() for b in branches_b.split(",") if b.strip()] if branches_b else []
+
+    def get_cedante_kpis(cedante: str, br_list: list, v_view: Optional[str]) -> dict:
         import numpy as np
         analysis_group = df_analysis[df_analysis["INT_CEDANTE"] == cedante].copy()
         identity_group = df_identity[df_identity["INT_CEDANTE"] == cedante].copy()
+        available_branches = set(analysis_group["INT_BRANCHE"].dropna().unique()) if "INT_BRANCHE" in analysis_group.columns else set()
+
+        # Filtres branche/scope appliqués UNIQUEMENT sur analysis_group → diversification immunisée
+        if v_view == "VIE" and "INT_BRANCHE" in analysis_group.columns:
+            analysis_group = analysis_group[analysis_group["INT_BRANCHE"] == "VIE"]
+        elif v_view == "NON_VIE" and "INT_BRANCHE" in analysis_group.columns:
+            analysis_group = analysis_group[analysis_group["INT_BRANCHE"] != "VIE"]
+        if br_list and "INT_BRANCHE" in analysis_group.columns:
+            analysis_group = analysis_group[analysis_group["INT_BRANCHE"].isin(br_list)]
+
+        branche_label = _format_branche_label(br_list, available_branches)
 
         if identity_group.empty:
             return {
-                "cedante": cedante, "pays_cedante": "",
+                "cedante": cedante, "pays_cedante": "", "branche_label": branche_label,
                 "written_premium": 0, "resultat": 0, "avg_ulr": 0,
                 "sum_insured": 0, "contract_count": 0,
                 "avg_commission": 0, "avg_share_signed": 0,
@@ -439,20 +517,35 @@ def comparison_by_cedante(
                     fac_saturation_alerts.append(str(branche))
 
         analysis_group_no_year = df_analysis_no_year[df_analysis_no_year["INT_CEDANTE"] == cedante].copy()
+        
+        # Appliquer les mêmes filtres de branche/scope à analysis_group_no_year pour le graph évolution
+        if v_view == "VIE" and "INT_BRANCHE" in analysis_group_no_year.columns:
+            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"] == "VIE"]
+        elif v_view == "NON_VIE" and "INT_BRANCHE" in analysis_group_no_year.columns:
+            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"] != "VIE"]
+        if br_list and "INT_BRANCHE" in analysis_group_no_year.columns:
+            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"].isin(br_list)]
+
         by_year = []
         if "UNDERWRITING_YEAR" in analysis_group_no_year.columns:
             yr_df = analysis_group_no_year[analysis_group_no_year["UNDERWRITING_YEAR"].notna()].copy()
             yr_df["UNDERWRITING_YEAR"] = pd.to_numeric(yr_df["UNDERWRITING_YEAR"], errors="coerce")
-            yr_df = yr_df[yr_df["UNDERWRITING_YEAR"].notna()]
+            yr_df = yr_df.dropna(subset=["UNDERWRITING_YEAR"])
             yr_df["UNDERWRITING_YEAR"] = yr_df["UNDERWRITING_YEAR"].astype(int)
             for year, yr_group in yr_df.groupby("UNDERWRITING_YEAR"):
                 yr_kpis = compute_kpi_summary(yr_group)
-                by_year.append({"year": int(year), **{k: safe_val(v) for k, v in yr_kpis.items()}})
+                by_year.append({
+                    "year": int(year),
+                    "total_written_premium": safe_val(yr_kpis.get("total_written_premium")),
+                    "avg_ulr": safe_val(yr_kpis.get("avg_ulr")),
+                    "total_resultat": safe_val(yr_kpis.get("total_resultat")),
+                })
             by_year.sort(key=lambda x: x["year"])
 
         return {
             "cedante": cedante,
             "pays_cedante": pays_cedante,
+            "branche_label": branche_label,
             "written_premium": safe_val(kpis.get("total_written_premium", 0)),
             "resultat": safe_val(kpis.get("total_resultat", 0)),
             "avg_ulr": safe_val(kpis.get("avg_ulr", 0)),
@@ -467,8 +560,8 @@ def comparison_by_cedante(
             "by_year": by_year,
         }
 
-    kpis_a = get_cedante_kpis(cedante_a)
-    kpis_b = get_cedante_kpis(cedante_b)
+    kpis_a = get_cedante_kpis(cedante_a, br_a, vie_non_vie_a)
+    kpis_b = get_cedante_kpis(cedante_b, br_b, vie_non_vie_b)
 
     def safe_val(val, default=0):
         return val if val is not None else default
