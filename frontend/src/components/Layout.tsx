@@ -1,26 +1,131 @@
 // 🎨 STYLE UPDATED — Full Antigravity redesign: glassmorphism header, floating nav, premium dropdown
 import React from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
-  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart
+  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
+  Globe, Briefcase
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const navItems = [
+// ─── Nav types ───────────────────────────────────────────────────────────────
+type NavChild  = { to: string; label: string; icon: React.ElementType }
+type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
+type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
+type NavItem   = NavDirect | NavGroup
+
+const navItems: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-  { to: '/analyse', label: 'Analyse Globale', icon: BarChart2 },
-  { to: '/analyse-cedante', label: 'Analyse Cédante', icon: PieChart },
-  { to: '/comparaison', label: 'Comparaison', icon: GitCompare },
-  { to: '/scoring', label: 'Scoring', icon: Target },
+  {
+    label: 'Analyse', icon: BarChart2,
+    children: [
+      { to: '/analyse',         label: 'Analyse Globale',      icon: BarChart2  },
+      { to: '/analyse-cedante', label: 'Analyse Cédante',      icon: PieChart   },
+      { to: '/exposition',      label: 'Exposition & Risques', icon: Globe      },
+    ],
+  },
+  {
+    label: 'Comparaison', icon: GitCompare,
+    children: [
+      { to: '/comparaison', label: 'Comparaison directe', icon: GitCompare },
+      { to: '/scoring',     label: 'Scoring Marché',      icon: Target     },
+    ],
+  },
+  {
+    label: 'Risques', icon: ShieldAlert,
+    children: [
+      { to: '/fac-saturation', label: 'Saturation FAC',      icon: ShieldAlert },
+      { to: '/top-brokers',    label: 'Courtiers & Brokers', icon: Briefcase   },
+    ],
+  },
   { to: '/recommandations', label: 'Recommandations', icon: Star },
-  { to: '/fac-saturation', label: 'Saturation FAC', icon: ShieldAlert },
-  { to: '/top-brokers', label: 'Courtiers', icon: Target },
-  { to: '/exposition', label: 'Exposition & Risques', icon: Target },
 ]
+
+// ─── NavDropdown ─────────────────────────────────────────────────────────────
+function NavDropdown({ label, icon: Icon, children }: NavGroup) {
+  const { pathname } = useLocation()
+  const isGroupActive = children.some(c => pathname === c.to || pathname.startsWith(c.to + '/'))
+
+  return (
+    <div className="relative group flex-shrink-0" style={{ isolation: 'auto' }}>
+      {/* Trigger */}
+      <button
+        className={[
+          'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
+          'transition-all duration-250 ease-out-expo border',
+          isGroupActive
+            ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
+            : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
+        ].join(' ')}
+      >
+        <Icon
+          size={14}
+          className="flex-shrink-0 transition-all duration-250"
+          style={isGroupActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.55 }}
+        />
+        <span>{label}</span>
+        <ChevronDown
+          size={11}
+          className="flex-shrink-0 ml-0.5 transition-transform duration-250 group-hover:rotate-180"
+          style={{ opacity: isGroupActive ? 0.8 : 0.45 }}
+        />
+        {isGroupActive && (
+          <span
+            className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
+            style={{ background: 'hsl(83,52%,36%)' }}
+          />
+        )}
+      </button>
+
+      {/* Dropdown panel */}
+      <div
+        className="absolute left-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out-expo"
+        style={{
+          top: 'calc(100% + 8px)',
+          zIndex: 200,
+          background: 'hsla(209,35%,14%,0.96)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid hsla(83,52%,36%,0.20)',
+          boxShadow: '0 16px 48px hsla(209,28%,8%,0.55)',
+          borderRadius: 12,
+          minWidth: 220,
+          padding: 6,
+        }}
+      >
+        {children.map(({ to, label: childLabel, icon: ChildIcon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap',
+                'transition-all duration-200',
+                isActive
+                  ? 'text-white bg-[hsla(83,52%,36%,0.22)]'
+                  : 'text-white/55 hover:text-white/90 hover:bg-[hsla(0,0%,100%,0.07)]',
+              ].join(' ')
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <ChildIcon
+                  size={13}
+                  className="flex-shrink-0"
+                  style={isActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.5 }}
+                />
+                <span>{childLabel}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function Layout() {
   const { user, logout, can } = useAuth()
@@ -106,43 +211,46 @@ export default function Layout() {
 
         {/* ───── ZONE 2: NAVIGATION ───── */}
         <nav
-          className="flex items-center gap-0.5 flex-1 px-3 h-full overflow-x-auto"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsla(0,0%,100%,0.2) transparent', paddingBottom: '2px' }}
+          className="flex items-center gap-0.5 flex-1 px-3 h-full overflow-visible"
         >
-          {navItems.map(({ to, label, icon: Icon, exact }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={exact}
-              title={label}
-              className={({ isActive }) =>
-                [
-                  'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
-                  'transition-all duration-250 ease-out-expo border',
-                  isActive
-                    ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] shadow-green-glow/20 -translate-y-px'
-                    : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
-                ].join(' ')
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    size={14}
-                    className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
-                    style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
-                  />
-                  <span>{label}</span>
-                  {isActive && (
-                    <span
-                      className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
-                      style={{ background: 'hsl(83,52%,36%)' }}
+          {navItems.map((item) =>
+            item.children ? (
+              <NavDropdown key={item.label} {...item} />
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                title={item.label}
+                className={({ isActive }) =>
+                  [
+                    'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
+                    'transition-all duration-250 ease-out-expo border',
+                    isActive
+                      ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
+                      : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
+                  ].join(' ')
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon
+                      size={14}
+                      className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
+                      style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
                     />
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span
+                        className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
+                        style={{ background: 'hsl(83,52%,36%)' }}
+                      />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            )
+          )}
 
 
 
