@@ -81,16 +81,6 @@ export const PAGE_SCOPES: Record<string, PageScope> = {
     label: 'Comparaison',
     keys: ['pays_cedante'],
   },
-  // AJOUTÉ — Scope Analyse Globale : filtres locaux gérés dans GlobalAnalysis.tsx
-  // pays_cedante est passé depuis le filtre global pour la carte monde et le tableau pays
-  '/analyse-globale': {
-    label: 'Analyse Globale',
-    keys: [
-      'uw_year_min', 'uw_year_max', 'uw_years',
-      'branche', 'sous_branche', 'type_of_contract',
-      'type_contrat_spc', 'pays_cedante',
-    ],
-  },
 }
 
 /**

@@ -238,19 +238,7 @@ const FRENCH_TO_TOPOJSON: Record<string, string> = {
 const MIN_ZOOM = 1
 const MAX_ZOOM = 8
 
-// MODIFIÉ — Ajout de props optionnelles :
-// - params : jeu de paramètres à utiliser (ex: paramsNoCountry depuis GlobalAnalysis)
-// - selectedCountries : liste de pays sélectionnés en noms français (pour highlight + opacité)
-// Rétrocompatible : sans ces props, comportement identique à l'original (lecture de filters)
-export default function WorldMap({
-  colorBy = 'premium',
-  params: externalParams,
-  selectedCountries = [],
-}: {
-  colorBy?: 'premium' | 'exposition'
-  params?: Record<string, string>
-  selectedCountries?: string[]
-}) {
+export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' | 'exposition'}) {
   const { filters } = useData()
   const [countryData, setCountryData] = useState<CountryData[]>([])
   const [loading, setLoading] = useState(true)
@@ -259,19 +247,15 @@ export default function WorldMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
 
-  // MODIFIÉ — Utilise externalParams si fournis, sinon filtersToParams(filters)
-  const effectiveParams = externalParams ?? filtersToParams(filters)
-
   useEffect(() => {
     setLoading(true)
+    const params = filtersToParams(filters)
     const endpoint = colorBy === 'exposition' ? API_ROUTES.EXPOSITION.BY_COUNTRY : API_ROUTES.KPIS.BY_COUNTRY
-    api.get(endpoint, { params: effectiveParams })
+    api.get(endpoint, { params })
       .then(r => setCountryData(r.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  // MODIFIÉ — dépend de effectiveParams (stable reference via JSON.stringify dans l'effect)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(effectiveParams), colorBy])
+  }, [filters, colorBy])
 
   const maxValue = useMemo(() => {
     if (colorBy === 'exposition') {
@@ -300,34 +284,10 @@ export default function WorldMap({
     return map
   }, [countryData])
 
-  // AJOUTÉ — Palette couleurs dynamiques pour pays sélectionnés (cohérente avec GlobalAnalysis)
-  const SELECTED_PALETTE = ['#EF4444', '#22C55E', '#3B82F6', '#F97316', '#A855F7']
-
-  // AJOUTÉ — Lookup pays français normalisé → index dans selectedCountries
-  const selectedNormalized = useMemo(() =>
-    selectedCountries.map(c => normalizeName(c)),
-  [selectedCountries])
-
-  const getSelectedIndex = (d: CountryData): number =>
-    selectedNormalized.indexOf(normalizeName(d.pays))
-
-  const isCountrySelected = selectedCountries.length > 0
-
   const getColor = (geoName: string): string => {
     // geoName est le nom exact du TopoJSON (ex: "France", "Côte d'Ivoire")
     const d = dataByTopoName[geoName.toLowerCase()]
     if (!d) return '#1a1a3a'
-
-    // AJOUTÉ — Modification 7 : couleur vive pour pays sélectionnés, atténué pour les autres
-    if (isCountrySelected) {
-      const selIdx = getSelectedIndex(d)
-      if (selIdx >= 0) {
-        return SELECTED_PALETTE[selIdx % SELECTED_PALETTE.length]
-      }
-      // Pays non sélectionné → atténué
-      return '#1a2a45'
-    }
-
     const metric = colorBy === 'exposition' ? (d.exposition || 0) : (d.total_written_premium || 0)
     const ratio = metric / maxValue
     if (ratio > 0.7) return '#4361ee'
