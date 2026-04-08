@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router-dom'
 import { AlertTriangle, ShieldAlert, X, Download, Search } from 'lucide-react'
 import Select from 'react-select'
@@ -71,9 +72,9 @@ function ModalDetail({
   seuilAffaires: number
   onClose: () => void
 }) {
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -147,7 +148,8 @@ function ModalDetail({
           </table>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -566,7 +568,7 @@ export default function FacSaturation() {
           <p className="text-[10px] text-[var(--color-gray-500)] uppercase font-bold mb-1">Règle active</p>
           <p className="text-xs font-bold text-[hsl(358,66%,54%)] flex items-center gap-1.5 justify-start md:justify-end">
             Prime &gt; {formatCompact(seuilPrime)}
-            <span className="text-[var(--color-navy)] mx-1">ET</span>
+            <span className="text-[var(--color-navy)] mx-1">OU</span>
             Affaires &gt; {seuilAffaires}
           </p>
         </div>

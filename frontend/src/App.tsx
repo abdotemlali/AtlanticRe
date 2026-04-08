@@ -12,7 +12,7 @@ import Recommendations from './pages/Recommendations'
 import Admin from './pages/Admin'
 import ResetPassword from './pages/ResetPassword'
 import ChangePassword from './pages/ChangePassword'
-import InactiveClients from './pages/InactiveClients'
+
 import Analysis from './pages/Analysis'
 import ExpositionRisques from './pages/ExpositionRisques'
 import CedanteAnalysis from './pages/CedanteAnalysis'
@@ -52,14 +52,7 @@ function AppRoutes() {
         <Route path="exposition" element={<ExpositionRisques />} />
         <Route path="fac-saturation" element={<FacSaturation />} />
         <Route path="top-brokers" element={<TopBrokers />} />
-        <Route
-          path="inactive-clients"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'souscripteur']}>
-              <InactiveClients />
-            </ProtectedRoute>
-          }
-        />
+
         <Route
           path="admin"
           element={

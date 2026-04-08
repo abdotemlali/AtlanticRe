@@ -144,39 +144,7 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          {/* Clients Inactifs — admin & souscripteur */}
-          {(user?.role === 'admin' || user?.role === 'souscripteur') && (
-            <NavLink
-              to="/inactive-clients"
-              title="Clients Inactifs"
-              className={({ isActive }) =>
-                [
-                  'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
-                  'transition-all duration-250 ease-out-expo border',
-                  isActive
-                    ? 'text-white bg-[hsla(358,66%,54%,0.16)] border-[hsla(358,66%,54%,0.32)] -translate-y-px'
-                    : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
-                ].join(' ')
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <UserX
-                    size={14}
-                    className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
-                    style={isActive ? { color: 'hsl(358,66%,66%)' } : undefined}
-                  />
-                  <span>Inactifs</span>
-                  {isActive && (
-                    <span
-                      className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
-                      style={{ background: 'hsl(358,66%,54%)' }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-          )}
+
 
           {/* Administration — admin only */}
           {user?.role === 'admin' && (

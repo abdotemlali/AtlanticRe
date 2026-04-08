@@ -62,6 +62,7 @@ export default function PageFilterPanel() {
   const hasPerimetre = keys.includes('perimetre')
   const hasCedante = keys.includes('cedante')
   const hasCourtier = keys.includes('courtier')
+  const hasStatuts = keys.includes('statuts')
 
   const sousBrancheOptions = useMemo(() => {
     if (!filterOptions?.sous_branche) return []
@@ -103,6 +104,7 @@ export default function PageFilterPanel() {
             if (hasTypeContrat && filters.type_of_contract.length > 0) count++
             if (hasCedante && filters.cedante.length > 0) count++
             if (hasCourtier && filters.courtier.length > 0) count++
+            if (hasStatuts && filters.statuts.length > 0) count++
             return count > 0 ? (
               <span
                 className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"
@@ -289,6 +291,21 @@ export default function PageFilterPanel() {
                 placeholder="Tous les courtiers…"
                 value={toOptions(filters.courtier)}
                 onChange={v => setFilters(f => ({ ...f, courtier: v.map((x: any) => x.value) }))}
+              />
+            </div>
+          )}
+
+          {/* ─── Statuts ─── */}
+          {hasStatuts && (
+            <div>
+              <label className={labelStyle}>Statuts</label>
+              <Select
+                isMulti
+                options={toOptions(filterOptions.statuts ?? [])}
+                {...selectStyles}
+                placeholder="Tous les statuts…"
+                value={toOptions(filters.statuts)}
+                onChange={v => setFilters(f => ({ ...f, statuts: v.map((x: any) => x.value) }))}
               />
             </div>
           )}

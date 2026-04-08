@@ -53,9 +53,9 @@ export const PAGE_SCOPES: Record<string, PageScope> = {
   },
   '/fac-saturation': {
     label: 'Saturation FAC',
-    // FAC saturation: years + branch. Cedante is selected locally on the page.
-    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'sous_branche', 'pays_cedante', 'perimetre'],
-    excluded: ['cedante'],  // avoid conflict with local cedante picker
+    // FAC saturation: years + statut
+    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'statuts'],
+    excluded: ['cedante'],
   },
   '/analyse-cedante': {
     label: 'Analyse Cédante',
@@ -80,6 +80,11 @@ export const PAGE_SCOPES: Record<string, PageScope> = {
   '/comparaison': {
     label: 'Comparaison',
     keys: ['pays_cedante'],
+  },
+  '/analyse-globale': {
+    label: 'Analyse Globale',
+    // Branche et type_of_contract gérés localement dans la page (filtrage non-destructif)
+    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'sous_branche', 'type_of_contract', 'type_contrat_spc', 'pays_cedante'],
   },
 }
 

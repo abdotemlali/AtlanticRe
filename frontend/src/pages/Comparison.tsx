@@ -256,14 +256,23 @@ export default function Comparison() {
     api.get('/kpis/by-country', { params }).then(res => {
       if (res.data) {
         const pays = res.data.map((c: any) => c.pays as string).filter(Boolean)
-        setCountryOptions(pays)
+        
         // pré-remplissage sessionStorage
         if (pendingCountryA.current) {
           try {
             const { pays: p } = JSON.parse(pendingCountryA.current)
-            if (pays.includes(p)) { setCountry1(p); pendingCountryA.current = null }
-          } catch { pendingCountryA.current = null }
+            if (p) {
+              setCountry1(p)
+              if (!pays.includes(p)) pays.unshift(p) // S'assurer que le pays est dans la dropdown
+            }
+          } catch {
+             // erreur JSON silencieuse
+          } finally {
+            pendingCountryA.current = null // Toujours consommer le flag
+          }
         }
+
+        setCountryOptions(pays)
       }
     }).catch(console.error)
   }, [mode, buildBaseParams])

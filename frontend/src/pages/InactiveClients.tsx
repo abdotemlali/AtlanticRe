@@ -131,7 +131,7 @@ export default function InactiveClients() {
     const paginatedClients = displayedClients.slice((localPage - 1) * localPageSize, localPage * localPageSize)
 
     return (
-        <div className="p-5 space-y-5 page-container" style={{ minHeight: '100vh' }}>
+        <div className="space-y-5">
 
             {/* ─── Header ─── */}
             <div className="flex items-start justify-between gap-4 flex-wrap">

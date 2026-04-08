@@ -238,7 +238,19 @@ const FRENCH_TO_TOPOJSON: Record<string, string> = {
 const MIN_ZOOM = 1
 const MAX_ZOOM = 8
 
-export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' | 'exposition'}) {
+interface WorldMapProps {
+  colorBy?: 'premium' | 'exposition'
+  /** Liste de noms de pays (en français) à mettre en surbrillance. Les autres sont atténués. */
+  highlightedCountries?: string[]
+  /** Params externaux optionnels — si fournis, bypasse le filtre global */
+  externalParams?: Record<string, string>
+}
+
+export default function WorldMap({
+  colorBy = 'premium',
+  highlightedCountries = [],
+  externalParams,
+}: WorldMapProps) {
   const { filters } = useData()
   const [countryData, setCountryData] = useState<CountryData[]>([])
   const [loading, setLoading] = useState(true)
@@ -247,15 +259,25 @@ export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' 
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
 
+  const hasHighlight = highlightedCountries.length > 0
+
+  // Normalised set des pays surlignés pour lookup rapide
+  const highlightedNormSet = useMemo(() => {
+    return new Set(highlightedCountries.map(p => normalizeName(p)))
+  }, [highlightedCountries])
+
   useEffect(() => {
     setLoading(true)
-    const params = filtersToParams(filters)
+    const baseParams = externalParams ?? filtersToParams(filters)
     const endpoint = colorBy === 'exposition' ? API_ROUTES.EXPOSITION.BY_COUNTRY : API_ROUTES.KPIS.BY_COUNTRY
+    // Force top=300 to fetch all countries for the map, not just the default 10
+    const params = { ...baseParams, top: 300 }
+    
     api.get(endpoint, { params })
       .then(r => setCountryData(r.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [filters, colorBy])
+  }, [filters, colorBy, externalParams])
 
   const maxValue = useMemo(() => {
     if (colorBy === 'exposition') {
@@ -295,6 +317,12 @@ export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' 
     if (ratio > 0.15) return '#4cc9f0'
     if (ratio > 0.02) return '#2a4a7a'
     return '#1f2f55'
+  }
+
+  /** Retourne true si ce pays (identifié via son CountryData) est dans la liste surlignée */
+  const isCountryHighlighted = (d: CountryData | undefined): boolean => {
+    if (!hasHighlight || !d) return true  // pas de filtre → tous actifs
+    return highlightedNormSet.has(normalizeName(d.pays))
   }
 
   const getTooltipPosition = (clientX: number, clientY: number) => {
@@ -341,15 +369,18 @@ export default function WorldMap({ colorBy = 'premium' }: { colorBy?: 'premium' 
               geographies.map((geo) => {
                 const name = geo.properties.name || ''
                 const d = dataByTopoName[name.toLowerCase()]
+                const highlighted = isCountryHighlighted(d)
+                const fillOpacity = hasHighlight ? (highlighted ? 1 : 0.3) : 1
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getColor(name)}
+                    fillOpacity={fillOpacity}
                     stroke="#0d0d1a"
-                    strokeWidth={0.5}
+                    strokeWidth={highlighted ? 0.8 : 0.3}
                     style={{
-                      default: { outline: 'none', cursor: d ? 'pointer' : 'default', transition: 'fill 0.2s' },
+                      default: { outline: 'none', cursor: d ? 'pointer' : 'default', transition: 'fill 0.2s, fill-opacity 0.3s' },
                       hover: { fill: d ? '#4361ee' : '#252545', outline: 'none' },
                       pressed: { outline: 'none' },
                     }}

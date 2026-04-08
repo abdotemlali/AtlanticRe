@@ -932,8 +932,16 @@ def cedante_fac_saturation(
     df = get_df()
     df = apply_filters(df, filters)
     df_cedante = df[df["INT_CEDANTE"] == cedante] if "INT_CEDANTE" in df.columns else df[:0]
-    if "TYPE_OF_CONTRACT" in df_cedante.columns:
-        df_cedante = df_cedante[df_cedante["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    import pandas as pd
+    has_type = "TYPE_OF_CONTRACT" in df_cedante.columns
+    has_spc_type = "INT_SPC_TYPE" in df_cedante.columns
+    if has_type or has_spc_type:
+        fac_mask = pd.Series(False, index=df_cedante.index)
+        if has_type: fac_mask = fac_mask | df_cedante["TYPE_OF_CONTRACT"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
+        if has_spc_type: fac_mask = fac_mask | df_cedante["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
+        df_cedante = df_cedante[fac_mask]
+    else:
+        df_cedante = df_cedante[:0]
     if df_cedante.empty or "INT_BRANCHE" not in df_cedante.columns:
         return []
     result = []
@@ -943,7 +951,7 @@ def cedante_fac_saturation(
         df_br = df_cedante[df_cedante["INT_BRANCHE"] == branche]
         total_prime = float(df_br["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in df_br.columns else 0.0
         nb_affaires = int(len(df_br))
-        is_saturated = (total_prime > seuil_prime) and (nb_affaires > seuil_affaires)
+        is_saturated = (total_prime > seuil_prime) or (nb_affaires > seuil_affaires)
         result.append({
             "branche": branche,
             "total_prime_fac": round(total_prime, 2),
@@ -965,9 +973,15 @@ def cedante_fac_saturation_global(
     import pandas as pd
     df = get_df()
     df = apply_filters(df, filters)
-    if "TYPE_OF_CONTRACT" not in df.columns or "INT_CEDANTE" not in df.columns or "INT_BRANCHE" not in df.columns:
+    if "INT_CEDANTE" not in df.columns or ("TYPE_OF_CONTRACT" not in df.columns and "INT_SPC_TYPE" not in df.columns) or "INT_BRANCHE" not in df.columns:
         return []
-    df_fac = df[df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    import pandas as pd
+    has_type = "TYPE_OF_CONTRACT" in df.columns
+    has_spc_type = "INT_SPC_TYPE" in df.columns
+    fac_mask = pd.Series(False, index=df.index)
+    if has_type: fac_mask = fac_mask | df["TYPE_OF_CONTRACT"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
+    if has_spc_type: fac_mask = fac_mask | df["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
+    df_fac = df[fac_mask]
     if df_fac.empty:
         return []
     result = []
@@ -980,7 +994,7 @@ def cedante_fac_saturation_global(
                 continue
             total_prime = float(pd.to_numeric(br_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()) if "WRITTEN_PREMIUM" in br_df.columns else 0.0
             nb_affaires = int(len(br_df))
-            is_saturated = (total_prime > seuil_prime) and (nb_affaires > seuil_affaires)
+            is_saturated = (total_prime > seuil_prime) or (nb_affaires > seuil_affaires)
             saturation_score = round((total_prime / seuil_prime) + (nb_affaires / seuil_affaires), 4)
             branches_detail.append({
                 "branche": branche,

@@ -10,7 +10,9 @@ import PivotTable from '../components/Charts/PivotTable'
 import DataTable from '../components/DataTable'
 import FinancesChart from '../components/Charts/FinancesChart'
 import RentabiliteChart from '../components/Charts/RentabiliteChart'
-import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2 } from 'lucide-react'
+import InactiveClients from './InactiveClients'
+import { useAuth } from '../context/AuthContext'
+import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2, UserX } from 'lucide-react'
 
 const TABS = [
   { id: 'carte', label: 'Carte', icon: Map },
@@ -23,6 +25,12 @@ const TABS = [
 ]
 
 export default function Dashboard() {
+  const { user } = useAuth()
+  
+  const visibleTabs = [...TABS]
+  if (user?.role === 'admin' || user?.role === 'souscripteur') {
+    visibleTabs.push({ id: 'inactifs', label: 'Inactifs', icon: UserX })
+  }
   
   const [activeTab, setActiveTab] = useState('carte')
 
@@ -79,7 +87,7 @@ export default function Dashboard() {
               msOverflowStyle: 'none',
             }}
           >
-            {TABS.map(({ id, label, icon: Icon }) => (
+            {visibleTabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
@@ -100,6 +108,7 @@ export default function Dashboard() {
             {activeTab === 'contrats' && <DataTable />}
             {activeTab === 'finances' && <FinancesChart />}
             {activeTab === 'rentabilite' && <RentabiliteChart />}
+            {activeTab === 'inactifs' && (user?.role === 'admin' || user?.role === 'souscripteur') && <InactiveClients />}
           </div>
         </div>
       </div>
