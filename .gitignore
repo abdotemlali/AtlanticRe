@@ -51,3 +51,10 @@ logs/
 htmlcov/
 .coverage
 .pytest_cache/
+
+
+# Ignore markdown files
+*.md
+
+# Ignore claude folder
+claude/

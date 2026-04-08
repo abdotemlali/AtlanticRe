@@ -113,7 +113,7 @@ const KPIRow = ({ label, valA, valB, formatFn }: { label: string, valA: number, 
   </div>
 )
 
-// ── AJOUTÉ — Bloc de sélection pays + branches pour le mode "Par pays" ──────────
+// ── Bloc de sélection pays + branches pour le mode "Par pays" ──────────
 interface CountryBlockProps {
   label: string
   color: string
@@ -129,44 +129,191 @@ interface CountryBlockProps {
 
 const CountryBlock = ({
   label, color, countryOptions, selectedCountry, onCountryChange,
-  availBranches, selectedBranches, onBranchesChange, loadingBranches, noData
-}: CountryBlockProps) => (
-  <div className="flex-1 min-w-0 space-y-3">
-    <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</p>
-    {/* Dropdown pays */}
-    <Select
-      {...rsProps}
-      options={toOptions(countryOptions)}
-      value={selectedCountry ? { value: selectedCountry, label: selectedCountry } : null}
-      onChange={v => onCountryChange(v ? v.value : null)}
-      placeholder="Sélectionner un pays…"
-      noOptionsMessage={() => 'Aucun résultat'}
-      isClearable
-      isSearchable
-      classNamePrefix="rs"
-    />
-    {/* Dropdown branches (dynamique) */}
-    {selectedCountry && (
+  availBranches, selectedBranches, onBranchesChange, loadingBranches, noData,
+}: CountryBlockProps) => {
+  const isVieChecked = selectedBranches.includes('VIE')
+  const nonVieBranches = availBranches.filter(b => b !== 'VIE')
+  const isNonVieChecked = nonVieBranches.length > 0 && nonVieBranches.every(b => selectedBranches.includes(b))
+
+  const handleVieChange = (checked: boolean) => {
+    if (checked) {
+      if (!selectedBranches.includes('VIE')) onBranchesChange([...selectedBranches, 'VIE'])
+    } else {
+      onBranchesChange(selectedBranches.filter(b => b !== 'VIE'))
+    }
+  }
+
+  const handleNonVieChange = (checked: boolean) => {
+    if (checked) {
+      const next = new Set(selectedBranches)
+      nonVieBranches.forEach(b => next.add(b))
+      onBranchesChange(Array.from(next))
+    } else {
+      onBranchesChange(selectedBranches.filter(b => b === 'VIE'))
+    }
+  }
+
+  return (
+    <div className="flex-1 min-w-0 space-y-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</p>
+      {/* Dropdown pays */}
       <Select
         {...rsProps}
-        isMulti
-        options={toOptions(availBranches)}
-        value={toOptions(selectedBranches)}
-        onChange={v => onBranchesChange(v.map((x: any) => x.value))}
-        placeholder={loadingBranches ? 'Chargement…' : 'Toutes les branches'}
-        noOptionsMessage={() => noData ? 'Aucune donnée pour ce pays' : 'Aucune branche'}
-        isDisabled={loadingBranches || noData}
+        options={toOptions(countryOptions)}
+        value={selectedCountry ? { value: selectedCountry, label: selectedCountry } : null}
+        onChange={v => onCountryChange(v ? v.value : null)}
+        placeholder="Sélectionner un pays…"
+        noOptionsMessage={() => 'Aucun résultat'}
+        isClearable
+        isSearchable
         classNamePrefix="rs"
       />
-    )}
-    {/* Message si pays sans données */}
-    {selectedCountry && noData && !loadingBranches && (
-      <p className="text-xs font-medium text-[var(--color-gray-500)] italic px-1">
-        ⚠ Aucune donnée disponible pour ce pays
-      </p>
-    )}
-  </div>
-)
+      {/* Dropdown branches (dynamique) */}
+      {selectedCountry && (
+        <Select
+          {...rsProps}
+          isMulti
+          options={toOptions(availBranches)}
+          value={toOptions(selectedBranches)}
+          onChange={v => onBranchesChange(v.map((x: any) => x.value))}
+          placeholder={loadingBranches ? 'Chargement…' : 'Toutes les branches'}
+          noOptionsMessage={() => noData ? 'Aucune donnée pour ce pays' : 'Aucune branche'}
+          isDisabled={loadingBranches || noData}
+          classNamePrefix="rs"
+        />
+      )}
+      {/* Checkboxes Vie / Non-Vie — sous le sélecteur de branches */}
+      {selectedCountry && availBranches.length > 0 && (
+        <div className="flex gap-3 mt-1">
+          {availBranches.includes('VIE') && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isVieChecked}
+                onChange={e => handleVieChange(e.target.checked)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+            </label>
+          )}
+          {nonVieBranches.length > 0 && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isNonVieChecked}
+                onChange={e => handleNonVieChange(e.target.checked)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+            </label>
+          )}
+        </div>
+      )}
+      {/* Message si pays sans données */}
+      {selectedCountry && noData && !loadingBranches && (
+        <p className="text-xs font-medium text-[var(--color-gray-500)] italic px-1">
+          ⚠ Aucune donnée disponible pour ce pays
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Bloc de sélection cédante + branches + scope pour le mode "Par cédante" ────
+interface CedanteOption { value: string; label: string; pays: string; branche: string }
+interface CedanteBlockProps {
+  label: string
+  color: string
+  cedanteOptions: CedanteOption[]
+  selectedCedante: CedanteOption | null
+  onCedanteChange: (c: CedanteOption | null) => void
+  availBranches: string[]
+  selectedBranches: string[]
+  onBranchesChange: (b: string[]) => void
+  loadingBranches: boolean
+}
+
+const CedanteBlock = ({
+  label, color, cedanteOptions, selectedCedante, onCedanteChange,
+  availBranches, selectedBranches, onBranchesChange, loadingBranches,
+}: CedanteBlockProps) => {
+  const isVieChecked = selectedBranches.includes('VIE')
+  const nonVieBranches = availBranches.filter(b => b !== 'VIE')
+  const isNonVieChecked = nonVieBranches.length > 0 && nonVieBranches.every(b => selectedBranches.includes(b))
+
+  const handleVieChange = (checked: boolean) => {
+    if (checked) {
+      if (!selectedBranches.includes('VIE')) onBranchesChange([...selectedBranches, 'VIE'])
+    } else {
+      onBranchesChange(selectedBranches.filter(b => b !== 'VIE'))
+    }
+  }
+
+  const handleNonVieChange = (checked: boolean) => {
+    if (checked) {
+      const next = new Set(selectedBranches)
+      nonVieBranches.forEach(b => next.add(b))
+      onBranchesChange(Array.from(next))
+    } else {
+      onBranchesChange(selectedBranches.filter(b => b === 'VIE'))
+    }
+  }
+
+  return (
+    <div className="flex-1 min-w-0 space-y-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</p>
+      {/* Dropdown cédante */}
+      <Select
+        {...rsProps}
+        options={cedanteOptions}
+        value={selectedCedante}
+        onChange={v => { onCedanteChange(v as CedanteOption | null); onBranchesChange([]) }}
+        placeholder="Tapez pour rechercher..."
+        noOptionsMessage={() => 'Aucun résultat'}
+        isClearable
+        isSearchable
+        classNamePrefix="rs"
+      />
+      {/* Dropdown branches */}
+      {selectedCedante && (
+        <Select
+          {...rsProps}
+          isMulti
+          options={toOptions(availBranches)}
+          value={toOptions(selectedBranches)}
+          onChange={v => onBranchesChange(v.map((x: any) => x.value))}
+          placeholder={loadingBranches ? 'Chargement…' : 'Toutes les branches'}
+          noOptionsMessage={() => 'Aucune branche'}
+          isDisabled={loadingBranches}
+          classNamePrefix="rs"
+        />
+      )}
+      {/* Checkboxes Vie / Non-Vie — sous le sélecteur de branches */}
+      {selectedCedante && availBranches.length > 0 && (
+        <div className="flex gap-3 mt-1">
+          {availBranches.includes('VIE') && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isVieChecked}
+                onChange={e => handleVieChange(e.target.checked)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+            </label>
+          )}
+          {nonVieBranches.length > 0 && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isNonVieChecked}
+                onChange={e => handleNonVieChange(e.target.checked)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Composant principal ────────────────────────────────────────────────────────
 export default function Comparison() {
@@ -179,21 +326,17 @@ export default function Comparison() {
     return 'country'
   })
 
-  // AJOUTÉ — Filtres LOCAUX (ignorent le filtre branche global)
+  // Filtres LOCAUX (ignorent le filtre branche global)
   const [localYears, setLocalYears] = useState<number[]>([])
   const [localContractType, setLocalContractType] = useState<string[]>([])
   const [localSpcType, setLocalSpcType] = useState<string[]>([])
 
-  // AJOUTÉ — Helper : construire les params de base sans branche (filtres locaux + filtres globaux sans branche)
+  // Helper : construire les params de base sans branche (filtres locaux + filtres globaux sans branche)
   const buildBaseParams = useCallback(() => {
-    // Ignorer le filtre branche global — Modification 1
     const { branche: _ignoreBranche, sous_branche: _ignoreSousBranche, ...filtersWithoutBranch } = filters
     const baseParams = filtersToParams(filtersWithoutBranch as any)
-
-    // Surcharger avec les filtres locaux
     if (localYears.length > 0) {
       baseParams['year'] = localYears.join(',')
-      // Supprimer les paramètres année du filtre global pour éviter les conflits
       delete baseParams['uw_year_min']
       delete baseParams['uw_year_max']
       delete baseParams['uw_years_raw']
@@ -210,7 +353,6 @@ export default function Comparison() {
   }, [filters, localYears, localContractType, localSpcType])
 
   // ── État mode "Par pays" ────────────────────────────────────────────────────
-  // AJOUTÉ — État séparé pour chaque bloc pays
   const [countryOptions, setCountryOptions] = useState<string[]>([])
   const [country1, setCountry1] = useState<string | null>(null)
   const [branches1, setBranches1] = useState<string[]>([])
@@ -225,10 +367,16 @@ export default function Comparison() {
   const [noData2, setNoData2] = useState(false)
 
   // ── État mode "Par cédante" ─────────────────────────────────────────────────
-  interface CedanteOption { value: string; label: string; pays: string; branche: string }
   const [cedanteOptions, setCedanteOptions] = useState<CedanteOption[]>([])
   const [cedanteA, setCedanteA] = useState<CedanteOption | null>(null)
+  const [branchesA, setBranchesA] = useState<string[]>([])
+  const [availBranchesA, setAvailBranchesA] = useState<string[]>([])
+  const [loadingBranchesA, setLoadingBranchesA] = useState(false)
+
   const [cedanteB, setCedanteB] = useState<CedanteOption | null>(null)
+  const [branchesB, setBranchesB] = useState<string[]>([])
+  const [availBranchesB, setAvailBranchesB] = useState<string[]>([])
+  const [loadingBranchesB, setLoadingBranchesB] = useState(false)
 
   // ── État résultat commun ────────────────────────────────────────────────────
   const [result, setResult] = useState<{ market_a: MarketKPIs; market_b: MarketKPIs } | null>(null)
@@ -300,7 +448,7 @@ export default function Comparison() {
     }).catch(console.error)
   }, [mode, filters])
 
-  // AJOUTÉ — Charger branches pour le pays 1 (avec AbortController)
+  // Charger branches pour le pays 1 (filtrage scope client-side dans CountryBlock)
   useEffect(() => {
     if (!country1) { setAvailBranches1([]); setBranches1([]); setNoData1(false); return }
     const ctrl = new AbortController()
@@ -315,7 +463,6 @@ export default function Comparison() {
         const bs: string[] = res.data ?? []
         setAvailBranches1(bs)
         setNoData1(bs.length === 0)
-        // Garder seulement les branches sélectionnées qui existent encore
         setBranches1(prev => prev.filter(b => bs.includes(b)))
       })
       .catch(e => { if (e.name !== 'CanceledError' && e.name !== 'AbortError') console.error(e) })
@@ -323,7 +470,7 @@ export default function Comparison() {
     return () => ctrl.abort()
   }, [country1, localYears, localContractType, localSpcType])
 
-  // AJOUTÉ — Charger branches pour le pays 2 (avec AbortController)
+  // Charger branches pour le pays 2
   useEffect(() => {
     if (!country2) { setAvailBranches2([]); setBranches2([]); setNoData2(false); return }
     const ctrl = new AbortController()
@@ -345,7 +492,7 @@ export default function Comparison() {
     return () => ctrl.abort()
   }, [country2, localYears, localContractType, localSpcType])
 
-  // AJOUTÉ — Fetch comparaison détaillée pays (auto, avec AbortController)
+  // Fetch comparaison détaillée pays (auto, avec AbortController)
   const fetchCountryDetail = useCallback(() => {
     if (!country1 || !country2) return
     const ctrl = new AbortController()
@@ -372,22 +519,59 @@ export default function Comparison() {
     }
   }, [mode, fetchCountryDetail, country1, country2])
 
+  // Charger branches pour la cédante A
+  useEffect(() => {
+    if (!cedanteA) { setAvailBranchesA([]); setBranchesA([]); return }
+    const ctrl = new AbortController()
+    setLoadingBranchesA(true)
+    const params: Record<string, string> = { cedante: cedanteA.pays }
+    if (localYears.length > 0) params['year'] = localYears.join(',')
+    if (localContractType.length > 0) params['contract_type'] = localContractType.join(',')
+    if (localSpcType.length > 0) params['spc_type'] = localSpcType.join(',')
+    api.get('/comparison/branches-by-cedante', { params, signal: ctrl.signal })
+      .then(res => {
+        const bs: string[] = res.data ?? []
+        setAvailBranchesA(bs)
+        setBranchesA(prev => prev.filter(b => bs.includes(b)))
+      })
+      .catch(e => { if (e.name !== 'CanceledError' && e.name !== 'AbortError') console.error(e) })
+      .finally(() => setLoadingBranchesA(false))
+    return () => ctrl.abort()
+  }, [cedanteA, localYears, localContractType, localSpcType])
+
+  // Charger branches pour la cédante B
+  useEffect(() => {
+    if (!cedanteB) { setAvailBranchesB([]); setBranchesB([]); return }
+    const ctrl = new AbortController()
+    setLoadingBranchesB(true)
+    const params: Record<string, string> = { cedante: cedanteB.pays }
+    if (localYears.length > 0) params['year'] = localYears.join(',')
+    if (localContractType.length > 0) params['contract_type'] = localContractType.join(',')
+    if (localSpcType.length > 0) params['spc_type'] = localSpcType.join(',')
+    api.get('/comparison/branches-by-cedante', { params, signal: ctrl.signal })
+      .then(res => {
+        const bs: string[] = res.data ?? []
+        setAvailBranchesB(bs)
+        setBranchesB(prev => prev.filter(b => bs.includes(b)))
+      })
+      .catch(e => { if (e.name !== 'CanceledError' && e.name !== 'AbortError') console.error(e) })
+      .finally(() => setLoadingBranchesB(false))
+    return () => ctrl.abort()
+  }, [cedanteB, localYears, localContractType, localSpcType])
+
   // Fetch comparaison cédante (auto)
   const fetchCedante = useCallback(async () => {
     if (!cedanteA || !cedanteB) return
     setLoading(true)
     try {
-      // MODIFIÉ — ignorer branche globale pour les cédantes aussi
-      const { branche: _, sous_branche: __, ...filtersNoBranch } = filters
-      const baseParams = filtersToParams(filtersNoBranch as any)
-      if (localYears.length > 0) { baseParams['year'] = localYears.join(','); delete baseParams['uw_year_min']; delete baseParams['uw_year_max']; delete baseParams['uw_years_raw'] }
-      if (localContractType.length > 0) { baseParams['contract_type'] = localContractType.join(','); delete baseParams['type_of_contract'] }
-      if (localSpcType.length > 0) { baseParams['spc_type'] = localSpcType.join(','); delete baseParams['type_contrat_spc'] }
+      const baseParams = buildBaseParams()
+      if (branchesA.length > 0) baseParams['branches_a'] = branchesA.join(',')
+      if (branchesB.length > 0) baseParams['branches_b'] = branchesB.join(',')
       const res = await api.get('/comparison/by-cedante', {
         params: { cedante_a: cedanteA.pays, cedante_b: cedanteB.pays, ...baseParams }
       })
       const mapCedante = (c: any) => ({
-        pays: c.cedante, branche: c.pays_cedante || '',
+        pays: c.cedante, branche: c.branche_label || c.pays_cedante || '',
         written_premium: c.written_premium ?? 0, resultat: c.resultat ?? 0,
         avg_ulr: c.avg_ulr ?? 0, sum_insured: c.sum_insured ?? 0,
         contract_count: c.contract_count ?? 0, avg_commission: c.avg_commission ?? 0,
@@ -405,7 +589,7 @@ export default function Comparison() {
       setResult({ market_a: mapCedante(res.data.cedante_a), market_b: mapCedante(res.data.cedante_b) })
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }, [cedanteA, cedanteB, filters, localYears, localContractType, localSpcType])
+  }, [cedanteA, cedanteB, branchesA, branchesB, buildBaseParams])
 
   useEffect(() => {
     if (mode === 'cedante' && cedanteA && cedanteB) fetchCedante()
@@ -610,8 +794,8 @@ export default function Comparison() {
             <h3 className="text-sm font-bold text-[var(--color-navy)] mb-4">Radar de performances comparé</h3>
             <RadarChartComponent
               data={radarData}
-              labelA={`${result.market_a.pays} — ${result.market_a.branche}`}
-              labelB={`${result.market_b.pays} — ${result.market_b.branche}`}
+              labelA={result.market_a.pays}
+              labelB={result.market_b.pays}
             />
           </div>
           <div className="bg-white p-5 rounded-xl border border-[var(--color-gray-100)] shadow-sm">
@@ -673,11 +857,10 @@ export default function Comparison() {
         </div>
       </div>
 
-      {/* ── Sélecteurs mode "Par pays" — MODIFIÉ ─────────────────────────── */}
+      {/* ── Sélecteurs mode "Par pays" ────────────────────────────────────── */}
       {mode === 'country' && (
         <div className="bg-white p-5 rounded-xl border border-[var(--color-gray-100)] shadow-sm">
           <div className="flex gap-6 items-start flex-wrap">
-            {/* Bloc Pays 1 */}
             <CountryBlock
               label="Pays A (Référence)"
               color="var(--color-navy)"
@@ -690,13 +873,11 @@ export default function Comparison() {
               loadingBranches={loadingBranches1}
               noData={noData1}
             />
-            {/* Séparateur VS */}
             <div className="flex-shrink-0 flex flex-col items-center justify-center pt-6 px-2">
               <div className="w-8 h-8 rounded-full bg-[var(--color-off-white)] flex items-center justify-center border border-[var(--color-gray-200)]">
                 <span className="text-[10px] font-bold text-[var(--color-gray-500)]">VS</span>
               </div>
             </div>
-            {/* Bloc Pays 2 */}
             <CountryBlock
               label="Pays B (Comparaison)"
               color="hsl(83,52%,36%)"
@@ -716,38 +897,34 @@ export default function Comparison() {
       {/* ── Sélecteurs mode "Par cédante" ───────────────────────────────── */}
       {mode === 'cedante' && (
         <div className="bg-white p-5 rounded-xl border border-[var(--color-gray-100)] shadow-sm">
-          <div className="flex gap-4 items-end flex-wrap">
-            <div className="flex-1 min-w-64">
-              <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-navy)' }}>Cédante A (Référence)</p>
-              <Select
-                classNamePrefix="rs"
-                {...rsProps}
-                options={cedanteOptions.filter(o => o.value !== cedanteB?.value)}
-                value={cedanteA}
-                onChange={v => { setCedanteA(v as CedanteOption | null); setCedanteB(null) }}
-                placeholder="Tapez pour rechercher..."
-                noOptionsMessage={() => 'Aucun résultat'}
-                isClearable isSearchable
-              />
-            </div>
-            <div className="flex-shrink-0 flex items-center justify-center pb-2 px-2">
+          <div className="flex gap-6 items-start flex-wrap">
+            <CedanteBlock
+              label="Cédante A (Référence)"
+              color="var(--color-navy)"
+              cedanteOptions={cedanteOptions.filter(o => o.value !== cedanteB?.value)}
+              selectedCedante={cedanteA}
+              onCedanteChange={setCedanteA}
+              availBranches={availBranchesA}
+              selectedBranches={branchesA}
+              onBranchesChange={setBranchesA}
+              loadingBranches={loadingBranchesA}
+            />
+            <div className="flex-shrink-0 flex flex-col items-center justify-center pt-6 px-2">
               <div className="w-8 h-8 rounded-full bg-[var(--color-off-white)] flex items-center justify-center border border-[var(--color-gray-200)]">
                 <span className="text-[10px] font-bold text-[var(--color-gray-500)]">VS</span>
               </div>
             </div>
-            <div className="flex-1 min-w-64">
-              <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'hsl(83,52%,36%)' }}>Cédante B (Comparaison)</p>
-              <Select
-                classNamePrefix="rs"
-                {...rsProps}
-                options={cedanteOptions.filter(o => o.value !== cedanteA?.value)}
-                value={cedanteB}
-                onChange={v => setCedanteB(v as CedanteOption | null)}
-                placeholder="Tapez pour rechercher..."
-                noOptionsMessage={() => 'Aucun résultat'}
-                isClearable isSearchable
-              />
-            </div>
+            <CedanteBlock
+              label="Cédante B (Comparaison)"
+              color="hsl(83,52%,36%)"
+              cedanteOptions={cedanteOptions.filter(o => o.value !== cedanteA?.value)}
+              selectedCedante={cedanteB}
+              onCedanteChange={setCedanteB}
+              availBranches={availBranchesB}
+              selectedBranches={branchesB}
+              onBranchesChange={setBranchesB}
+              loadingBranches={loadingBranchesB}
+            />
           </div>
         </div>
       )}
