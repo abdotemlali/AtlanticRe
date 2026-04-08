@@ -1,20 +1,34 @@
 from fastapi import APIRouter, Depends, Query
+from typing import Optional, List
 from models.schemas import FilterParams
 from routers.auth import get_current_user
 from routers.kpis import parse_filter_params
-from services.data_service import get_df, apply_filters, compute_kpi_summary
+from services.data_service import get_df, apply_filters, apply_identity_filters, compute_kpi_summary
 
 router = APIRouter()
 
 
-def _get_market_kpis(df, pays: str, branche: str) -> dict:
-    mask = (df["PAYS_RISQUE"] == pays) & (df["INT_BRANCHE"] == branche)
-    group = df[mask]
+def _strip_year_filter(df_raw, filters):
+    """Return df filtered on everything EXCEPT year-related filters."""
+    return apply_filters(df_raw, filters.model_copy(update={
+        "uw_years": None,
+        "uw_year_min": None,
+        "uw_year_max": None,
+        "underwriting_years": None,
+    }))
+
+
+def _get_market_kpis(df_filtered, df_all_years, pays: str, branche: str) -> dict:
+    mask_filtered = (df_filtered["PAYS_RISQUE"] == pays) & (df_filtered["INT_BRANCHE"] == branche)
+    group = df_filtered[mask_filtered]
     kpis = compute_kpi_summary(group)
 
+    mask_all = (df_all_years["PAYS_RISQUE"] == pays) & (df_all_years["INT_BRANCHE"] == branche)
+    group_all = df_all_years[mask_all]
+
     by_year = []
-    if "UNDERWRITING_YEAR" in group.columns and not group.empty:
-        yr_df = group[group["UNDERWRITING_YEAR"].notna()].copy()
+    if "UNDERWRITING_YEAR" in group_all.columns and not group_all.empty:
+        yr_df = group_all[group_all["UNDERWRITING_YEAR"].notna()].copy()
         yr_df["UNDERWRITING_YEAR"] = yr_df["UNDERWRITING_YEAR"].astype(int)
         for year, yr_group in yr_df.groupby("UNDERWRITING_YEAR"):
             yr_kpis = compute_kpi_summary(yr_group)
@@ -33,13 +47,15 @@ def _get_market_kpis(df, pays: str, branche: str) -> dict:
     }
 
 
-def _get_country_kpis(df, pays: str) -> dict:
-    group = df[df["PAYS_RISQUE"] == pays]
+def _get_country_kpis(df_filtered, df_all_years, pays: str) -> dict:
+    group = df_filtered[df_filtered["PAYS_RISQUE"] == pays]
     kpis = compute_kpi_summary(group)
 
+    group_all = df_all_years[df_all_years["PAYS_RISQUE"] == pays]
+
     by_year = []
-    if "UNDERWRITING_YEAR" in group.columns and not group.empty:
-        yr_df = group[group["UNDERWRITING_YEAR"].notna()].copy()
+    if "UNDERWRITING_YEAR" in group_all.columns and not group_all.empty:
+        yr_df = group_all[group_all["UNDERWRITING_YEAR"].notna()].copy()
         yr_df["UNDERWRITING_YEAR"] = yr_df["UNDERWRITING_YEAR"].astype(int)
         for year, yr_group in yr_df.groupby("UNDERWRITING_YEAR"):
             yr_kpis = compute_kpi_summary(yr_group)
@@ -55,6 +71,44 @@ def _get_country_kpis(df, pays: str) -> dict:
         "contract_count": kpis["contract_count"],
         "avg_commission": float(group["COMMI"].mean() if "COMMI" in group.columns and len(group) > 0 else 0) or 0.0,
         "by_year": by_year,
+    }
+
+
+# AJOUTÉ — helper pour KPIs d'un pays avec branches optionnelles
+def _get_country_kpis_with_branches(df_filtered, df_all_years, pays: str, branches: Optional[List[str]] = None) -> dict:
+    """Calcule les KPIs d'un pays, filtré optionnellement par une liste de branches."""
+    group = df_filtered[df_filtered["PAYS_RISQUE"] == pays]
+    group_all = df_all_years[df_all_years["PAYS_RISQUE"] == pays]
+
+    # Appliquer le filtre branche si fourni et non vide
+    if branches:
+        group = group[group["INT_BRANCHE"].isin(branches)]
+        group_all = group_all[group_all["INT_BRANCHE"].isin(branches)]
+
+    kpis = compute_kpi_summary(group)
+
+    branche_label = ", ".join(branches) if branches else "Toutes branches"
+
+    by_year = []
+    if "UNDERWRITING_YEAR" in group_all.columns and not group_all.empty:
+        yr_df = group_all[group_all["UNDERWRITING_YEAR"].notna()].copy()
+        yr_df["UNDERWRITING_YEAR"] = yr_df["UNDERWRITING_YEAR"].astype(int)
+        for year, yr_group in yr_df.groupby("UNDERWRITING_YEAR"):
+            yr_kpis = compute_kpi_summary(yr_group)
+            by_year.append({"year": int(year), **yr_kpis})
+        by_year.sort(key=lambda x: x["year"])
+
+    return {
+        "pays": pays,
+        "branche": branche_label,
+        "written_premium": kpis["total_written_premium"],
+        "resultat": kpis["total_resultat"],
+        "avg_ulr": kpis["avg_ulr"],
+        "sum_insured": kpis["total_sum_insured"],
+        "contract_count": kpis["contract_count"],
+        "avg_commission": float(group["COMMI"].mean() if "COMMI" in group.columns and len(group) > 0 else 0) or 0.0,
+        "by_year": by_year,
+        "has_data": kpis["contract_count"] > 0,
     }
 
 
@@ -111,10 +165,11 @@ def comparison(
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
-    df = get_df()
-    df = apply_filters(df, filters)
-    market_a = _get_market_kpis(df, market_a_pays, market_a_branche)
-    market_b = _get_market_kpis(df, market_b_pays, market_b_branche)
+    df_raw = get_df()
+    df = apply_filters(df_raw, filters)
+    df_all_years = _strip_year_filter(df_raw, filters)
+    market_a = _get_market_kpis(df, df_all_years, market_a_pays, market_a_branche)
+    market_b = _get_market_kpis(df, df_all_years, market_b_pays, market_b_branche)
     
     radar_a, radar_b = _compute_radar(market_a, market_b)
     market_a["radar"] = radar_a
@@ -133,10 +188,11 @@ def comparison_by_country(
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user),
 ):
-    df = get_df()
-    df = apply_filters(df, filters)
-    market_a = _get_country_kpis(df, market_a_pays)
-    market_b = _get_country_kpis(df, market_b_pays)
+    df_raw = get_df()
+    df = apply_filters(df_raw, filters)
+    df_all_years = _strip_year_filter(df_raw, filters)
+    market_a = _get_country_kpis(df, df_all_years, market_a_pays)
+    market_b = _get_country_kpis(df, df_all_years, market_b_pays)
     
     radar_a, radar_b = _compute_radar(market_a, market_b)
     market_a["radar"] = radar_a
@@ -146,6 +202,133 @@ def comparison_by_country(
         "market_a": market_a,
         "market_b": market_b,
     }
+
+
+# AJOUTÉ — Endpoint 1 : branches disponibles pour un pays donné
+@router.get("/branches-by-country")
+def get_branches_by_country(
+    country: str = Query(..., description="Nom du pays risque"),
+    spc_type: Optional[str] = Query(None, description="Filtre Type SPC : FAC, TTY ou TTE (comma-separated)"),
+    contract_type: Optional[str] = Query(None, description="Filtre type de contrat (comma-separated)"),
+    year: Optional[str] = Query(None, description="Années de souscription (comma-separated)"),
+    _: dict = Depends(get_current_user),
+):
+    """
+    Retourne la liste des branches disponibles pour un pays dans le dataset.
+    Ignore le filtre branche global. Applique uniquement les filtres locaux
+    (année, type contrat, type SPC) si fournis.
+    """
+    import pandas as pd
+    df = get_df()
+
+    if df.empty or "PAYS_RISQUE" not in df.columns:
+        return []
+
+    # Filtrer par pays
+    df = df[df["PAYS_RISQUE"] == country]
+
+    # Appliquer filtre année si fourni
+    if year:
+        years = [int(y.strip()) for y in year.split(",") if y.strip().isdigit()]
+        if years and "UNDERWRITING_YEAR" in df.columns:
+            df = df[df["UNDERWRITING_YEAR"].isin(years)]
+
+    # Appliquer filtre type de contrat si fourni
+    if contract_type:
+        types = [t.strip() for t in contract_type.split(",") if t.strip()]
+        if types and "TYPE_OF_CONTRACT" in df.columns:
+            df = df[df["TYPE_OF_CONTRACT"].isin(types)]
+
+    # Appliquer filtre type SPC si fourni
+    if spc_type:
+        spc_types = [s.strip() for s in spc_type.split(",") if s.strip()]
+        if spc_types and "INT_SPC_TYPE" in df.columns:
+            df = df[df["INT_SPC_TYPE"].isin(spc_types)]
+
+    if df.empty or "INT_BRANCHE" not in df.columns:
+        return []
+
+    branches = sorted([
+        b for b in df["INT_BRANCHE"].dropna().unique().tolist()
+        if str(b).strip()
+    ])
+    return branches
+
+
+# AJOUTÉ — Endpoint 2 : comparaison détaillée par pays avec branches par pays
+@router.get("/by-country-detail")
+def comparison_by_country_detail(
+    country_1: str = Query(..., description="Pays 1"),
+    country_2: str = Query(..., description="Pays 2"),
+    branches_1: Optional[str] = Query(None, description="Branches du pays 1 (comma-separated, vide = toutes)"),
+    branches_2: Optional[str] = Query(None, description="Branches du pays 2 (comma-separated, vide = toutes)"),
+    year: Optional[str] = Query(None, description="Années de souscription (comma-separated)"),
+    contract_type: Optional[str] = Query(None, description="Type de contrat (comma-separated)"),
+    spc_type: Optional[str] = Query(None, description="Type SPC : FAC, TTY ou TTE (comma-separated)"),
+    _: dict = Depends(get_current_user),
+):
+    """
+    Comparaison détaillée entre deux pays avec sélection de branches indépendante par pays.
+    Les filtres locaux (année, type contrat, type SPC) s'appliquent aux 2 blocs.
+    Le filtre branche global est IGNORÉ — les branches sont gérées via branches_1/branches_2.
+    Si branches_X est absent ou vide → toutes les branches du pays.
+    """
+    import pandas as pd
+
+    df_raw = get_df()
+
+    if df_raw.empty:
+        return {"market_a": None, "market_b": None}
+
+    # Construire le DataFrame filtré par les filtres LOCAUX uniquement (sans branche globale)
+    df = df_raw.copy()
+
+    # Filtre année local
+    if year:
+        years = [int(y.strip()) for y in year.split(",") if y.strip().isdigit()]
+        if years and "UNDERWRITING_YEAR" in df.columns:
+            df = df[df["UNDERWRITING_YEAR"].isin(years)]
+
+    # Filtre type de contrat local
+    if contract_type:
+        types = [t.strip() for t in contract_type.split(",") if t.strip()]
+        if types and "TYPE_OF_CONTRACT" in df.columns:
+            df = df[df["TYPE_OF_CONTRACT"].isin(types)]
+
+    # Filtre type SPC local
+    if spc_type:
+        spc_types = [s.strip() for s in spc_type.split(",") if s.strip()]
+        if spc_types and "INT_SPC_TYPE" in df.columns:
+            df = df[df["INT_SPC_TYPE"].isin(spc_types)]
+
+    # df_all_years = df sans filtre année (pour le graphe évolution)
+    df_all = df_raw.copy()
+    if contract_type:
+        types = [t.strip() for t in contract_type.split(",") if t.strip()]
+        if types and "TYPE_OF_CONTRACT" in df_all.columns:
+            df_all = df_all[df_all["TYPE_OF_CONTRACT"].isin(types)]
+    if spc_type:
+        spc_types = [s.strip() for s in spc_type.split(",") if s.strip()]
+        if spc_types and "INT_SPC_TYPE" in df_all.columns:
+            df_all = df_all[df_all["INT_SPC_TYPE"].isin(spc_types)]
+
+    # Parser les branches
+    b1 = [b.strip() for b in branches_1.split(",") if b.strip()] if branches_1 else []
+    b2 = [b.strip() for b in branches_2.split(",") if b.strip()] if branches_2 else []
+
+    # Calculer les KPIs pour chaque pays + branches
+    market_a = _get_country_kpis_with_branches(df, df_all, country_1, b1 if b1 else None)
+    market_b = _get_country_kpis_with_branches(df, df_all, country_2, b2 if b2 else None)
+
+    radar_a, radar_b = _compute_radar(market_a, market_b)
+    market_a["radar"] = radar_a
+    market_b["radar"] = radar_b
+
+    return {
+        "market_a": market_a,
+        "market_b": market_b,
+    }
+
 
 @router.get("/cedantes")
 def get_available_cedantes(
@@ -172,27 +355,36 @@ def comparison_by_cedante(
     _: dict = Depends(get_current_user),
 ):
     import pandas as pd
-    df = get_df()
-    df = apply_filters(df, filters)
+    df_raw = get_df()
+    df_analysis = apply_filters(df_raw, filters)
+    df_analysis_no_year = _strip_year_filter(df_raw, filters)
+    df_identity = apply_identity_filters(df_raw, filters)
 
     def get_cedante_kpis(cedante: str) -> dict:
         import numpy as np
-        group = df[df["INT_CEDANTE"] == cedante].copy()
-        if group.empty:
+        analysis_group = df_analysis[df_analysis["INT_CEDANTE"] == cedante].copy()
+        identity_group = df_identity[df_identity["INT_CEDANTE"] == cedante].copy()
+
+        if identity_group.empty:
             return {
                 "cedante": cedante, "pays_cedante": "",
                 "written_premium": 0, "resultat": 0, "avg_ulr": 0,
                 "sum_insured": 0, "contract_count": 0,
                 "avg_commission": 0, "avg_share_signed": 0,
+                "type_cedante": "",
+                "branches_actives": 0,
+                "fac_saturation_alerts": [],
+                "active_branches": [],
                 "by_year": [], "radar": {}
             }
-        
-        kpis = compute_kpi_summary(group)
+
+        kpis = compute_kpi_summary(analysis_group) if not analysis_group.empty else compute_kpi_summary(identity_group)
+        metric_group = analysis_group if not analysis_group.empty else identity_group
         
         def safe_mean(col):
-            if col not in group.columns:
+            if col not in metric_group.columns:
                 return 0.0
-            val = pd.to_numeric(group[col], errors="coerce").mean()
+            val = pd.to_numeric(metric_group[col], errors="coerce").mean()
             return round(float(val), 2) if not pd.isna(val) else 0.0
 
         def safe_val(v):
@@ -201,13 +393,55 @@ def comparison_by_cedante(
             return v
 
         pays_cedante = ""
-        if "PAYS_CEDANTE" in group.columns:
-            mode_val = group["PAYS_CEDANTE"].dropna().mode()
+        if "PAYS_CEDANTE" in identity_group.columns:
+            mode_val = identity_group["PAYS_CEDANTE"].dropna().mode()
             pays_cedante = mode_val.iloc[0] if not mode_val.empty else ""
 
+        type_cedante = ""
+        if "TYPE_CEDANTE" in identity_group.columns:
+            mode_type = identity_group["TYPE_CEDANTE"].dropna().mode()
+            type_cedante = mode_type.iloc[0] if not mode_type.empty else ""
+
+        # Attributs globaux (immunisés contre filtre branche et vue vie/non-vie)
+        branch_sums = pd.Series(dtype=float)
+        if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns:
+            branch_sums = identity_group.groupby("INT_BRANCHE")["WRITTEN_PREMIUM"].apply(
+                lambda x: pd.to_numeric(x, errors="coerce").fillna(0).sum()
+            )
+            branches_actives = int((branch_sums > 0).sum())
+        elif "INT_BRANCHE" in identity_group.columns:
+            branches_actives = int(identity_group["INT_BRANCHE"].dropna().nunique())
+        else:
+            branches_actives = 0
+
+        active_branches = []
+        if not branch_sums.empty:
+            active_branches = [
+                {"branche": str(branche), "total_written_premium": float(total_prime)}
+                for branche, total_prime in branch_sums.sort_values(ascending=False).items()
+                if str(branche).strip() and float(total_prime) > 0
+            ]
+
+        fac_saturation_alerts = []
+        has_type = "TYPE_OF_CONTRACT" in identity_group.columns
+        has_spc_type = "INT_SPC_TYPE" in identity_group.columns
+        if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns and (has_type or has_spc_type):
+            fac_mask = pd.Series(False, index=identity_group.index)
+            if has_type:
+                fac_mask = fac_mask | (identity_group["TYPE_OF_CONTRACT"] == "FAC")
+            if has_spc_type:
+                fac_mask = fac_mask | (identity_group["INT_SPC_TYPE"] == "FAC")
+            fac_group = identity_group[fac_mask]
+            for branche, br_df in fac_group.groupby("INT_BRANCHE"):
+                count = len(br_df)
+                prime = pd.to_numeric(br_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()
+                if count > 5 and prime > 1000000:
+                    fac_saturation_alerts.append(str(branche))
+
+        analysis_group_no_year = df_analysis_no_year[df_analysis_no_year["INT_CEDANTE"] == cedante].copy()
         by_year = []
-        if "UNDERWRITING_YEAR" in group.columns:
-            yr_df = group[group["UNDERWRITING_YEAR"].notna()].copy()
+        if "UNDERWRITING_YEAR" in analysis_group_no_year.columns:
+            yr_df = analysis_group_no_year[analysis_group_no_year["UNDERWRITING_YEAR"].notna()].copy()
             yr_df["UNDERWRITING_YEAR"] = pd.to_numeric(yr_df["UNDERWRITING_YEAR"], errors="coerce")
             yr_df = yr_df[yr_df["UNDERWRITING_YEAR"].notna()]
             yr_df["UNDERWRITING_YEAR"] = yr_df["UNDERWRITING_YEAR"].astype(int)
@@ -226,6 +460,10 @@ def comparison_by_cedante(
             "contract_count": kpis.get("contract_count", 0),
             "avg_commission": safe_mean("COMMI"),
             "avg_share_signed": safe_mean("SHARE_SIGNED"),
+            "type_cedante": type_cedante,
+            "branches_actives": branches_actives,
+            "fac_saturation_alerts": fac_saturation_alerts,
+            "active_branches": active_branches,
             "by_year": by_year,
         }
 

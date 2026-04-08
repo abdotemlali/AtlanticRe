@@ -182,6 +182,26 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
 }
 
 /**
+ * Same as filtersToParams but excludes one specific filter dimension.
+ * Used for "frozen graph" logic: fetch the full distribution ignoring the filter
+ * of the same dimension as the chart (e.g. branch chart ignores branche filter).
+ */
+export function filtersToParamsExcluding(
+  filters: FilterState,
+  exclude: 'branche' | 'type_contrat_spc' | 'specialite' | 'cedante' | 'courtier' | 'type_of_contract' | 'pays_risque'
+): Record<string, string> {
+  const f: FilterState = { ...filters }
+  if (exclude === 'branche') f.branche = []
+  if (exclude === 'type_contrat_spc') f.type_contrat_spc = []
+  if (exclude === 'specialite') f.specialite = []
+  if (exclude === 'cedante') f.cedante = []
+  if (exclude === 'courtier') f.courtier = []
+  if (exclude === 'type_of_contract') f.type_of_contract = []
+  if (exclude === 'pays_risque') f.pays_risque = []
+  return filtersToParams(f)
+}
+
+/**
  * Same as filtersToParams but strips ALL year-related params.
  * Use this for time-series endpoints (by-year, evolution) that must span all years.
  */

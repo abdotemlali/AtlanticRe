@@ -89,6 +89,7 @@ function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: S
 
 const STATUS_ALL = ['CONFIRMED', 'CLOSED', 'ACCEPTED', 'OFFER LOGGED', 'CANCELLED', 'COMMUTED', 'IDENTF']
 const TYPE_CONTRACT_ALL = ['PROPORT.', 'XOL', 'QUOTA SHARE', 'SURPLUS', 'AUTRES']
+const LIFE_BRANCH = 'VIE'
 
 /* ─── Status badge color dot ─── */
 const STATUS_DOTS: Record<string, string> = {
@@ -187,6 +188,33 @@ function YearFilter({ uwYears }: { uwYears: number[] }) {
 
 export default function FilterPanel() {
   const { draftFilters: filters, setDraftFilters: setFilters, resetFilters, resetToDefaultYear, filterOptions } = useData()
+  const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
+  const allBrancheValues = filterOptions?.branc || []
+
+  const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
+    setBrancheScope({ vie, nonVie })
+    setFilters(prev => {
+      let nextBranche: string[] = []
+
+      if (vie && !nonVie) {
+        nextBranche = allBrancheValues.includes(LIFE_BRANCH) ? [LIFE_BRANCH] : []
+      } else if (!vie && nonVie) {
+        nextBranche = allBrancheValues.filter(branch => branch !== LIFE_BRANCH)
+      }
+
+      return { ...prev, branche: nextBranche, sous_branche: [] }
+    })
+  }
+
+  const brancheOptions = useMemo(() => {
+    if (brancheScope.vie && !brancheScope.nonVie) {
+      return toOptions(allBrancheValues.filter(branch => branch === LIFE_BRANCH))
+    }
+    if (!brancheScope.vie && brancheScope.nonVie) {
+      return toOptions(allBrancheValues.filter(branch => branch !== LIFE_BRANCH))
+    }
+    return toOptions(allBrancheValues)
+  }, [allBrancheValues, brancheScope])
 
   const subBrancheOptions = useMemo(() => {
     if (!filterOptions?.sous_branche) return []
@@ -428,7 +456,35 @@ export default function FilterPanel() {
 
         {/* Business */}
         <Section title="Données métier">
-          <Select isMulti options={toOptions(filterOptions.branc)} {...selectStyles} placeholder="Branche" value={toOptions(filters.branche)} onChange={v => setFilters(f => ({ ...f, branche: v.map(x => x.value), sous_branche: [] }))} />
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2.5 cursor-pointer group px-1 py-0.5 rounded transition-colors hover:bg-navy-muted">
+              <input
+                type="checkbox"
+                checked={brancheScope.vie}
+                onChange={e => applyBrancheScope(e.target.checked, brancheScope.nonVie)}
+              />
+              <span className="text-[0.82rem] font-medium text-gray-600 group-hover:text-navy transition-colors">Vie</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer group px-1 py-0.5 rounded transition-colors hover:bg-navy-muted">
+              <input
+                type="checkbox"
+                checked={brancheScope.nonVie}
+                onChange={e => applyBrancheScope(brancheScope.vie, e.target.checked)}
+              />
+              <span className="text-[0.82rem] font-medium text-gray-600 group-hover:text-navy transition-colors">Non-vie</span>
+            </label>
+          </div>
+          <Select
+            isMulti
+            options={brancheOptions}
+            {...selectStyles}
+            placeholder="Branche"
+            value={toOptions(filters.branche)}
+            onChange={v => {
+              setBrancheScope({ vie: false, nonVie: false })
+              setFilters(f => ({ ...f, branche: v.map(x => x.value), sous_branche: [] }))
+            }}
+          />
           <Select isMulti options={subBrancheOptions} {...selectStyles} placeholder="Sous-branche" value={toOptions(filters.sous_branche)} isDisabled={subBrancheOptions.length === 0} onChange={v => setFilters(f => ({ ...f, sous_branche: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.pays_risque)} {...selectStyles} placeholder="Pays du risque" value={toOptions(filters.pays_risque)} onChange={v => setFilters(f => ({ ...f, pays_risque: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.pays_cedante)} {...selectStyles} placeholder="Pays cédante" value={toOptions(filters.pays_cedante)} onChange={v => setFilters(f => ({ ...f, pays_cedante: v.map(x => x.value) }))} />

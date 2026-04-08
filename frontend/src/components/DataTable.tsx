@@ -151,7 +151,7 @@ export default function DataTable() {
         </span>
 
         <div className="ml-auto">
-          <ExportButton />
+          {viewMode !== 'pipeline' && <ExportButton />}
         </div>
       </div>
 
@@ -168,7 +168,7 @@ export default function DataTable() {
         {loading ? (
           <TableSkeleton rows={10} columns={13} />
         ) : viewMode === 'pipeline' ? (
-          <PipelineView data={data} />
+          <PipelineView />
         ) : (
           <table className="data-table">
             <thead>
@@ -241,7 +241,7 @@ export default function DataTable() {
       </div>
 
       {/* ─── Pagination ─── */}
-      {!loading && totalPages > 1 && (
+      {!loading && totalPages > 1 && viewMode !== 'pipeline' && (
         <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs text-gray-400 tabular-nums">
             Page <span className="font-semibold text-navy">{page}</span> / {totalPages}

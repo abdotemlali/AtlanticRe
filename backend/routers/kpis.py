@@ -131,6 +131,19 @@ def kpis_alerts(
 ):
     df = get_df()
     df = apply_filters(df, filters)
+    # Garantir que le filtre d'année est bien appliqué (sécurité supplémentaire)
+    if "UNDERWRITING_YEAR" in df.columns:
+        if filters.uw_years:
+            df = df[df["UNDERWRITING_YEAR"].isin(filters.uw_years)]
+        elif filters.uw_year_min is not None and filters.uw_year_max is not None:
+            df = df[
+                (df["UNDERWRITING_YEAR"] >= filters.uw_year_min) &
+                (df["UNDERWRITING_YEAR"] <= filters.uw_year_max)
+            ]
+        elif filters.uw_year_min is not None:
+            df = df[df["UNDERWRITING_YEAR"] >= filters.uw_year_min]
+        elif filters.uw_year_max is not None:
+            df = df[df["UNDERWRITING_YEAR"] <= filters.uw_year_max]
     if df.empty or "PAYS_RISQUE" not in df.columns or "INT_BRANCHE" not in df.columns:
         return []
     result = []
@@ -193,22 +206,46 @@ def kpis_top_brokers(
 def kpis_by_country(
     contract_type_view: Optional[str] = Query(None),  # A1: "FAC" | "TREATY" | None
     vie_non_vie_view: Optional[str] = Query(None),    # A2: "VIE" | "NON_VIE" | None
+    selected_countries: Optional[str] = Query(None),  # C: CSV de noms de pays (highlight)
+    top: int = Query(10),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user)
 ):
     df = get_df()
-    df = apply_filters(df, filters)
+
+    # C: si selected_countries, ne pas appliquer le filtre pays_risque standard
+    # pour pouvoir afficher les N sélectionnés + (top-N) complément
+    if selected_countries:
+        selected_list = [p.strip() for p in selected_countries.split(",") if p.strip()]
+        filters_no_pays = filters.model_copy(update={"pays_risque": None})
+        df = apply_filters(df, filters_no_pays)
+    else:
+        df = apply_filters(df, filters)
+
     df = apply_view_filters(df, contract_type_view, vie_non_vie_view)
+
     if df.empty or "PAYS_RISQUE" not in df.columns:
         return []
-    result = []
+
+    all_results = []
     for pays, group in df.groupby("PAYS_RISQUE"):
         if not pays:
             continue
         kpis = compute_kpi_summary(group)
-        result.append({"pays": pays, **kpis})
-    result.sort(key=lambda x: x["total_written_premium"], reverse=True)
-    return result
+        is_sel = bool(selected_countries and str(pays).strip() in selected_list)
+        all_results.append({"pays": pays, "is_selected": is_sel, **kpis})
+
+    all_results.sort(key=lambda x: x["total_written_premium"], reverse=True)
+
+    if selected_countries:
+        selected_results = [r for r in all_results if r["is_selected"]]
+        complement_results = [r for r in all_results if not r["is_selected"]]
+        n_complement = max(0, top - len(selected_results))
+        final = selected_results + complement_results[:n_complement]
+        final.sort(key=lambda x: x["total_written_premium"], reverse=True)
+        return final
+
+    return all_results[:top]
 
 
 @router.get("/by-branch")
@@ -260,19 +297,50 @@ def profit_commission_by_branch(
 
 
 @router.get("/by-broker")
-def kpis_by_broker(top: int = Query(10), filters: FilterParams = Depends(parse_filter_params), _: dict = Depends(get_current_user)):
-    df = get_df()
-    df = apply_filters(df, filters)
+def kpis_by_broker(
+    top: int = Query(10),
+    selected_brokers: Optional[str] = Query(None),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user)
+):
+    # #7: si selected_brokers fourni, ne pas appliquer le filtre courtier standard
+    # pour pouvoir afficher les sélectionnés + le complément top N
+    if selected_brokers:
+        selected_list = [b.strip() for b in selected_brokers.split(",") if b.strip()]
+        filters_no_broker = filters.model_copy(update={"courtier": None})
+        df = get_df()
+        df = apply_filters(df, filters_no_broker)
+    else:
+        df = get_df()
+        df = apply_filters(df, filters)
+
     if df.empty or "INT_BROKER" not in df.columns:
         return []
-    result = []
+
+    all_results = []
     for broker, group in df.groupby("INT_BROKER"):
-        if not broker:
+        if not broker or str(broker).strip() in ("", "NAN"):
             continue
         wp = float(group["WRITTEN_PREMIUM"].sum() if "WRITTEN_PREMIUM" in group.columns else 0)
-        result.append({"courtier": broker, "written_premium": round(wp, 2), "contract_count": len(group)})
-    result.sort(key=lambda x: x["written_premium"], reverse=True)
-    return result[:top]
+        is_sel = bool(selected_brokers and str(broker).strip() in selected_list)
+        all_results.append({
+            "courtier": str(broker).strip(),
+            "written_premium": round(wp, 2),
+            "contract_count": len(group),
+            "is_selected": is_sel,
+        })
+
+    all_results.sort(key=lambda x: x["written_premium"], reverse=True)
+
+    if selected_brokers:
+        selected_results = [r for r in all_results if r["is_selected"]]
+        complement_results = [r for r in all_results if not r["is_selected"]]
+        n_complement = max(0, top - len(selected_results))
+        final = selected_results + complement_results[:n_complement]
+        final.sort(key=lambda x: x["written_premium"], reverse=True)
+        return final
+
+    return all_results[:top]
 
 
 @router.get("/by-contract-type")
@@ -294,30 +362,94 @@ def kpis_by_contract_type(filters: FilterParams = Depends(parse_filter_params), 
     return result
 
 
+@router.get("/by-specialite")
+def kpis_by_specialite(
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user)
+):
+    """
+    Retourne la répartition FAC vs Traité (TTY + TTE) par prime écrite.
+    Utilise la colonne INT_SPC_TYPE.
+    """
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+
+    if df.empty or "INT_SPC_TYPE" not in df.columns:
+        return []
+
+    df["INT_SPC_TYPE"] = df["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.strip()
+    df["WRITTEN_PREMIUM"] = pd.to_numeric(df["WRITTEN_PREMIUM"], errors="coerce").fillna(0)
+
+    fac_df = df[df["INT_SPC_TYPE"] == "FAC"]
+    treaty_df = df[df["INT_SPC_TYPE"].isin(["TTY", "TTE"])]
+
+    fac_premium = float(fac_df["WRITTEN_PREMIUM"].sum())
+    treaty_premium = float(treaty_df["WRITTEN_PREMIUM"].sum())
+
+    result = []
+    if fac_premium > 0:
+        result.append({
+            "specialite": "FAC",
+            "total_written_premium": round(fac_premium, 2),
+            "contract_count": len(fac_df),
+        })
+    if treaty_premium > 0:
+        result.append({
+            "specialite": "Traité",
+            "total_written_premium": round(treaty_premium, 2),
+            "contract_count": len(treaty_df),
+        })
+
+    return sorted(result, key=lambda x: x["total_written_premium"], reverse=True)
+
+
 @router.get("/by-cedante")
 def kpis_by_cedante(
     top: int = Query(10),
     type_contrat_view: Optional[str] = Query(None),
+    selected_cedantes: Optional[str] = Query(None),
     filters: FilterParams = Depends(parse_filter_params),
     _: dict = Depends(get_current_user)
 ):
     df = get_df()
-    df = apply_filters(df, filters)
+
+    # #6: si selected_cedantes fourni, ne pas appliquer le filtre cedante standard
+    # pour pouvoir afficher les sélectionnées + le complément top N
+    if selected_cedantes:
+        selected_list = [c.strip() for c in selected_cedantes.split(",") if c.strip()]
+        filters_no_cedante = filters.model_copy(update={"cedante": None})
+        df = apply_filters(df, filters_no_cedante)
+    else:
+        df = apply_filters(df, filters)
+
     if df.empty or "INT_CEDANTE" not in df.columns:
         return []
-    # Feature 6: filter by FAC or TREATY
+
+    # Compatibilité ancien paramètre type_contrat_view
     if type_contrat_view == "FAC" and "TYPE_OF_CONTRACT" in df.columns:
         df = df[df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
     elif type_contrat_view == "TREATY" and "TYPE_OF_CONTRACT" in df.columns:
         df = df[~df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
-    result = []
+
+    all_results = []
     for cedante, group in df.groupby("INT_CEDANTE"):
         if not cedante:
             continue
         kpis = compute_kpi_summary(group)
-        result.append({"cedante": cedante, **kpis})
-    result.sort(key=lambda x: x["total_written_premium"], reverse=True)
-    return result[:top]
+        is_sel = bool(selected_cedantes and str(cedante).strip() in selected_list)
+        all_results.append({"cedante": cedante, "is_selected": is_sel, **kpis})
+    all_results.sort(key=lambda x: x["total_written_premium"], reverse=True)
+
+    if selected_cedantes:
+        selected_results = [r for r in all_results if r["is_selected"]]
+        complement_results = [r for r in all_results if not r["is_selected"]]
+        n_complement = max(0, top - len(selected_results))
+        final = selected_results + complement_results[:n_complement]
+        final.sort(key=lambda x: x["total_written_premium"], reverse=True)
+        return final
+
+    return all_results[:top]
 
 
 @router.get("/by-year")
@@ -399,41 +531,42 @@ def cedante_profile(
     # ── df_identity : filtres identitaires uniquement (années, périmètre, statuts)
     # Ne jamais appliquer branche/pays ici pour préserver les attributs globaux
     df_identity = apply_identity_filters(df_raw, filters)
-    identity_group = df_identity[df_identity["INT_CEDANTE"] == cedante]
+    identity_group_full = df_identity[df_identity["INT_CEDANTE"] == cedante]
 
-    # A3 — Vie/Non-vie peut être appliqué sur les deux vues
-    if vie_non_vie_view and "VIE_NON_VIE" in identity_group.columns:
-        identity_group = identity_group[identity_group["VIE_NON_VIE"] == vie_non_vie_view]
-
-    if identity_group.empty:
+    if identity_group_full.empty:
         return {}
 
+    # Vue identitaire (optionnellement filtrée par Vie/Non-vie) réservée aux KPI analytiques de fallback
+    identity_group_view = identity_group_full
+    if vie_non_vie_view and "VIE_NON_VIE" in identity_group_view.columns:
+        identity_group_view = identity_group_view[identity_group_view["VIE_NON_VIE"] == vie_non_vie_view]
+
     # ── Attributs globaux calculés sur df_identity (jamais altérés par branche/pays)
-    pays_cedante = identity_group["PAYS_CEDANTE"].mode().iloc[0] if "PAYS_CEDANTE" in identity_group.columns and not identity_group["PAYS_CEDANTE"].mode().empty else ""
+    pays_cedante = identity_group_full["PAYS_CEDANTE"].mode().iloc[0] if "PAYS_CEDANTE" in identity_group_full.columns and not identity_group_full["PAYS_CEDANTE"].mode().empty else ""
     type_cedante = "ASSUREUR DIRECT"
-    if "TYPE_CEDANTE" in identity_group.columns and not identity_group["TYPE_CEDANTE"].mode().empty:
-        type_cedante = str(identity_group["TYPE_CEDANTE"].mode().iloc[0])
+    if "TYPE_CEDANTE" in identity_group_full.columns and not identity_group_full["TYPE_CEDANTE"].mode().empty:
+        type_cedante = str(identity_group_full["TYPE_CEDANTE"].mode().iloc[0])
 
     # B2 — Diversification par branches (toujours sur identité complète, jamais filtrée par branche)
     branches_actives = 0
-    if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns:
-        branch_sums = identity_group.groupby("INT_BRANCHE")["WRITTEN_PREMIUM"].apply(
+    if "INT_BRANCHE" in identity_group_full.columns and "WRITTEN_PREMIUM" in identity_group_full.columns:
+        branch_sums = identity_group_full.groupby("INT_BRANCHE")["WRITTEN_PREMIUM"].apply(
             lambda x: pd.to_numeric(x, errors="coerce").fillna(0).sum()
         )
         branches_actives = int((branch_sums > 0).sum())
-    elif "INT_BRANCHE" in identity_group.columns:
-        branches_actives = int(identity_group["INT_BRANCHE"].dropna().nunique())
+    elif "INT_BRANCHE" in identity_group_full.columns:
+        branches_actives = int(identity_group_full["INT_BRANCHE"].dropna().nunique())
 
     # B3 — Alerte Saturation FAC (Calculé sur le portefeuille brut)
     fac_saturation_alerts = []
-    has_type = "TYPE_OF_CONTRACT" in identity_group.columns
-    has_spc_type = "INT_SPC_TYPE" in identity_group.columns
-    if "INT_BRANCHE" in identity_group.columns and "WRITTEN_PREMIUM" in identity_group.columns and (has_type or has_spc_type):
-        fac_mask = pd.Series(False, index=identity_group.index)
-        if has_type: fac_mask = fac_mask | (identity_group["TYPE_OF_CONTRACT"] == "FAC")
-        if has_spc_type: fac_mask = fac_mask | (identity_group["INT_SPC_TYPE"] == "FAC")
+    has_type = "TYPE_OF_CONTRACT" in identity_group_full.columns
+    has_spc_type = "INT_SPC_TYPE" in identity_group_full.columns
+    if "INT_BRANCHE" in identity_group_full.columns and "WRITTEN_PREMIUM" in identity_group_full.columns and (has_type or has_spc_type):
+        fac_mask = pd.Series(False, index=identity_group_full.index)
+        if has_type: fac_mask = fac_mask | (identity_group_full["TYPE_OF_CONTRACT"] == "FAC")
+        if has_spc_type: fac_mask = fac_mask | (identity_group_full["INT_SPC_TYPE"] == "FAC")
         
-        fac_group = identity_group[fac_mask]
+        fac_group = identity_group_full[fac_mask]
         
         # Grouper par branche, compter les lignes (affaires) et sommer les primes
         for branche, br_df in fac_group.groupby("INT_BRANCHE"):
@@ -449,12 +582,12 @@ def cedante_profile(
         analysis_group = analysis_group[analysis_group["VIE_NON_VIE"] == vie_non_vie_view]
 
     # KPIs d'analyse — reflètent les filtres actifs
-    kpis = compute_kpi_summary(analysis_group) if not analysis_group.empty else compute_kpi_summary(identity_group)
+    kpis = compute_kpi_summary(analysis_group) if not analysis_group.empty else compute_kpi_summary(identity_group_view)
 
-    avg_share = round(float(pd.to_numeric(analysis_group["SHARE_SIGNED"] if not analysis_group.empty else identity_group["SHARE_SIGNED"], errors="coerce").mean()), 2) if "SHARE_SIGNED" in identity_group.columns else 0.0
-    avg_commission = round(float(pd.to_numeric(analysis_group["COMMI"] if not analysis_group.empty else identity_group["COMMI"], errors="coerce").mean()), 2) if "COMMI" in identity_group.columns else 0.0
-    avg_profit_comm = round(float(pd.to_numeric(analysis_group["PROFIT_COMM_RATE"] if not analysis_group.empty else identity_group["PROFIT_COMM_RATE"], errors="coerce").mean()), 2) if "PROFIT_COMM_RATE" in identity_group.columns else 0.0
-    avg_brokerage = round(float(pd.to_numeric(analysis_group["BROKERAGE_RATE"] if not analysis_group.empty else identity_group["BROKERAGE_RATE"], errors="coerce").mean()), 2) if "BROKERAGE_RATE" in identity_group.columns else 0.0
+    avg_share = round(float(pd.to_numeric(analysis_group["SHARE_SIGNED"] if not analysis_group.empty else identity_group_view["SHARE_SIGNED"], errors="coerce").mean()), 2) if "SHARE_SIGNED" in identity_group_full.columns else 0.0
+    avg_commission = round(float(pd.to_numeric(analysis_group["COMMI"] if not analysis_group.empty else identity_group_view["COMMI"], errors="coerce").mean()), 2) if "COMMI" in identity_group_full.columns else 0.0
+    avg_profit_comm = round(float(pd.to_numeric(analysis_group["PROFIT_COMM_RATE"] if not analysis_group.empty else identity_group_view["PROFIT_COMM_RATE"], errors="coerce").mean()), 2) if "PROFIT_COMM_RATE" in identity_group_full.columns else 0.0
+    avg_brokerage = round(float(pd.to_numeric(analysis_group["BROKERAGE_RATE"] if not analysis_group.empty else identity_group_view["BROKERAGE_RATE"], errors="coerce").mean()), 2) if "BROKERAGE_RATE" in identity_group_full.columns else 0.0
 
     # filtered_view = True si des filtres d'analyse ou financiers sont actifs
     filtered_view = bool(
@@ -820,6 +953,61 @@ def cedante_fac_saturation(
             "seuil_affaires": seuil_affaires,
         })
     return sorted(result, key=lambda x: x["total_prime_fac"], reverse=True)
+
+
+@router.get("/cedante/fac-saturation-global")
+def cedante_fac_saturation_global(
+    seuil_prime: float = Query(1_000_000),
+    seuil_affaires: int = Query(5),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+    if "TYPE_OF_CONTRACT" not in df.columns or "INT_CEDANTE" not in df.columns or "INT_BRANCHE" not in df.columns:
+        return []
+    df_fac = df[df["TYPE_OF_CONTRACT"].str.upper().str.contains("FAC", na=False)]
+    if df_fac.empty:
+        return []
+    result = []
+    for cedante_name, ced_df in df_fac.groupby("INT_CEDANTE"):
+        if not cedante_name:
+            continue
+        branches_detail = []
+        for branche, br_df in ced_df.groupby("INT_BRANCHE"):
+            if not branche:
+                continue
+            total_prime = float(pd.to_numeric(br_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()) if "WRITTEN_PREMIUM" in br_df.columns else 0.0
+            nb_affaires = int(len(br_df))
+            is_saturated = (total_prime > seuil_prime) and (nb_affaires > seuil_affaires)
+            saturation_score = round((total_prime / seuil_prime) + (nb_affaires / seuil_affaires), 4)
+            branches_detail.append({
+                "branche": branche,
+                "total_prime_fac": round(total_prime, 2),
+                "nb_affaires_fac": nb_affaires,
+                "is_saturated": is_saturated,
+                "saturation_score": saturation_score,
+                "seuil_prime": seuil_prime,
+                "seuil_affaires": seuil_affaires,
+            })
+        if not branches_detail:
+            continue
+        total_prime_cedante = round(sum(b["total_prime_fac"] for b in branches_detail), 2)
+        nb_branches_fac = len(branches_detail)
+        branches_saturees = [b["branche"] for b in branches_detail if b["is_saturated"]]
+        nb_branches_saturees = len(branches_saturees)
+        score_global = round(sum(b["saturation_score"] for b in branches_detail), 4)
+        result.append({
+            "cedante": cedante_name,
+            "total_prime_fac": total_prime_cedante,
+            "nb_branches_fac": nb_branches_fac,
+            "nb_branches_saturees": nb_branches_saturees,
+            "branches_saturees": branches_saturees,
+            "score_global": score_global,
+            "branches_detail": sorted(branches_detail, key=lambda x: x["total_prime_fac"], reverse=True),
+        })
+    return sorted(result, key=lambda x: x["score_global"], reverse=True)
 
 
 @router.get("/by-country-contract-type")

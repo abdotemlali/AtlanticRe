@@ -1,16 +1,14 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings } from 'lucide-react'
+import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
-import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import { getScopedParams } from '../utils/pageFilterScopes'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import PageFilterPanel from '../components/PageFilterPanel'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useFetch } from '../hooks/useFetch'
 
@@ -28,9 +26,177 @@ interface CedanteProfile {
   type_cedante?: string  // B1
   branches_actives?: number  // B2
   fac_saturation_alerts?: string[] // B3
+  filtered_view?: boolean
 }
 
-type VieNonVieView = 'ALL' | 'VIE' | 'NON_VIE'  // A3
+const LIFE_BRANCH = 'VIE'
+
+function toOptions(arr: string[]) { return arr.map(v => ({ value: v, label: v })) }
+function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: String(v) })) }
+
+const selectStyles = {
+  menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
+  menuPosition: 'fixed' as const,
+  styles: {
+    control: (base: any) => ({
+      ...base,
+      minHeight: '36px',
+      fontSize: '0.78rem',
+      borderRadius: '0.5rem',
+      borderColor: 'var(--color-gray-200)',
+      boxShadow: 'none',
+      '&:hover': { borderColor: 'var(--color-navy)' },
+    }),
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '0.78rem',
+      backgroundColor: state.isSelected ? 'var(--color-navy)' : state.isFocused ? 'var(--color-off-white)' : 'white',
+      color: state.isSelected ? 'white' : 'var(--color-navy)',
+    }),
+    multiValue: (base: any) => ({ ...base, backgroundColor: 'hsla(209,28%,24%,0.10)' }),
+    multiValueLabel: (base: any) => ({ ...base, color: 'var(--color-navy)', fontWeight: 700, fontSize: '0.72rem' }),
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    placeholder: (base: any) => ({ ...base, fontSize: '0.78rem' }),
+  },
+}
+
+const labelStyle = "block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]"
+
+/* ─── Inline filter panel for /analyse-cedante ─── */
+interface CedantePageFiltersProps {
+  brancheScope: { vie: boolean; nonVie: boolean }
+  onBrancheScopeChange: (vie: boolean, nonVie: boolean) => void
+  brancheOptions: { value: string; label: string }[]
+}
+
+function CedantePageFilters({ brancheScope, onBrancheScopeChange, brancheOptions }: CedantePageFiltersProps) {
+  const { draftFilters: filters, setDraftFilters: setFilters, filterOptions } = useData()
+
+  const uwYears = filterOptions?.underwriting_years ?? []
+  const typeOfContractOpts = toOptions(filterOptions?.type_of_contract ?? [])
+  const typeSpcOpts = toOptions(filterOptions?.type_contrat_spc ?? [])
+
+  const activeCount = useMemo(() => {
+    let n = 0
+    if (filters.uw_years.length > 0 || filters.uw_year_min || filters.uw_year_max) n++
+    if (filters.branche.length > 0) n++
+    if (filters.type_contrat_spc.length > 0) n++
+    if (filters.type_of_contract.length > 0) n++
+    return n
+  }, [filters])
+
+  return (
+    <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm px-4 py-3">
+      <div className="flex items-center gap-2 mb-3">
+        <SlidersHorizontal size={13} className="text-[var(--color-navy)]" />
+        <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-navy)]">Filtres de la vue</span>
+        {activeCount > 0 && (
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-navy)' }}>
+            {activeCount}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div>
+          <label className={labelStyle}>Année de souscription</label>
+          <div className="space-y-1.5">
+            <Select
+              isMulti
+              options={toNumOptions(uwYears)}
+              {...selectStyles}
+              placeholder="Toutes les années..."
+              value={toNumOptions(filters.uw_years.length > 0 ? filters.uw_years : [])}
+              onChange={(v: any) => {
+                const selected = v.map((x: any) => x.value)
+                setFilters(f => ({ ...f, uw_years: selected, uw_year_min: null, uw_year_max: null }))
+              }}
+            />
+            {filters.uw_years.length === 0 && (
+              <div className="flex gap-1.5">
+                <select
+                  title="Année min"
+                  className="input-dark text-xs py-1 flex-1"
+                  value={filters.uw_year_min ?? ''}
+                  onChange={e => setFilters(f => ({ ...f, uw_year_min: Number(e.target.value) || null }))}
+                >
+                  <option value="">Min</option>
+                  {uwYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select
+                  title="Année max"
+                  className="input-dark text-xs py-1 flex-1"
+                  value={filters.uw_year_max ?? ''}
+                  onChange={e => setFilters(f => ({ ...f, uw_year_max: Number(e.target.value) || null }))}
+                >
+                  <option value="">Max</option>
+                  {uwYears.slice().reverse().map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className={labelStyle}>Branche</label>
+          <Select
+            isMulti
+            options={brancheOptions}
+            {...selectStyles}
+            placeholder="Toutes les branches..."
+            value={toOptions(filters.branche)}
+            onChange={(v: any) => {
+              onBrancheScopeChange(false, false)
+              setFilters(f => ({ ...f, branche: v.map((x: any) => x.value), sous_branche: [] }))
+            }}
+          />
+          <div className="flex gap-3 mt-2">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={brancheScope.vie}
+                onChange={e => onBrancheScopeChange(e.target.checked, brancheScope.nonVie)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={brancheScope.nonVie}
+                onChange={e => onBrancheScopeChange(brancheScope.vie, e.target.checked)}
+              />
+              <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label className={labelStyle}>Type SPC</label>
+          <Select
+            isMulti
+            options={typeSpcOpts}
+            {...selectStyles}
+            placeholder="FAC / TTY / TTE..."
+            value={toOptions(filters.type_contrat_spc)}
+            onChange={(v: any) => setFilters(f => ({ ...f, type_contrat_spc: v.map((x: any) => x.value) }))}
+          />
+        </div>
+
+        <div>
+          <label className={labelStyle}>Type de contrat</label>
+          <Select
+            isMulti
+            options={typeOfContractOpts}
+            {...selectStyles}
+            placeholder="Tous les types..."
+            value={toOptions(filters.type_of_contract)}
+            onChange={(v: any) => setFilters(f => ({ ...f, type_of_contract: v.map((x: any) => x.value) }))}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const COLORS = [
   'hsl(209,28%,24%)', // Navy (dark)
@@ -46,24 +212,29 @@ const COLORS = [
 ]
 
 export default function CedanteAnalysis() {
-  const { filters, filterOptions, setFilters } = useData()
+  const { filterOptions, setFilters, draftFilters, setDraftFilters } = useData()
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   const [selectedCedante, setSelectedCedante] = useState<string | null>(null)
-  
+
   const [profile, setProfile] = useState<CedanteProfile | null>(null)
   const [yearData, setYearData] = useState<any[]>([])
   const [branchData, setBranchData] = useState<any[]>([])
+  const [branchDataAll, setBranchDataAll] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // A3 — Vie/Non-vie toggle (local to this page)
-  const [vieView, setVieView] = useState<VieNonVieView>('ALL')
+  // Vie/Non-vie checkboxes (local to this page)
+  const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
 
   // B2 — Diversification params (pure local state, never persisted)
   const [totalBranches, setTotalBranches] = useState(12)
   const [seuilVert, setSeuilVert] = useState(40)
   const [showDiversifParams, setShowDiversifParams] = useState(false)
+
+  // Diversification data (immunized: no branche/vie filter)
+  const [diversifProfile, setDiversifProfile] = useState<CedanteProfile | null>(null)
+  const [diversifBranchData, setDiversifBranchData] = useState<any[]>([])
 
   // Sort State for Commissions Table
   const [sortCol, setSortCol] = useState<string>('total_written_premium')
@@ -73,23 +244,92 @@ export default function CedanteAnalysis() {
     return (filterOptions?.cedantes || []).map(c => ({ value: c, label: c }))
   }, [filterOptions?.cedantes])
 
-  // Params centralisés via useMemo (avec fallback vers undefined si pass de cédante pour bloquer `useFetch`)
+  const allBrancheValues = filterOptions?.branc || []
+
+  const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
+    setBrancheScope({ vie, nonVie })
+    setDraftFilters((prev: any) => {
+      let nextBranche: string[] = []
+      if (vie && !nonVie) {
+        nextBranche = allBrancheValues.includes(LIFE_BRANCH) ? [LIFE_BRANCH] : []
+      } else if (!vie && nonVie) {
+        nextBranche = allBrancheValues.filter((b: string) => b !== LIFE_BRANCH)
+      }
+      return { ...prev, branche: nextBranche, sous_branche: [] }
+    })
+  }
+
+  const brancheOptions = useMemo(() => {
+    if (brancheScope.vie && !brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b === LIFE_BRANCH))
+    if (!brancheScope.vie && brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b !== LIFE_BRANCH))
+    return toOptions(allBrancheValues)
+  }, [allBrancheValues, brancheScope])
+
+  const vieNonVieLabel = useMemo(() => {
+    if (brancheScope.vie && !brancheScope.nonVie) return 'Vie'
+    if (!brancheScope.vie && brancheScope.nonVie) return 'Non-vie'
+    return 'Vie, Non-vie'
+  }, [brancheScope])
+  const headerScopeLabel = useMemo(() => {
+    if (draftFilters.branche.length === 1) return draftFilters.branche[0]
+    if (draftFilters.branche.length > 1) return `${draftFilters.branche.length} branches`
+    return vieNonVieLabel
+  }, [draftFilters.branche, vieNonVieLabel])
+
+  // Always show branch-mix charts (even when a single branch is selected)
+  const showBranchCharts = true
+
+  // Flag actif quand au moins une branche est sélectionnée
+  const isBranchFilterActive = draftFilters.branche.length > 0
+
+  // Params centralisés via useMemo (avec fallback vers undefined si pas de cédante pour bloquer `useFetch`)
   const params = useMemo(() => {
     if (!selectedCedante) return undefined
-    const vieParam = vieView !== 'ALL' ? { vie_non_vie_view: vieView } : {}
-    return { ...getScopedParams(location.pathname, filters), cedante: selectedCedante, ...vieParam }
-  }, [selectedCedante, vieView, filters, location.pathname])
+    return { ...getScopedParams(location.pathname, draftFilters), cedante: selectedCedante }
+  }, [selectedCedante, draftFilters, location.pathname])
 
-  // Décomposition des 3 appels via useFetch
+  // Params immunisés contre le filtre branche (pour Mix Pie figé + Top Branches complément)
+  const paramsNoBranch = useMemo(() => {
+    if (!selectedCedante) return undefined
+    return {
+      ...getScopedParams(location.pathname, { ...draftFilters, branche: [], sous_branche: [] }),
+      cedante: selectedCedante
+    }
+  }, [selectedCedante, draftFilters, location.pathname])
+
+  // Params for diversification (no branche/vie filter — immunized)
+  const diversifParams = useMemo(() => {
+    if (!selectedCedante) return undefined
+    const baseScoped = getScopedParams(location.pathname, { ...draftFilters, branche: [], sous_branche: [], type_contrat_spc: [] })
+    return { ...baseScoped, cedante: selectedCedante }
+  }, [selectedCedante, draftFilters, location.pathname])
+
+  // Décomposition des appels via useFetch
   const { data: profileRes, loading: l1 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.PROFILE : null, params)
   const { data: yearRes, loading: l2 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_YEAR : null, params)
   const { data: branchRes, loading: l3 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_BRANCH : null, params)
+
+  // Fetch toutes branches (immunisé contre filtre branche) — pour Pie figé + Top Branches
+  const { data: branchAllRes } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_BRANCH : null, paramsNoBranch)
+
+  // Separate fetches for diversification (immunized)
+  const { data: diversifProfileRes } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.PROFILE : null, diversifParams)
+  const { data: diversifBranchRes } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.BY_BRANCH : null, diversifParams)
 
   useEffect(() => {
     if (profileRes) setProfile(profileRes)
     if (yearRes) setYearData(yearRes)
     if (branchRes) setBranchData(branchRes)
   }, [profileRes, yearRes, branchRes])
+
+  useEffect(() => {
+    if (branchAllRes) setBranchDataAll(branchAllRes)
+  }, [branchAllRes])
+
+  useEffect(() => {
+    if (diversifProfileRes) setDiversifProfile(diversifProfileRes)
+    if (diversifBranchRes) setDiversifBranchData(diversifBranchRes)
+  }, [diversifProfileRes, diversifBranchRes])
 
   useEffect(() => {
     setLoading(l1 || l2 || l3)
@@ -105,7 +345,8 @@ export default function CedanteAnalysis() {
   }
 
   const sortedBranchData = useMemo(() => {
-    return [...branchData].sort((a, b) => {
+    const source = isBranchFilterActive ? branchDataAll : branchData
+    return [...source].sort((a, b) => {
       const valA = a[sortCol] ?? 0
       const valB = b[sortCol] ?? 0
       if (typeof valA === 'string' && typeof valB === 'string') {
@@ -113,13 +354,36 @@ export default function CedanteAnalysis() {
       }
       return sortDir === 'asc' ? Number(valA) - Number(valB) : Number(valB) - Number(valA)
     })
-  }, [branchData, sortCol, sortDir])
+  }, [branchData, branchDataAll, isBranchFilterActive, sortCol, sortDir])
+
+  // D — Top Branches : N sélectionnées + (8-N) complément depuis branchDataAll
+  const topBranchesForBar = useMemo(() => {
+    if (!isBranchFilterActive || branchDataAll.length === 0) {
+      return branchData.slice(0, 8).map(b => ({ ...b, is_selected: false }))
+    }
+    const selectedSet = new Set(draftFilters.branche)
+    const selectedBranches = branchDataAll
+      .filter(b => selectedSet.has(b.branche))
+      .map(b => ({ ...b, is_selected: true }))
+    const complementBranches = branchDataAll
+      .filter(b => !selectedSet.has(b.branche))
+      .slice(0, Math.max(0, 8 - selectedBranches.length))
+      .map(b => ({ ...b, is_selected: false }))
+    return [...selectedBranches, ...complementBranches]
+      .sort((a, b) => b.total_written_premium - a.total_written_premium)
+  }, [branchData, branchDataAll, draftFilters.branche, isBranchFilterActive])
 
   if (!selectedCedante) {
     return (
       <div className="space-y-4 animate-fade-in p-2">
         <ActiveFiltersBar />
-        <PageFilterPanel />
+        <div className="sticky top-0 z-40 bg-[var(--color-off-white)] pt-1">
+          <CedantePageFilters
+            brancheScope={brancheScope}
+            onBrancheScopeChange={applyBrancheScope}
+            brancheOptions={brancheOptions}
+          />
+        </div>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md">
           <div className="flex items-center gap-3">
@@ -166,15 +430,26 @@ export default function CedanteAnalysis() {
     )
   }
 
-  // Derived Data for Pie Chart & Top Branches
-  const topBranches = branchData.slice(0, 8)
-  const otherBranches = branchData.slice(8)
-  const otherPremium = otherBranches.reduce((sum, b) => sum + (b.total_written_premium || 0), 0)
-  
-  const pieData = [
-    ...topBranches.map(b => ({ name: b.branche, value: b.total_written_premium })),
-    ...(otherPremium > 0 ? [{ name: 'Autres', value: otherPremium }] : [])
-  ]
+  // Derived Data for Pie Chart
+  // C.2 — Source figée : toutes branches si filtre actif, sinon données filtrées
+  // On affiche TOUTES les branches (jamais 'Autres') — top 10 max pour lisibilité
+  const pieSourceData = isBranchFilterActive ? branchDataAll : branchData
+  const pieData = pieSourceData.slice(0, 10).map(b => ({ name: b.branche, value: b.total_written_premium }))
+
+  // C.1 — Labels % dans le Pie Chart
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    if (percent < 0.04) return null
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
+        fontSize={11} fontWeight={700} style={{ pointerEvents: 'none' }}>
+        {`${(percent * 100).toFixed(1)}%`}
+      </text>
+    )
+  }
 
   const ulrColor = (ulr: number | null) => {
     if (ulr === null) return 'var(--color-gray-400)'
@@ -185,8 +460,17 @@ export default function CedanteAnalysis() {
 
   return (
     <div className="space-y-6 animate-fade-in p-2 pb-12">
+      {/* Filtres de cette vue — always visible */}
+      <div className="sticky top-0 z-40 bg-[var(--color-off-white)] pt-1">
+        <CedantePageFilters
+          brancheScope={brancheScope}
+          onBrancheScopeChange={applyBrancheScope}
+          brancheOptions={brancheOptions}
+        />
+      </div>
+
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md sticky top-0 z-40 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[hsla(209,28%,24%,0.08)]">
             <Building2 size={20} className="text-[var(--color-navy)]" />
@@ -209,6 +493,91 @@ export default function CedanteAnalysis() {
                 }}>
                   {profile.type_cedante === 'REASSUREUR' ? 'Réassureur' : 'Assureur direct'}
                 </span>
+              )}
+
+              {/* A — Badges branches sélectionnées (style encadré, cohérent avec Vie/Non-Vie) */}
+              {isBranchFilterActive && (
+                <div className="flex flex-wrap gap-1.5">
+                  {draftFilters.branche.map((b, i) => (
+                    <span
+                      key={b}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        background: `${COLORS[i % COLORS.length]}22`,
+                        border: `1.5px solid ${COLORS[i % COLORS.length]}88`,
+                        color: COLORS[i % COLORS.length],
+                      }}
+                    >
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Vie/Non-vie label */}
+              {!isBranchFilterActive && (
+                <span style={{
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  background: 'hsla(209,28%,24%,0.10)',
+                  border: '1.5px solid hsla(209,28%,24%,0.35)',
+                  color: 'var(--color-navy)',
+                }}>
+                  {headerScopeLabel}
+                </span>
+              )}
+
+              {/* Badges Type SPC sélectionnés */}
+              {draftFilters.type_contrat_spc.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {draftFilters.type_contrat_spc.map((t) => (
+                    <span
+                      key={t}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        background: 'hsla(43,96%,56%,0.15)',
+                        border: '1.5px solid hsla(43,96%,56%,0.55)',
+                        color: 'hsl(43,80%,32%)',
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Badges Type de Contrat sélectionnés */}
+              {draftFilters.type_of_contract.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {draftFilters.type_of_contract.map((t) => (
+                    <span
+                      key={t}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        background: 'hsla(280,30%,45%,0.12)',
+                        border: '1.5px solid hsla(280,30%,45%,0.45)',
+                        color: 'hsl(280,30%,36%)',
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
               )}
 
               {/* B3 — Alerte globale de saturation FAC */}
@@ -275,29 +644,13 @@ export default function CedanteAnalysis() {
         </div>
       ) : profile && (
         <>
-          {/* A3 — Vie/Non-vie toggle */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase">Vue :</span>
-            {(['ALL', 'VIE', 'NON_VIE'] as VieNonVieView[]).map(v => (
-              <button
-                key={v}
-                onClick={() => setVieView(v)}
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  border: vieView === v ? '1px solid var(--color-navy)' : '1px solid var(--color-gray-200)',
-                  background: vieView === v ? 'var(--color-navy)' : 'white',
-                  color: vieView === v ? 'white' : 'var(--color-gray-500)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {v === 'ALL' ? 'Tous' : v === 'VIE' ? 'Vie' : 'Non-vie'}
-              </button>
-            ))}
-          </div>
+          {/* B — Indicateur vue filtrée */}
+          {profile?.filtered_view && (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-600 font-bold py-1">
+              <span>🔍</span>
+              <span>Vue filtrée — KPIs calculés sur la sélection actuelle</span>
+            </div>
+          )}
 
           {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -437,12 +790,21 @@ export default function CedanteAnalysis() {
             </div>
           </div>
 
-          {/* Mix Portefeuille */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Mix Portefeuille — masqué si une seule branche sélectionnée */}
+          {showBranchCharts && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-5">
-               <div className="flex items-center gap-2 mb-4">
+               <div className="flex items-center gap-2 mb-4 flex-wrap">
                  <PieChart size={18} className="text-[var(--color-navy)]" />
                  <h3 className="text-sm font-bold text-[var(--color-navy)]">Mix par Branche (Primes)</h3>
+                 {isBranchFilterActive && (
+                   <span style={{
+                     fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px',
+                     background: 'hsla(43,96%,56%,0.15)', color: 'hsl(43,96%,40%)',
+                     border: '1px solid hsla(43,96%,56%,0.3)', borderRadius: 99,
+                   }}>
+                     🔒 Vue 100% · {draftFilters.branche.length} sélectionnée(s)
+                   </span>
+                 )}
                </div>
                <div className="h-64">
                  <ResponsiveContainer width="100%" height="100%">
@@ -455,15 +817,23 @@ export default function CedanteAnalysis() {
                        outerRadius={90}
                        paddingAngle={2}
                        dataKey="value"
+                       labelLine={false}
+                       label={renderCustomLabel}
+                       stroke="none"
                      >
-                       {pieData.map((entry, index) => (
-                         <PieCell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                       ))}
+                       {pieData.map((entry, index) => {
+                         const baseColor = COLORS[index % COLORS.length]
+                         const isSelected = isBranchFilterActive && draftFilters.branche.includes(entry.name)
+                         const fill = isBranchFilterActive
+                           ? (isSelected ? baseColor : `${baseColor}33`)
+                           : baseColor
+                         return <PieCell key={`cell-${index}`} fill={fill} stroke={isSelected ? 'white' : 'none'} strokeWidth={isSelected ? 2 : 0} />
+                       })}
                      </Pie>
                      <RechartsTooltip formatter={(val: number) => formatCompact(val)} />
-                     <Legend 
-                        layout="vertical" 
-                        verticalAlign="middle" 
+                     <Legend
+                        layout="vertical"
+                        verticalAlign="middle"
                         align="right"
                         wrapperStyle={{ fontSize: '11px', maxHeight: '200px', overflowY: 'auto' }}
                         iconType="circle"
@@ -474,17 +844,26 @@ export default function CedanteAnalysis() {
              </div>
 
              <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-5">
-               <div className="flex items-center gap-2 mb-4">
+               <div className="flex items-center gap-2 mb-4 flex-wrap">
                  <BarChart2 size={18} className="text-[var(--color-navy)]" />
                  <h3 className="text-sm font-bold text-[var(--color-navy)]">Top Branches (Loss Ratio)</h3>
+                 {isBranchFilterActive && (
+                   <span style={{
+                     fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px',
+                     background: 'hsla(83,50%,45%,0.15)', color: 'hsl(83,50%,35%)',
+                     border: '1px solid hsla(83,50%,45%,0.3)', borderRadius: 99,
+                   }}>
+                     {draftFilters.branche.length} mise(s) en avant
+                   </span>
+                 )}
                </div>
                <div className="h-64">
                  <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={topBranches} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                   <BarChart data={topBranchesForBar} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-gray-100)" />
                      <XAxis type="number" tickFormatter={(val) => formatCompact(val)} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--color-gray-500)' }} />
                      <YAxis type="category" dataKey="branche" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--color-gray-500)', width: 80 }} width={80} />
-                     <RechartsTooltip 
+                     <RechartsTooltip
                         content={({ active, payload }: any) => {
                           if (active && payload && payload.length) {
                              const data = payload[0].payload
@@ -506,20 +885,24 @@ export default function CedanteAnalysis() {
                         }}
                      />
                      <Bar dataKey="total_written_premium" radius={[0, 4, 4, 0]}>
-                       {topBranches.map((entry, index) => (
-                         <Cell key={`cell-${index}`} fill={ulrColor(entry.avg_ulr)} />
+                       {topBranchesForBar.map((entry, index) => (
+                         <Cell
+                           key={`cell-${index}`}
+                           fill={ulrColor(entry.avg_ulr)}
+                           stroke={entry.is_selected ? 'hsl(209,28%,24%)' : 'none'}
+                           strokeWidth={entry.is_selected ? 2.5 : 0}
+                         />
                        ))}
                      </Bar>
                    </BarChart>
                  </ResponsiveContainer>
                </div>
              </div>
-          </div>
+          </div>}
 
-          {/* Rapport de Diversification */}
+          {/* Rapport de Diversification — immunisé (données non filtrées par branche/vie) */}
           {(() => {
-            // Calcul strict en Backend
-            const activeBranchesCount = profile?.branches_actives || 0;
+            const activeBranchesCount = diversifProfile?.branches_actives || 0;
               
             return (
             <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-6 mb-6 overflow-hidden relative">
@@ -597,7 +980,7 @@ export default function CedanteAnalysis() {
                   <h4 className="text-sm font-bold text-[var(--color-navy)] mb-3">Détail des branches explorées</h4>
                   <div className="max-h-[220px] overflow-y-auto pr-2 custom-scroll">
                     <ul className="space-y-2">
-                       {sortedBranchData.map((b, i) => (
+                       {diversifBranchData.map((b, i) => (
                          <li key={i} className="flex justify-between items-center p-2 rounded bg-[hsla(83,52%,36%,0.05)] border border-[hsla(83,52%,36%,0.1)]">
                            <div className="flex items-center gap-2">
                              <CheckCircle size={14} color="hsl(83,52%,36%)" />
@@ -664,11 +1047,19 @@ export default function CedanteAnalysis() {
                          const comm = b.avg_commission ?? 0
                          const broka = b.avg_brokerage_rate ?? 0
                          const profita = b.avg_profit_comm_rate ?? 0
-                         
+                         const isRowSelected = isBranchFilterActive && draftFilters.branche.includes(b.branche)
+
                          return (
-                           <tr key={i} className="border-b border-[var(--color-gray-100)] last:border-0 hover:bg-[hsla(0,0%,0%,0.02)] transition-colors">
+                           <tr
+                             key={i}
+                             className="border-b border-[var(--color-gray-100)] last:border-0 hover:bg-[hsla(0,0%,0%,0.02)] transition-colors"
+                             style={{ background: isRowSelected ? 'hsla(83,52%,36%,0.06)' : undefined }}
+                           >
                               <td className="py-3 px-4 text-xs font-bold text-[var(--color-navy)]">
                                 <div className="flex items-center gap-2">
+                                  {isRowSelected && (
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'hsl(83,52%,36%)' }} />
+                                  )}
                                   {b.branche}
                                   {profile?.fac_saturation_alerts?.includes(b.branche) && (
                                     <span title="Saturation FAC"><AlertTriangle size={14} color="hsl(358,66%,54%)" /></span>

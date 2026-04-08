@@ -1,11 +1,18 @@
-// 🎨 STYLE UPDATED — DistributionCharts : palette HSL riche, ChartCard glass, tooltips glass, gradients premium
-// F4: Labels % sur PieCharts | F6: Toggle FAC/Traité sur Top cédantes
+// DistributionCharts — Phase 1 + Phase 2 complètes
+// #2: suppression du regroupement "Autres"
+// #3: logique graphe figé + ChartCard frozen
+// #4: graphe Répartition par spécialité (FAC vs Traité)
+// #5: suppression tabs Tous/FAC/Traité dans Top 10 cédantes
+// #6: mise en avant des cédantes sélectionnées
+// #7: mise en avant des courtiers sélectionnés
+// B: fix graphe type contrat figé (type_of_contract, pas type_contrat_spc)
+// C: top 10 pays avec N sélectionnés + (10-N) complément
 import { useEffect, useState } from "react"
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
-import { useData, filtersToParams } from '../../context/DataContext'
+import { useData, filtersToParams, filtersToParamsExcluding } from '../../context/DataContext'
 import api from '../../utils/api'
 import { formatCompact, truncate } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
@@ -48,7 +55,7 @@ const GlassTooltip = ({ active, payload, label, isBar = false }: any) => {
   )
 }
 
-// 🎨 Feature 4 — % labels inside PieChart slices
+// 🎨 % labels inside PieChart slices
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
   if (percent < 0.04) return null
   const RADIAN = Math.PI / 180
@@ -63,129 +70,134 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
   )
 }
 
-
-// 🎨 Glass ChartCard
-const ChartCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div
-    className="glass-card p-5 relative overflow-hidden"
-    style={{ height: '100%' }}
-  >
-    {/* Decorative top-right orb */}
+// 🎨 Glass ChartCard — supporte le badge "graphe figé" (#3)
+const ChartCard = ({
+  title, children,
+  frozen = false,
+  frozenLabel = '',
+}: {
+  title: string
+  children: React.ReactNode
+  frozen?: boolean
+  frozenLabel?: string
+}) => (
+  <div className="glass-card p-5 relative overflow-hidden" style={{ height: '100%' }}>
     <div
       className="absolute -top-4 -right-4 w-16 h-16 rounded-full pointer-events-none opacity-30"
       style={{ background: 'hsl(83,52%,36%)', filter: 'blur(18px)' }}
       aria-hidden="true"
     />
-    <h3 className="text-sm font-bold mb-4 text-navy relative z-10">
-      {title}
-    </h3>
+    <div className="flex items-center gap-2 mb-4">
+      <h3 className="text-sm font-bold text-navy relative z-10">{title}</h3>
+      {frozen && (
+        <span style={{
+          fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px',
+          background: 'hsla(43,96%,56%,0.15)', color: 'hsl(43,96%,56%)',
+          border: '1px solid hsla(43,96%,56%,0.3)', borderRadius: 99,
+          whiteSpace: 'nowrap',
+        }}>
+          🔒 Vue 100% · {frozenLabel}
+        </span>
+      )}
+    </div>
     <div className="relative z-10">{children}</div>
   </div>
 )
 
 const COUNTRY_NAME_MAP: Record<string, string> = {
-  'MAROC': 'Morocco',
-  'ALGERIE': 'Algeria',
-  'TUNISIE': 'Tunisia',
-  'LIBYE': 'Libya',
-  'EGYPTE': 'Egypt',
-  'MAURITANIE': 'Mauritania',
-  'SENEGAL': 'Senegal',
-  'MALI': 'Mali',
-  'BURKINA FASO': 'Burkina Faso',
-  'NIGER': 'Niger',
-  'TOGO': 'Togo',
-  'BENIN': 'Benin',
-  'GHANA': 'Ghana',
-  'NIGERIA': 'Nigeria',
-  'CAMEROUN': 'Cameroon',
-  'GABON': 'Gabon',
-  'CONGO': 'Republic of the Congo',
-  'ANGOLA': 'Angola',
-  'NAMIBIE': 'Namibia',
-  'AFRIQUE DU SUD': 'South Africa',
-  'BOTSWANA': 'Botswana',
-  'ZIMBABWE': 'Zimbabwe',
-  'ZAMBIE': 'Zambia',
-  'MOZAMBIQUE': 'Mozambique',
-  'TANZANIE': 'Tanzania',
-  'KENYA': 'Kenya',
-  'OUGANDA': 'Uganda',
-  'RWANDA': 'Rwanda',
-  'SOMALIE': 'Somalia',
-  'ETHIOPIE': 'Ethiopia',
-  'DJIBOUTI': 'Djibouti',
-  'SOUDAN': 'Sudan',
-  'COTE D IVOIRE': 'Ivory Coast',
-  'ARABIE SAOUDITE': 'Saudi Arabia',
-  'EMIRATS ARABES UNIS': 'United Arab Emirates',
-  'KOWEIT': 'Kuwait',
-  'QATAR': 'Qatar',
-  'BAHREIN': 'Bahrain',
-  'OMAN': 'Oman',
-  'JORDANIE': 'Jordan',
-  'LIBAN': 'Lebanon',
-  'IRAK': 'Iraq',
-  'IRAN': 'Iran',
-  'SYRIE': 'Syria',
-  'TURQUIE': 'Turkey',
-  'PAKISTAN': 'Pakistan',
-  'INDE': 'India',
-  'SRI LANKA': 'Sri Lanka',
-  'BANGLADESH': 'Bangladesh',
-  'CHINE': 'China',
-  'TAIWAN': 'Taiwan',
-  'COREE DU SUD': 'South Korea',
-  'JAPON': 'Japan',
-  'SINGAPOUR': 'Singapore',
-  'MALAISIE': 'Malaysia',
-  'INDONESIE': 'Indonesia',
-  'VIETNAM': 'Vietnam',
-  'ASIE PACIFIQUE': 'Australia',
-  'EUROPE': 'France',
-  'MOYEN ORIENT': 'Saudi Arabia',
-  'MONDE ENTIER': 'Morocco',
-  'AFRIQUE': 'Nigeria',
+  'MAROC': 'Morocco', 'ALGERIE': 'Algeria', 'TUNISIE': 'Tunisia', 'LIBYE': 'Libya',
+  'EGYPTE': 'Egypt', 'MAURITANIE': 'Mauritania', 'SENEGAL': 'Senegal', 'MALI': 'Mali',
+  'BURKINA FASO': 'Burkina Faso', 'NIGER': 'Niger', 'TOGO': 'Togo', 'BENIN': 'Benin',
+  'GHANA': 'Ghana', 'NIGERIA': 'Nigeria', 'CAMEROUN': 'Cameroon', 'GABON': 'Gabon',
+  'CONGO': 'Republic of the Congo', 'ANGOLA': 'Angola', 'NAMIBIE': 'Namibia',
+  'AFRIQUE DU SUD': 'South Africa', 'BOTSWANA': 'Botswana', 'ZIMBABWE': 'Zimbabwe',
+  'ZAMBIE': 'Zambia', 'MOZAMBIQUE': 'Mozambique', 'TANZANIE': 'Tanzania', 'KENYA': 'Kenya',
+  'OUGANDA': 'Uganda', 'RWANDA': 'Rwanda', 'SOMALIE': 'Somalia', 'ETHIOPIE': 'Ethiopia',
+  'DJIBOUTI': 'Djibouti', 'SOUDAN': 'Sudan', 'COTE D IVOIRE': 'Ivory Coast',
+  'ARABIE SAOUDITE': 'Saudi Arabia', 'EMIRATS ARABES UNIS': 'United Arab Emirates',
+  'KOWEIT': 'Kuwait', 'QATAR': 'Qatar', 'BAHREIN': 'Bahrain', 'OMAN': 'Oman',
+  'JORDANIE': 'Jordan', 'LIBAN': 'Lebanon', 'IRAK': 'Iraq', 'IRAN': 'Iran',
+  'SYRIE': 'Syria', 'TURQUIE': 'Turkey', 'PAKISTAN': 'Pakistan', 'INDE': 'India',
+  'SRI LANKA': 'Sri Lanka', 'BANGLADESH': 'Bangladesh', 'CHINE': 'China',
+  'TAIWAN': 'Taiwan', 'COREE DU SUD': 'South Korea', 'JAPON': 'Japan',
+  'SINGAPOUR': 'Singapore', 'MALAISIE': 'Malaysia', 'INDONESIE': 'Indonesia',
+  'VIETNAM': 'Vietnam', 'ASIE PACIFIQUE': 'Australia', 'EUROPE': 'France',
+  'MOYEN ORIENT': 'Saudi Arabia', 'MONDE ENTIER': 'Morocco', 'AFRIQUE': 'Nigeria',
 }
 
 export default function DistributionCharts() {
   const { filters } = useData()
+
+  // données filtrées (vue courante)
   const [branchData, setBranchData] = useState<any[]>([])
-  const [contractTypeData, setContractTypeData] = useState<any[]>([]) // NEW
+  const [contractTypeData, setContractTypeData] = useState<any[]>([])
+  const [specialiteData, setSpecialiteData] = useState<any[]>([])
   const [brokerData, setBrokerData] = useState<any[]>([])
-  const [cedanteData, setCedanteData] = useState<any[]>([]) // NEW
+  const [cedanteData, setCedanteData] = useState<any[]>([])
   const [countryData, setCountryData] = useState<any[]>([])
+
+  // données complètes (sans le filtre de la même dimension — pour graphes figés)
+  const [branchDataFull, setBranchDataFull] = useState<any[]>([])
+  const [contractTypeDataFull, setContractTypeDataFull] = useState<any[]>([])  // B: exclut type_of_contract
+  const [specialiteDataFull, setSpecialiteDataFull] = useState<any[]>([])      // exclut type_contrat_spc
+
   const [loading, setLoading] = useState(true)
-  // Feature 6: FAC/Traité/Tous toggle for cedante chart
-  type CedanteView = 'ALL' | 'FAC' | 'TREATY'
-  const [cedanteView, setCedanteView] = useState<CedanteView>('ALL')
 
   useEffect(() => {
     const params = filtersToParams(filters)
+
+    // Graphes figés : params sans le filtre de la même dimension
+    const paramsFullBranch = filtersToParamsExcluding(filters, 'branche')
+    // B: le graphe type de contrat groupe par TYPE_OF_CONTRACT → exclure type_of_contract (pas type_contrat_spc)
+    const paramsFullContractTypeOf = filtersToParamsExcluding(filters, 'type_of_contract')
+    // Le graphe spécialité groupe par INT_SPC_TYPE → exclure type_contrat_spc
+    const paramsFullSpecialite = filtersToParamsExcluding(filters, 'type_contrat_spc')
+
+    // #6: cédantes sélectionnées — contourner apply_filters cedante
+    const selectedCedantes = filters.cedante
+    const cedanteParams = selectedCedantes.length > 0
+      ? { ...filtersToParamsExcluding(filters, 'cedante'), top: 10, selected_cedantes: selectedCedantes.join(',') }
+      : { ...params, top: 10 }
+
+    // #7: courtiers sélectionnés
+    const selectedCourtiers = filters.courtier
+    const brokerParams = selectedCourtiers.length > 0
+      ? { ...filtersToParamsExcluding(filters, 'courtier'), top: 10, selected_brokers: selectedCourtiers.join(',') }
+      : { ...params, top: 10 }
+
+    // C: pays sélectionnés
+    const selectedPays = filters.pays_risque
+    const countryParams = selectedPays.length > 0
+      ? { ...filtersToParamsExcluding(filters, 'pays_risque'), top: 10, selected_countries: selectedPays.join(',') }
+      : { ...params, top: 10 }
+
     setLoading(true)
     Promise.all([
       api.get('/kpis/by-branch', { params }),
-      api.get('/kpis/by-contract-type', { params }), // NEW
-      api.get('/kpis/by-broker', { params: { ...params, top: 10 } }),
-      api.get('/kpis/by-cedante', { params: { ...params, top: 10, type_contrat_view: cedanteView === 'ALL' ? undefined : cedanteView } }), // F6
-      api.get('/kpis/by-country', { params }),
-    ]).then(([br, contType, bk, ced, co]) => {
+      api.get('/kpis/by-branch', { params: paramsFullBranch }),
+      api.get('/kpis/by-contract-type', { params }),
+      api.get('/kpis/by-contract-type', { params: paramsFullContractTypeOf }),  // B: fix
+      api.get('/kpis/by-specialite', { params }),
+      api.get('/kpis/by-specialite', { params: paramsFullSpecialite }),
+      api.get('/kpis/by-broker', { params: brokerParams }),
+      api.get('/kpis/by-cedante', { params: cedanteParams }),
+      api.get('/kpis/by-country', { params: countryParams }),  // C: selected_countries + top
+    ]).then(([br, brFull, contType, contTypeFull, spec, specFull, bk, ced, co]) => {
       setBranchData(br.data)
-      setBrokerData(bk.data)
-      
-      // NEW
+      setBranchDataFull(brFull.data)
       setContractTypeData(contType.data)
+      setContractTypeDataFull(contTypeFull.data)
+      setSpecialiteData(spec.data)
+      setSpecialiteDataFull(specFull.data)
+      setBrokerData(bk.data)
       setCedanteData(ced.data)
-      
-      // Map names to english for consistency
-      const mappedCountryData = co.data.map((item: any) => ({
+      // C: mapping noms français → anglais, plus de .slice(0, 10) (géré backend)
+      setCountryData(co.data.map((item: any) => ({
         ...item,
         pays: COUNTRY_NAME_MAP[item.pays?.toUpperCase() || ''] || item.pays
-      }))
-      
-      setCountryData(mappedCountryData.slice(0, 10))
+      })))
     }).catch(console.error).finally(() => setLoading(false))
-  }, [filters, cedanteView])
+  }, [filters])
 
   if (loading) {
     return (
@@ -199,33 +211,51 @@ export default function DistributionCharts() {
     )
   }
 
-  // Pie data for branches
-  const topBranches = branchData.slice(0, 8)
-  const othersWP = branchData.slice(8).reduce((s, d) => s + d.total_written_premium, 0)
-  const branchPieData = [
-    ...topBranches.map(d => ({ name: d.branche, value: d.total_written_premium })),
-    ...(othersWP > 0 ? [{ name: 'Autres', value: othersWP }] : []),
-  ]
+  // États "figé" par dimension
+  const isBranchFrozen = filters.branche.length > 0
+  // B: le graphe type de contrat est figé quand filters.type_of_contract est actif (pas type_contrat_spc)
+  const isContractTypeFrozen = filters.type_of_contract.length > 0
+  const isSpecialiteFrozen = filters.type_contrat_spc.length > 0
 
-  // Donut data for Contract Types
-  const topContractTypes = contractTypeData.slice(0, 8)
-  const othersWPContract = contractTypeData.slice(8).reduce((s, d) => s + d.total_written_premium, 0)
-  const contractTypePieData = [
-    ...topContractTypes.map(d => ({ name: d.type_contrat, value: d.total_written_premium })),
-    ...(othersWPContract > 0 ? [{ name: 'Autres', value: othersWPContract }] : []),
-  ]
+  // Données des graphes : version complète si figé, version filtrée sinon
+  const branchPieData = (isBranchFrozen ? branchDataFull : branchData)
+    .map((d: any) => ({ name: d.branche, value: d.total_written_premium }))
+
+  const contractTypePieData = (isContractTypeFrozen ? contractTypeDataFull : contractTypeData)
+    .map((d: any) => ({ name: d.type_contrat, value: d.total_written_premium }))
+
+  const specialitePieData = (isSpecialiteFrozen ? specialiteDataFull : specialiteData)
+    .map((d: any) => ({ name: d.specialite, value: d.total_written_premium, specialite: d.specialite }))
+
+  // Couleurs conditionnelles
+  const getBranchCellFill = (branchName: string, index: number): string => {
+    const baseColor = CHART_COLORS[index % CHART_COLORS.length]
+    if (!isBranchFrozen) return baseColor
+    return filters.branche.includes(branchName) ? baseColor : `${baseColor}55`
+  }
+
+  // B.4: compare avec type_of_contract (PROPORT./XOL...) pas type_contrat_spc (FAC/TTY/TTE)
+  const getContractTypeCellFill = (typeName: string, index: number): string => {
+    const baseColor = CHART_COLORS[index % CHART_COLORS.length]
+    if (!isContractTypeFrozen) return baseColor
+    return filters.type_of_contract.includes(typeName) ? baseColor : `${baseColor}55`
+  }
 
   return (
     <div className="flex flex-col gap-4">
 
-      {/* DONUT — by contract type */}
-      <ChartCard title="Répartition par type de contrat">
+      {/* DONUT — by contract type (B: fix frozen logic) */}
+      <ChartCard
+        title="Répartition par type de contrat"
+        frozen={isContractTypeFrozen}
+        frozenLabel={`Filtre actif (${filters.type_of_contract.join(', ')})`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={contractTypePieData}
               cx="50%" cy="50%"
-              innerRadius={80} outerRadius={120} // Donut shape
+              innerRadius={80} outerRadius={120}
               dataKey="value" nameKey="name"
               paddingAngle={3}
               isAnimationActive
@@ -235,17 +265,11 @@ export default function DistributionCharts() {
               labelLine={false}
               label={renderCustomLabel}
             >
-              {contractTypePieData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={CHART_COLORS[i % CHART_COLORS.length]}
-                />
+              {contractTypePieData.map((entry: any, i: number) => (
+                <Cell key={i} fill={getContractTypeCellFill(entry.name, i)} />
               ))}
             </Pie>
-            <Tooltip
-              content={<GlassTooltip />}
-              cursor={{ fill: 'transparent' }}
-            />
+            <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
             <Legend
               iconType="circle"
               iconSize={8}
@@ -260,7 +284,11 @@ export default function DistributionCharts() {
       </ChartCard>
 
       {/* PIE — by branch */}
-      <ChartCard title="Répartition par branche">
+      <ChartCard
+        title="Répartition par branche"
+        frozen={isBranchFrozen}
+        frozenLabel={`Filtre actif (${filters.branche.join(', ')})`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -276,17 +304,11 @@ export default function DistributionCharts() {
               labelLine={false}
               label={renderCustomLabel}
             >
-              {branchPieData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={CHART_COLORS[i % CHART_COLORS.length]}
-                />
+              {branchPieData.map((entry: any, i: number) => (
+                <Cell key={i} fill={getBranchCellFill(entry.name, i)} />
               ))}
             </Pie>
-            <Tooltip
-              content={<GlassTooltip />}
-              cursor={{ fill: 'transparent' }}
-            />
+            <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
             <Legend
               iconType="circle"
               iconSize={8}
@@ -300,8 +322,55 @@ export default function DistributionCharts() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* BAR (horizontal) — top 10 brokers */}
-      <ChartCard title="Top 10 courtiers par prime écrite">
+      {/* DONUT — Répartition par spécialité FAC vs Traité */}
+      <ChartCard
+        title="Répartition par spécialité"
+        frozen={isSpecialiteFrozen}
+        frozenLabel={`Filtre actif (${filters.type_contrat_spc.join(', ')})`}
+      >
+        <ResponsiveContainer width="100%" height={240}>
+          <PieChart>
+            <Pie
+              data={specialitePieData}
+              cx="50%" cy="50%"
+              innerRadius={60} outerRadius={100}
+              dataKey="value" nameKey="name"
+              paddingAngle={4}
+              isAnimationActive
+              animationDuration={900}
+              stroke="none"
+              labelLine={false}
+              label={renderCustomLabel}
+            >
+              {specialitePieData.map((entry: any, i: number) => {
+                const baseColor = CHART_COLORS[i % CHART_COLORS.length]
+                const isHighlighted = !isSpecialiteFrozen || filters.type_contrat_spc.some(f =>
+                  (f === 'FAC' && entry.specialite === 'FAC') ||
+                  (['TTY', 'TTE'].includes(f) && entry.specialite === 'Traité')
+                )
+                return <Cell key={i} fill={isHighlighted ? baseColor : `${baseColor}55`} />
+              })}
+            </Pie>
+            <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+            <Legend
+              iconType="circle"
+              iconSize={8}
+              formatter={(v) => (
+                <span style={{ fontSize: 11, color: 'hsl(218,12%,42%)', fontWeight: 500 }}>
+                  {truncate(v, 20)}
+                </span>
+              )}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* BAR (horizontal) — top 10 brokers (#7) */}
+      <ChartCard
+        title="Top 10 courtiers par prime écrite"
+        frozen={filters.courtier.length > 0}
+        frozenLabel={`${filters.courtier.length} sélectionné(s) mis en avant`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={brokerData} layout="vertical" margin={{ left: 10, right: 24 }}>
             <defs>
@@ -327,42 +396,32 @@ export default function DistributionCharts() {
               width={140}
               tickFormatter={v => truncate(v, 22)}
             />
-            <Tooltip
-              content={<GlassTooltip isBar />}
-              cursor={{ fill: 'hsla(83,52%,36%,0.06)' }}
-            />
+            <Tooltip content={<GlassTooltip isBar />} cursor={{ fill: 'hsla(83,52%,36%,0.06)' }} />
             <Bar
               dataKey="written_premium"
               name="Prime écrite"
               radius={[0, 4, 4, 0]}
-              fill="url(#barGradBroker)"
               isAnimationActive
               animationDuration={900}
               animationEasing="ease-out"
-              activeBar={<rect fill="hsl(83,52%,36%)" rx={4} />}
-            />
+            >
+              {brokerData.map((entry: any, i: number) => (
+                <Cell
+                  key={i}
+                  fill={entry.is_selected ? 'hsl(83,50%,45%)' : 'url(#barGradBroker)'}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* BAR (horizontal) — top 10 cedantes */}
-      <ChartCard title="Top 10 cédantes par prime écrite">
-        {/* Feature 6: FAC / Traité / Tous toggle */}
-        <div className="flex gap-1 mb-3 p-0.5 rounded-lg w-fit" style={{ background: 'var(--color-gray-100)' }}>
-          {(['ALL', 'FAC', 'TREATY'] as const).map(view => (
-            <button
-              key={view}
-              onClick={() => setCedanteView(view)}
-              className="text-[0.68rem] font-bold px-2.5 py-1 rounded-md transition-all duration-200"
-              style={{
-                background: cedanteView === view ? 'var(--color-navy)' : 'transparent',
-                color: cedanteView === view ? '#fff' : 'var(--color-gray-500)',
-              }}
-            >
-              {view === 'ALL' ? 'Tous' : view === 'FAC' ? 'Facultatif' : 'Traité'}
-            </button>
-          ))}
-        </div>
+      {/* BAR (horizontal) — top 10 cedantes (#5 #6) */}
+      <ChartCard
+        title="Top 10 cédantes par prime écrite"
+        frozen={filters.cedante.length > 0}
+        frozenLabel={`${filters.cedante.length} sélectionnée(s) mise(s) en avant`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={cedanteData} layout="vertical" margin={{ left: 10, right: 24 }}>
             <defs>
@@ -388,26 +447,32 @@ export default function DistributionCharts() {
               width={140}
               tickFormatter={v => truncate(v, 22)}
             />
-            <Tooltip
-              content={<GlassTooltip isBar />}
-              cursor={{ fill: 'hsla(83,52%,36%,0.06)' }}
-            />
+            <Tooltip content={<GlassTooltip isBar />} cursor={{ fill: 'hsla(83,52%,36%,0.06)' }} />
             <Bar
               dataKey="total_written_premium"
               name="Prime écrite"
               radius={[0, 4, 4, 0]}
-              fill="url(#barGradCedante)"
               isAnimationActive
               animationDuration={900}
               animationEasing="ease-out"
-              activeBar={<rect fill="hsl(152,56%,39%)" rx={4} />}
-            />
+            >
+              {cedanteData.map((entry: any, i: number) => (
+                <Cell
+                  key={i}
+                  fill={entry.is_selected ? 'hsl(83,50%,45%)' : 'url(#barGradCedante)'}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* BAR (vertical) — top 10 countries */}
-      <ChartCard title="Top 10 pays par prime écrite">
+      {/* BAR (vertical) — top 10 countries (C) */}
+      <ChartCard
+        title="Top 10 pays par prime écrite"
+        frozen={filters.pays_risque.length > 0}
+        frozenLabel={`${filters.pays_risque.length} sélectionné(s) mis en avant`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={countryData} margin={{ right: 20, top: 20 }}>
             <defs>
@@ -430,20 +495,22 @@ export default function DistributionCharts() {
               axisLine={false}
               tickFormatter={v => formatCompact(v)}
             />
-            <Tooltip
-              content={<GlassTooltip isBar />}
-              cursor={{ fill: 'hsla(83,52%,36%,0.06)' }}
-            />
+            <Tooltip content={<GlassTooltip isBar />} cursor={{ fill: 'hsla(83,52%,36%,0.06)' }} />
             <Bar
               dataKey="total_written_premium"
               name="Prime écrite"
               radius={[4, 4, 0, 0]}
-              fill="url(#barGradCountry)"
               isAnimationActive
               animationDuration={900}
               animationEasing="ease-out"
-              activeBar={<rect fill="hsl(83,52%,36%)" rx={4} />}
-            />
+            >
+              {countryData.map((entry: any, i: number) => (
+                <Cell
+                  key={i}
+                  fill={entry.is_selected ? 'hsl(83,50%,45%)' : 'url(#barGradCountry)'}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>

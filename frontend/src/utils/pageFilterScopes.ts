@@ -60,7 +60,14 @@ export const PAGE_SCOPES: Record<string, PageScope> = {
   '/analyse-cedante': {
     label: 'Analyse Cédante',
     // Years + branch only. Cedante is selected locally.
-    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'sous_branche', 'type_of_contract', 'pays_cedante'],
+    keys: [
+      'uw_year_min', 'uw_year_max', 'uw_years',
+      'branche', 'sous_branche',
+      'type_of_contract',
+      'type_contrat_spc',  // FAC / TTY / TTE — propagé à tous les graphes et KPIs
+      'pays_cedante',
+      'perimetre',
+    ],
     excluded: ['cedante'],  // selected locally in the page
   },
   '/exposition': {
@@ -68,9 +75,21 @@ export const PAGE_SCOPES: Record<string, PageScope> = {
     // Cédante et Courtier inclus : permet de voir l'exposition géographique pour une entité spécifique
     keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'pays_risque', 'branche', 'sous_branche', 'type_of_contract', 'cedante', 'courtier'],
   },
+  // MODIFIÉ — branche et type_of_contract retirés : gérés localement dans la page Comparaison
+  // Le filtre global branche n'impacte plus la page Comparaison
   '/comparaison': {
     label: 'Comparaison',
-    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'pays_cedante', 'type_of_contract'],
+    keys: ['pays_cedante'],
+  },
+  // AJOUTÉ — Scope Analyse Globale : filtres locaux gérés dans GlobalAnalysis.tsx
+  // pays_cedante est passé depuis le filtre global pour la carte monde et le tableau pays
+  '/analyse-globale': {
+    label: 'Analyse Globale',
+    keys: [
+      'uw_year_min', 'uw_year_max', 'uw_years',
+      'branche', 'sous_branche', 'type_of_contract',
+      'type_contrat_spc', 'pays_cedante',
+    ],
   },
 }
 

@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("", response_model=PaginatedContracts)
 def get_contracts(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=500),
+    page_size: int = Query(50, ge=1, le=50000),
     search: Optional[str] = Query(None),
     sort_by: Optional[str] = Query(None),
     sort_desc: bool = Query(False),

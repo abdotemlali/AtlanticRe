@@ -22,6 +22,7 @@ export const API_ROUTES = {
         PIVOT: '/kpis/pivot',
         BY_CONTRACT_TYPE: '/kpis/by-contract-type',
         BY_CEDANTE: '/kpis/by-cedante',
+        BY_SPECIALITE: '/kpis/by-specialite',
         ALERTS: '/kpis/alerts',
         FINANCIAL_BREAKDOWN: '/kpis/financial-breakdown',
     },
@@ -30,6 +31,7 @@ export const API_ROUTES = {
         BY_YEAR: '/kpis/cedante/by-year',
         BY_BRANCH: '/kpis/cedante/by-branch',
         FAC_SATURATION: '/kpis/cedante/fac-saturation',  // B3
+        FAC_SATURATION_GLOBAL: '/kpis/cedante/fac-saturation-global',
     },
     MARKET: {
         PROFILE: '/kpis/market/profile',
