@@ -14,7 +14,6 @@ import ResetPassword from './pages/ResetPassword'
 import ChangePassword from './pages/ChangePassword'
 import InactiveClients from './pages/InactiveClients'
 import Analysis from './pages/Analysis'
-import GlobalAnalysis from './pages/GlobalAnalysis'  // AJOUTÉ
 import ExpositionRisques from './pages/ExpositionRisques'
 import CedanteAnalysis from './pages/CedanteAnalysis'
 import FacSaturation from './pages/FacSaturation'
@@ -49,7 +48,6 @@ function AppRoutes() {
         <Route path="comparaison" element={<Comparison />} />
         <Route path="recommandations" element={<Recommendations />} />
         <Route path="analyse" element={<Analysis />} />
-        <Route path="analyse-globale" element={<GlobalAnalysis />} />  {/* AJOUTÉ */}
         <Route path="analyse-cedante" element={<CedanteAnalysis />} />
         <Route path="exposition" element={<ExpositionRisques />} />
         <Route path="fac-saturation" element={<FacSaturation />} />
