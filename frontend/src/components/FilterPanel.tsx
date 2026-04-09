@@ -356,7 +356,8 @@ export default function FilterPanel() {
           background: 'hsla(220,20%,98%,0.98)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: '1px solid var(--color-gray-100)',
+          borderBottom: 'none',
+          boxShadow: '0 1px 0 var(--color-gray-100)',
         }}
       >
         <div className="flex items-center gap-2">
@@ -396,12 +397,12 @@ export default function FilterPanel() {
             {activeChips.map((chip, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold text-[var(--color-navy)] bg-white border border-[var(--color-gray-200)] shadow-sm animate-fade-in group"
+                className="chip animate-fade-in group"
               >
                 {chip.label}
                 <button
                   onClick={chip.onRemove}
-                  className="text-gray-400 group-hover:text-red-500 transition-colors"
+                  className="chip__remove"
                 >
                   <X size={10} strokeWidth={3} />
                 </button>
@@ -419,7 +420,7 @@ export default function FilterPanel() {
           <YearFilter uwYears={filterOptions.underwriting_years} />
         </Section>
 
-        <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
+        <div className="divider-gradient" />
 
         {/* ── FEATURE 2: Type cédante ── */}
         <Section title="Type cédante">
@@ -550,7 +551,7 @@ export default function FilterPanel() {
         </Section>
 
         {/* Bottom spacing */}
-        <div className="h-6" />
+        <div className="h-8" />
       </div>
     </div>
   )

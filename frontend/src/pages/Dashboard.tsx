@@ -12,7 +12,7 @@ import FinancesChart from '../components/Charts/FinancesChart'
 import RentabiliteChart from '../components/Charts/RentabiliteChart'
 import InactiveClients from './InactiveClients'
 import { useAuth } from '../context/AuthContext'
-import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2, UserX } from 'lucide-react'
+import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2, UserX, LayoutDashboard } from 'lucide-react'
 
 const TABS = [
   { id: 'carte', label: 'Carte', icon: Map },
@@ -59,11 +59,17 @@ export default function Dashboard() {
         style={{ minWidth: 0 }}
       >
         {/* ─── Page header ─── */}
-        <div className="animate-slide-up">
-          <h1 className="text-lg font-bold text-navy">Tableau de bord</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            Vue d'ensemble du portefeuille réassurance — Africa &amp; Middle East
-          </p>
+        <div className="page-header animate-slide-up">
+          <div className="page-header__icon">
+            <LayoutDashboard size={22} />
+          </div>
+          <div className="page-header__content">
+            <h1 className="page-header__title">Tableau de bord</h1>
+            <p className="page-header__subtitle">
+              Vue d'ensemble du portefeuille réassurance — Africa & Middle East
+            </p>
+          </div>
+          <span className="page-header__badge hidden sm:inline-flex">Live</span>
         </div>
 
         {/* ─── KPI Cards ─── */}

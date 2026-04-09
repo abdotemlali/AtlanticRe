@@ -66,13 +66,22 @@ function KPICard({ label, rawValue, formatFn, sub, icon, accentColor, glowColor,
       className="float-element flex-1 min-w-0 glass-card p-5 relative overflow-hidden group"
       style={{
         animation: `slideUpFade 400ms cubic-bezier(0.22,1,0.36,1) ${index * 80}ms both`,
-        borderTop: `3px solid ${accentColor}`,
+        borderLeft: `3px solid ${accentColor}`,
       }}
     >
       {/* Ambient glow orb — decorative */}
       <div
         className="absolute -top-6 -right-6 w-20 h-20 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         style={{ background: glowColor, filter: 'blur(18px)' }}
+        aria-hidden="true"
+      />
+      {/* Decorative diagonal stripe */}
+      <div
+        className="absolute top-0 right-0 w-16 h-16 pointer-events-none opacity-[0.04]"
+        style={{
+          background: `linear-gradient(135deg, ${accentColor} 0%, transparent 60%)`,
+          borderRadius: '0 var(--radius-lg) 0 0',
+        }}
         aria-hidden="true"
       />
 
@@ -85,7 +94,7 @@ function KPICard({ label, rawValue, formatFn, sub, icon, accentColor, glowColor,
           {label}
         </p>
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-250 group-hover:scale-110"
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-250 group-hover:scale-110 group-hover:shadow-md"
           style={{
             background: `${glowColor}`,
             boxShadow: `0 2px 10px ${glowColor}`,
@@ -97,7 +106,7 @@ function KPICard({ label, rawValue, formatFn, sub, icon, accentColor, glowColor,
 
       {/* Main value — count-up */}
       <p
-        className="font-bold text-navy tabular-nums truncate leading-none mb-1.5"
+        className="font-bold text-navy tabular-nums truncate leading-none mb-1.5 font-mono"
         style={{ fontSize: 'clamp(1.4rem, 2vw, 1.8rem)', letterSpacing: '-0.01em' }}
       >
         {displayValue}

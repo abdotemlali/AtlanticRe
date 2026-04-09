@@ -58,18 +58,27 @@ export default function DashboardAlerts() {
     if (!alerts.length && !loading && threshold === debouncedThreshold) {
         return (
             <div className="flex items-center gap-3 mb-5 px-1 animate-fade-in">
-                <label className="text-sm font-semibold text-[var(--color-navy)] whitespace-nowrap">Seuil ULR d'alerte :</label>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--color-navy-muted)' }}
+                >
+                  <AlertOctagon size={13} style={{ color: 'var(--color-navy)' }} />
+                </div>
+                <label className="text-sm font-semibold text-[var(--color-navy)] whitespace-nowrap">Seuil ULR :</label>
                 <div className="relative w-24">
                     <input 
                         type="number" 
                         min={50} max={150} 
                         value={threshold}
                         onChange={e => setThreshold(Number(e.target.value))}
-                        className="w-full text-sm font-bold pl-3 pr-6 py-1.5 rounded-lg border focus:outline-none"
+                        className="w-full text-sm font-bold font-mono pl-3 pr-6 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--color-green-muted)]"
                         style={{ borderColor: 'var(--color-gray-200)', backgroundColor: 'var(--color-off-white)', color: 'var(--color-navy)' }}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-gray-500)]">%</span>
                 </div>
+                <span className="text-xs text-[var(--color-green)] font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-green)] inline-block" />
+                  Aucune alerte
+                </span>
             </div>
         )
     }
@@ -77,14 +86,19 @@ export default function DashboardAlerts() {
     return (
         <div className="mb-5 animate-slide-up stagger-2">
             <div className="flex items-center gap-3 mb-3 px-1">
-                <label className="text-sm font-semibold text-[var(--color-navy)] whitespace-nowrap">Seuil ULR d'alerte :</label>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--color-red-muted)' }}
+                >
+                  <AlertOctagon size={13} style={{ color: 'var(--color-red)' }} />
+                </div>
+                <label className="text-sm font-semibold text-[var(--color-navy)] whitespace-nowrap">Seuil ULR :</label>
                 <div className="relative w-24">
                     <input 
                         type="number" 
                         min={50} max={150} 
                         value={threshold}
                         onChange={e => setThreshold(Number(e.target.value))}
-                        className="w-full text-sm font-bold pl-3 pr-6 py-1.5 rounded-lg border focus:outline-none"
+                        className="w-full text-sm font-bold font-mono pl-3 pr-6 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--color-green-muted)]"
                         style={{ borderColor: 'var(--color-gray-200)', backgroundColor: 'var(--color-off-white)', color: 'var(--color-navy)' }}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-gray-500)]">%</span>
