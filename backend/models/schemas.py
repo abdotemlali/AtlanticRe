@@ -234,3 +234,4 @@ class LogEntry(BaseModel):
 # ── Config ────────────────────────────────────────────────────────────────────
 class ConfigUpdate(BaseModel):
     excel_file_path: Optional[str] = None
+    retro_excel_file_path: Optional[str] = None

@@ -76,4 +76,17 @@ export const API_ROUTES = {
         INACTIVE_EXPORT: '/clients/inactive/export',
         RENEWALS: '/clients/renewals',
     },
+    RETRO: {
+        REFRESH:          '/retro/refresh',
+        STATUS:           '/retro/status',
+        OPTIONS:          '/retro/options',
+        SUMMARY:          '/retro/summary',
+        BY_TRAITE:        '/retro/by-traite',
+        BY_YEAR:          '/retro/by-year',
+        BY_NATURE:        '/retro/by-nature',
+        BY_COURTIER:      '/retro/by-courtier',
+        BY_SECURITE:      '/retro/by-securite',
+        PLACEMENT_STATUS: '/retro/placement-status',
+        COURTIER_CROISE:  '/retro/courtier-croise',
+    },
 } as const

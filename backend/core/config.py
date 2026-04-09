@@ -14,6 +14,13 @@ EXCEL_FILE_PATH = os.getenv(
 )
 EXCEL_SHEET_NAME = "Feuil2"
 
+# Chemin du fichier Excel Rétrocession (modifiable via Admin)
+RETRO_EXCEL_FILE_PATH = os.getenv(
+    "RETRO_EXCEL_FILE_PATH",
+    r"C:\Users\TEMLALI\.gemini\antigravity\scratch\reinsurance-platform\retrocession_traites_realiste.xlsx"
+)
+RETRO_EXCEL_SHEET_NAME = os.getenv("RETRO_EXCEL_SHEET_NAME", "Rétrocession Traités")
+
 # JWT
 JWT_SECRET_KEY = os.getenv("SECRET_KEY")
 if not JWT_SECRET_KEY:

@@ -18,6 +18,8 @@ import ExpositionRisques from './pages/ExpositionRisques'
 import CedanteAnalysis from './pages/CedanteAnalysis'
 import FacSaturation from './pages/FacSaturation'
 import TopBrokers from './pages/TopBrokers'
+import AffairesTraites from './pages/AffairesTraites'
+import PanelSecurites from './pages/PanelSecurites'
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuth()
@@ -52,6 +54,8 @@ function AppRoutes() {
         <Route path="exposition" element={<ExpositionRisques />} />
         <Route path="fac-saturation" element={<FacSaturation />} />
         <Route path="top-brokers" element={<TopBrokers />} />
+        <Route path="retrocession/traites" element={<AffairesTraites />} />
+        <Route path="retrocession/securites" element={<PanelSecurites />} />
 
         <Route
           path="admin"

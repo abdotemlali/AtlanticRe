@@ -12,6 +12,7 @@ from middlewares.rate_limit import setup_rate_limiter
 from middlewares.security_headers import SecurityHeadersMiddleware
 from routers import auth, admin, kpis, contracts, scoring, comparison, data, export, clients
 from services.data_service import load_excel
+from services.retro_service import load_retro_excel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -114,6 +115,12 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Impossible de charger le fichier Excel au démarrage : {exc}")
 
+    try:
+        load_retro_excel()
+        logger.info("Fichier Excel rétrocession chargé au démarrage")
+    except Exception as exc:
+        logger.warning(f"Impossible de charger le fichier rétrocession au démarrage : {exc}")
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -142,3 +149,6 @@ app.include_router(comparison.router, prefix="/api/comparison", tags=["Compariso
 app.include_router(data.router,       prefix="/api/data",       tags=["Data"])
 app.include_router(export.router,     prefix="/api/export",     tags=["Export"])
 app.include_router(clients.router,    prefix="/api/clients",    tags=["Clients"])
+
+from routers.retro import router as retro_router
+app.include_router(retro_router, prefix="/api/retro", tags=["Retrocession"])

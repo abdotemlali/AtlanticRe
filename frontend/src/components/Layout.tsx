@@ -7,7 +7,7 @@ import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
   LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
-  Globe, Briefcase
+  Globe, Briefcase, Shield, FileText, Users
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -39,6 +39,13 @@ const navItems: NavItem[] = [
     children: [
       { to: '/fac-saturation', label: 'Saturation FAC',      icon: ShieldAlert },
       { to: '/top-brokers',    label: 'Courtiers & Brokers', icon: Briefcase   },
+    ],
+  },
+  {
+    label: 'Rétrocession', icon: Shield,
+    children: [
+      { to: '/retrocession/traites',   label: 'Affaires Traités',    icon: FileText },
+      { to: '/retrocession/securites', label: 'Panel de Sécurités',  icon: Users    },
     ],
   },
   { to: '/recommandations', label: 'Recommandations', icon: Star },
@@ -172,7 +179,7 @@ export default function Layout() {
         {/* Top shimmer line */}
         <div
           className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent, hsla(83,52%,60%,0.5) 30%, hsla(0,0%,100%,0.12) 50%, hsla(83,52%,60%,0.5) 70%, transparent)' }}
+          style={{ background: 'linear-gradient(90deg, transparent 5%, hsla(83,52%,60%,0.35) 30%, hsla(0,0%,100%,0.10) 50%, hsla(83,52%,60%,0.35) 70%, transparent 95%)' }}
         />
         {/* Bottom green accent line */}
         <div
@@ -458,6 +465,23 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* ─────────────────────────────────────────────────────
+          STATUS BAR — Professional footer
+          ───────────────────────────────────────────────────── */}
+      <div className="status-bar">
+        <div className="status-bar__left">
+          <span className="status-bar__dot" />
+          <span>Système opérationnel</span>
+          <span className="status-bar__separator" />
+          <span>© 2024–2026 Atlantic Re — CDG Group</span>
+        </div>
+        <div className="status-bar__right">
+          <span>Decision Intelligence Platform</span>
+          <span className="status-bar__separator" />
+          <span style={{ color: 'hsla(83,50%,55%,0.6)' }}>v1.0.0</span>
+        </div>
+      </div>
     </div>
   )
 }

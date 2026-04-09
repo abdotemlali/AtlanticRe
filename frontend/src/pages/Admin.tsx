@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import api from '../utils/api'
 
-import { Users, Settings, FileText, Plus, Edit2, Check, X, Trash2, Shield } from 'lucide-react'
+import { Users, Settings, FileText, Plus, Edit2, Check, X, Trash2, Shield, RefreshCw, Database } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { API_ROUTES } from '../constants/api'
 
@@ -202,7 +202,8 @@ export default function Admin() {
   const [tab, setTab] = useState<'users' | 'config' | 'logs'>('users')
   const [users, setUsers] = useState<User[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [config, setConfig] = useState<{ excel_file_path: string }>({ excel_file_path: '' })
+  const [config, setConfig] = useState<{ excel_file_path: string; retro_excel_file_path: string }>({ excel_file_path: '', retro_excel_file_path: '' })
+  const [retroRefreshing, setRetroRefreshing] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({ username: '', full_name: '', email: '', role: 'lecteur' as User['role'] })
@@ -274,6 +275,18 @@ export default function Admin() {
       await api.put(API_ROUTES.ADMIN.CONFIG, config)
       toast.success('Configuration sauvegardée')
     } catch { toast.error('Erreur') }
+  }
+
+  const refreshRetroData = async () => {
+    setRetroRefreshing(true)
+    try {
+      const res = await api.post(API_ROUTES.RETRO.REFRESH)
+      toast.success(`Données rétrocession actualisées — ${res.data.row_count} lignes chargées`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erreur lors du rechargement rétrocession')
+    } finally {
+      setRetroRefreshing(false)
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -443,21 +456,63 @@ export default function Admin() {
 
       {/* ── Config tab ───────────────────────────────────────────────────── */}
       {tab === 'config' && (
-        <div className="glass-card p-5 max-w-xl space-y-4">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Settings size={14} color="#4361ee" />Configuration du fichier Excel</h3>
-          <div>
-            <p className="text-xs mb-2" style={{ color: '#94a3b8' }}>Chemin du fichier Excel (réseau ou local)</p>
-            <input
-              type="text" value={config.excel_file_path}
-              onChange={e => setConfig(c => ({ ...c, excel_file_path: e.target.value }))}
-              className="input-dark text-xs py-2"
-              placeholder="\\serveur\dossier\Template_data.xlsx"
-            />
-            <p className="text-xs mt-1" style={{ color: '#64748b' }}>
-              Exemple réseau : <span className="font-mono">\\\\serveur\\dossier\\Template_data.xlsx</span>
-            </p>
+        <div className="space-y-5 max-w-xl">
+          {/* Excel Données de Base */}
+          <div className="glass-card p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Database size={14} color="#4361ee" />Fichier Excel — Données de Base
+            </h3>
+            <div>
+              <p className="text-xs mb-2" style={{ color: '#94a3b8' }}>Chemin du fichier Excel (réseau ou local)</p>
+              <input
+                type="text" value={config.excel_file_path}
+                onChange={e => setConfig(c => ({ ...c, excel_file_path: e.target.value }))}
+                className="input-dark text-xs py-2"
+                placeholder="\\serveur\dossier\Template_data.xlsx"
+              />
+              <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                Exemple : <span className="font-mono">\\\\serveur\\dossier\\Template_data.xlsx</span>
+              </p>
+            </div>
+            <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder</button>
           </div>
-          <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder</button>
+
+          {/* Excel Rétrocession */}
+          <div className="glass-card p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Shield size={14} color="hsl(83,50%,55%)" />Fichier Excel — Rétrocession par Traités
+            </h3>
+            <div>
+              <p className="text-xs mb-2" style={{ color: '#94a3b8' }}>Chemin du fichier Excel rétrocession (réseau ou local)</p>
+              <input
+                type="text" value={config.retro_excel_file_path}
+                onChange={e => setConfig(c => ({ ...c, retro_excel_file_path: e.target.value }))}
+                className="input-dark text-xs py-2"
+                placeholder="\\serveur\dossier\retrocession_traites.xlsx"
+              />
+              <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                Ce fichier contient les données de rétrocession (traités, sécurités, courtiers)
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder le chemin</button>
+              <button
+                onClick={refreshRetroData}
+                disabled={retroRefreshing}
+                className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(83,54%,27%), hsl(83,52%,36%))',
+                  color: 'white',
+                  border: 'none',
+                  cursor: retroRefreshing ? 'wait' : 'pointer',
+                  opacity: retroRefreshing ? 0.6 : 1,
+                }}
+              >
+                <RefreshCw size={12} className={retroRefreshing ? 'animate-spin' : ''} />
+                {retroRefreshing ? 'Chargement…' : 'Actualiser les données rétrocession'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

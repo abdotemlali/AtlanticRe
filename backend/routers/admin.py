@@ -5,12 +5,15 @@ from models import schemas
 from services import user_service
 from repositories import log_repository
 from routers.auth import require_role
-from core.config import EXCEL_FILE_PATH
+from core.config import EXCEL_FILE_PATH, RETRO_EXCEL_FILE_PATH
 
 router = APIRouter()
 
 # In-memory config store (same as original)
-_app_config = {"excel_file_path": EXCEL_FILE_PATH}
+_app_config = {
+    "excel_file_path": EXCEL_FILE_PATH,
+    "retro_excel_file_path": RETRO_EXCEL_FILE_PATH,
+}
 
 
 @router.get("/users")
@@ -55,4 +58,7 @@ def update_config(updates: schemas.ConfigUpdate, user: dict = Depends(require_ro
     if updates.excel_file_path:
         _app_config["excel_file_path"] = updates.excel_file_path
         log_repository.add_log(user["username"], "UPDATE_CONFIG", updates.excel_file_path)
+    if updates.retro_excel_file_path:
+        _app_config["retro_excel_file_path"] = updates.retro_excel_file_path
+        log_repository.add_log(user["username"], "UPDATE_RETRO_CONFIG", updates.retro_excel_file_path)
     return _app_config
