@@ -22,9 +22,10 @@ const navItems: NavItem[] = [
   {
     label: 'Analyse', icon: BarChart2,
     children: [
-      { to: '/analyse',         label: 'Analyse Globale',      icon: BarChart2  },
-      { to: '/analyse-cedante', label: 'Analyse Cédante',      icon: PieChart   },
-      { to: '/exposition',      label: 'Exposition & Risques', icon: Globe      },
+      { to: '/analyse',           label: 'Analyse Globale',      icon: BarChart2  },
+      { to: '/analyse-cedante',   label: 'Analyse Cédante',      icon: PieChart   },
+      { to: '/analyse-courtiers', label: 'Analyse Courtiers',    icon: Briefcase  },
+      { to: '/exposition',        label: 'Exposition & Risques', icon: Globe      },
     ],
   },
   {
@@ -37,8 +38,7 @@ const navItems: NavItem[] = [
   {
     label: 'Risques', icon: ShieldAlert,
     children: [
-      { to: '/fac-saturation', label: 'Saturation FAC',      icon: ShieldAlert },
-      { to: '/top-brokers',    label: 'Courtiers & Brokers', icon: Briefcase   },
+      { to: '/fac-saturation', label: 'Saturation FAC', icon: ShieldAlert },
     ],
   },
   {

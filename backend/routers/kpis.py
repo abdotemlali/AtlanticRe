@@ -1066,3 +1066,182 @@ def kpis_by_country_contract_type(
         })
         
     return sorted(result, key=lambda x: x["total_written_premium"], reverse=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  BROKER ANALYSIS ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/broker/profile")
+def broker_profile(
+    broker: str = Query(...),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    """Profil consolidé d'un courtier — contrats + rétrocession."""
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+    group = df[df["INT_BROKER"] == broker] if "INT_BROKER" in df.columns else pd.DataFrame()
+
+    if group.empty:
+        return {}
+
+    kpis = compute_kpi_summary(group)
+
+    def safe_mean(col):
+        if col not in group.columns:
+            return 0.0
+        val = pd.to_numeric(group[col], errors="coerce").mean()
+        return round(float(val), 2) if not pd.isna(val) else 0.0
+
+    # Cedantes servies
+    cedantes = sorted(group["INT_CEDANTE"].dropna().unique().tolist()) if "INT_CEDANTE" in group.columns else []
+    # Branches
+    branches = sorted(group["INT_BRANCHE"].dropna().unique().tolist()) if "INT_BRANCHE" in group.columns else []
+    # Pays
+    pays = sorted(group["PAYS_RISQUE"].dropna().unique().tolist()) if "PAYS_RISQUE" in group.columns else []
+
+    # Retro data
+    retro_pmd = 0.0
+    retro_courtage = 0.0
+    retro_traites = 0
+    retro_role = "apporteur"
+    try:
+        from services.retro_service import get_retro_df
+        df_retro = get_retro_df()
+        if not df_retro.empty and "DIRECT_COURTIER" in df_retro.columns:
+            retro_grp = df_retro[df_retro["DIRECT_COURTIER"] == broker]
+            if not retro_grp.empty:
+                retro_pmd = round(float(retro_grp["PMD_PAR_SECURITE"].sum()), 2)
+                retro_courtage = round(float(retro_grp["COMMISSION_COURTAGE"].sum()), 2)
+                retro_traites = int(retro_grp["TRAITE"].nunique())
+                retro_role = "double" if kpis["contract_count"] > 0 else "placeur"
+            elif kpis["contract_count"] > 0:
+                retro_role = "apporteur"
+    except Exception:
+        pass
+
+    solde_net = round(kpis.get("total_written_premium", 0) - retro_pmd, 2)
+
+    return {
+        **kpis,
+        "broker": broker,
+        "avg_commission": safe_mean("COMMI"),
+        "avg_brokerage_rate": safe_mean("BROKERAGE_RATE"),
+        "avg_share_signed": safe_mean("SHARE_SIGNED"),
+        "cedantes": cedantes,
+        "branches": branches,
+        "pays": pays,
+        "retro_pmd_placee": retro_pmd,
+        "retro_courtage": retro_courtage,
+        "retro_nb_traites": retro_traites,
+        "retro_role": retro_role,
+        "solde_net": solde_net,
+    }
+
+
+@router.get("/broker/by-year")
+def broker_by_year(
+    broker: str = Query(...),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    """Évolution temporelle pour un courtier."""
+    import pandas as pd
+    # Ne pas tronquer par année pour l'historique
+    filters.uw_years = None
+    filters.uw_year_min = None
+    filters.uw_year_max = None
+
+    df = get_df()
+    df = apply_filters(df, filters)
+    group = df[df["INT_BROKER"] == broker] if "INT_BROKER" in df.columns else pd.DataFrame()
+    if group.empty:
+        return []
+    group = group[group["UNDERWRITING_YEAR"].notna()].copy()
+    group["UNDERWRITING_YEAR"] = group["UNDERWRITING_YEAR"].astype(int)
+    result = []
+    for year, yr_group in group.groupby("UNDERWRITING_YEAR"):
+        kpis = compute_kpi_summary(yr_group)
+        result.append({"year": int(year), **kpis})
+    result.sort(key=lambda x: x["year"])
+    return result
+
+
+@router.get("/broker/by-branch")
+def broker_by_branch(
+    broker: str = Query(...),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    """Répartition par branche pour un courtier."""
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+    group = df[df["INT_BROKER"] == broker] if "INT_BROKER" in df.columns else pd.DataFrame()
+    if group.empty:
+        return []
+    result = []
+    for branche, br_group in group.groupby("INT_BRANCHE"):
+        if not branche:
+            continue
+        kpis = compute_kpi_summary(br_group)
+
+        def safe_mean(col):
+            if col not in br_group.columns:
+                return 0.0
+            val = pd.to_numeric(br_group[col], errors="coerce").mean()
+            return round(float(val), 2) if not pd.isna(val) else 0.0
+
+        result.append({
+            "branche": branche,
+            **kpis,
+            "avg_commission": safe_mean("COMMI"),
+            "avg_brokerage_rate": safe_mean("BROKERAGE_RATE"),
+        })
+    result.sort(key=lambda x: x["total_written_premium"], reverse=True)
+    return result
+
+
+@router.get("/broker/contracts")
+def broker_contracts(
+    broker: str = Query(...),
+    filters: FilterParams = Depends(parse_filter_params),
+    _: dict = Depends(get_current_user),
+):
+    """Liste des contrats d'un courtier."""
+    import pandas as pd
+    df = get_df()
+    df = apply_filters(df, filters)
+    group = df[df["INT_BROKER"] == broker] if "INT_BROKER" in df.columns else pd.DataFrame()
+    if group.empty:
+        return []
+
+    def safe(val):
+        if pd.isna(val):
+            return None
+        if isinstance(val, float) and (val != val or val == float('inf') or val == float('-inf')):
+            return None
+        return val
+
+    result = []
+    for _, row in group.iterrows():
+        result.append({
+            "policy_id": safe(row.get("POLICY_SEQUENCE_NUMBER")),
+            "cedante": safe(row.get("INT_CEDANTE")),
+            "branche": safe(row.get("INT_BRANCHE")),
+            "pays_risque": safe(row.get("PAYS_RISQUE")),
+            "uw_year": safe(row.get("UNDERWRITING_YEAR")),
+            "type_contrat": safe(row.get("TYPE_OF_CONTRACT")),
+            "written_premium": round(float(pd.to_numeric(row.get("WRITTEN_PREMIUM", 0), errors="coerce") or 0), 2),
+            "resultat": round(float(pd.to_numeric(row.get("RESULTAT", 0), errors="coerce") or 0), 2),
+            "ulr": round(float(pd.to_numeric(row.get("ULR", 0), errors="coerce") or 0), 4),
+            "share_signed": round(float(pd.to_numeric(row.get("SHARE_SIGNED", 0), errors="coerce") or 0), 2),
+            "commission": round(float(pd.to_numeric(row.get("COMMI", 0), errors="coerce") or 0), 2),
+            "status": safe(row.get("CONTRACT_STATUS")),
+        })
+
+    result.sort(key=lambda x: x["written_premium"] or 0, reverse=True)
+    return result
+

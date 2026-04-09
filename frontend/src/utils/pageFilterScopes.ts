@@ -46,8 +46,11 @@ export const FILTER_LABELS: Partial<Record<FilterKey, string>> = {
 export const PAGE_SCOPES: Record<string, PageScope> = {
   '/top-brokers': {
     label: 'Top Courtiers',
-    // Courtier exclu : filtrer sur un seul courtier dans son propre classement n'a pas de sens
-    // Cédante incluse : permet de voir "quels courtiers opèrent sur cette cédante"
+    keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'sous_branche', 'type_of_contract', 'pays_cedante', 'perimetre', 'cedante'],
+    excluded: ['courtier'],
+  },
+  '/analyse-courtiers': {
+    label: 'Analyse Courtiers',
     keys: ['uw_year_min', 'uw_year_max', 'uw_years', 'branche', 'sous_branche', 'type_of_contract', 'pays_cedante', 'perimetre', 'cedante'],
     excluded: ['courtier'],
   },

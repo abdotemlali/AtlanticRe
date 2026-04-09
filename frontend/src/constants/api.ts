@@ -26,6 +26,12 @@ export const API_ROUTES = {
         ALERTS: '/kpis/alerts',
         FINANCIAL_BREAKDOWN: '/kpis/financial-breakdown',
     },
+    BROKER: {
+        PROFILE: '/kpis/broker/profile',
+        BY_YEAR: '/kpis/broker/by-year',
+        BY_BRANCH: '/kpis/broker/by-branch',
+        CONTRACTS: '/kpis/broker/contracts',
+    },
     CEDANTE: {
         PROFILE: '/kpis/cedante/profile',
         BY_YEAR: '/kpis/cedante/by-year',
