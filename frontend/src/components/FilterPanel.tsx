@@ -49,40 +49,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   )
 }
 
-/* ─── Range row (min / max inputs) ─── */
-function RangeRow({
-  label, minKey, maxKey, min, max, step = 1, suffix = '',
-}: {
-  label: string; minKey: keyof FilterState; maxKey: keyof FilterState;
-  min: number; max: number; step?: number; suffix?: string;
-}) {
-  const { draftFilters: filters, setDraftFilters: setFilters } = useData()
-  const curMin = (filters[minKey] as number | null) ?? min
-  const curMax = (filters[maxKey] as number | null) ?? max
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-1.5">
-        <span className="text-[0.72rem] font-semibold uppercase tracking-wide text-gray-500">{label}</span>
-        <span className="text-[0.72rem] font-bold text-navy tabular-nums">
-          {curMin}{suffix} – {curMax}{suffix}
-        </span>
-      </div>
-      <div className="flex gap-1.5">
-        <input
-          type="number" min={min} max={curMax} step={step} value={curMin}
-          onChange={e => setFilters(f => ({ ...f, [minKey]: Number(e.target.value) || null }))}
-          className="input-dark text-xs py-1.5 w-1/2"
-        />
-        <input
-          type="number" min={curMin} max={max} step={step} value={curMax}
-          onChange={e => setFilters(f => ({ ...f, [maxKey]: Number(e.target.value) || null }))}
-          className="input-dark text-xs py-1.5 w-1/2"
-        />
-      </div>
-    </div>
-  )
-}
 
 function toOptions(arr: string[]) { return arr.map(v => ({ value: v, label: v })) }
 function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: String(v) })) }
@@ -302,36 +269,7 @@ export default function FilterPanel() {
       activeChips.push({ label: `Année Max: ${filters.uw_year_max}`, onRemove: () => removeFilter('uw_year_max') })
     }
   }
-  if (filters.prime_min) {
-    activeChips.push({ label: `Prime Min: ${filters.prime_min}`, onRemove: () => removeFilter('prime_min') })
-  }
-  if (filters.prime_max) {
-    activeChips.push({ label: `Prime Max: ${filters.prime_max}`, onRemove: () => removeFilter('prime_max') })
-  }
-  if (filters.ulr_min) {
-    activeChips.push({ label: `ULR Min: ${filters.ulr_min}%`, onRemove: () => removeFilter('ulr_min') })
-  }
-  if (filters.ulr_max) {
-    activeChips.push({ label: `ULR Max: ${filters.ulr_max}%`, onRemove: () => removeFilter('ulr_max') })
-  }
-  if (filters.share_min) {
-    activeChips.push({ label: `Part Min: ${filters.share_min}%`, onRemove: () => removeFilter('share_min') })
-  }
-  if (filters.share_max) {
-    activeChips.push({ label: `Part Max: ${filters.share_max}%`, onRemove: () => removeFilter('share_max') })
-  }
-  if (filters.commission_min) {
-    activeChips.push({ label: `Comm. Min: ${filters.commission_min}%`, onRemove: () => removeFilter('commission_min') })
-  }
-  if (filters.commission_max) {
-    activeChips.push({ label: `Comm. Max: ${filters.commission_max}%`, onRemove: () => removeFilter('commission_max') })
-  }
-  if (filters.courtage_min) {
-    activeChips.push({ label: `Court. Min: ${filters.courtage_min}%`, onRemove: () => removeFilter('courtage_min') })
-  }
-  if (filters.courtage_max) {
-    activeChips.push({ label: `Court. Max: ${filters.courtage_max}%`, onRemove: () => removeFilter('courtage_max') })
-  }
+
 
   const typeCedanteOptions = filterOptions.type_cedante_options?.length
     ? filterOptions.type_cedante_options
@@ -537,18 +475,7 @@ export default function FilterPanel() {
           </div>
         </Section>
 
-        <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
 
-        {/* Financial ranges */}
-        <Section title="Seuils financiers" defaultOpen={false}>
-          <div className="space-y-3.5">
-            <RangeRow label="Prime écrite" minKey="prime_min" maxKey="prime_max" min={0} max={10000000} step={10000} />
-            <RangeRow label="Loss Ratio (ULR) %" minKey="ulr_min" maxKey="ulr_max" min={0} max={200} suffix="%" />
-            <RangeRow label="Part souscrite %" minKey="share_min" maxKey="share_max" min={0} max={100} suffix="%" />
-            <RangeRow label="Commission %" minKey="commission_min" maxKey="commission_max" min={0} max={60} suffix="%" />
-            <RangeRow label="Courtage %" minKey="courtage_min" maxKey="courtage_max" min={0} max={10} step={0.1} suffix="%" />
-          </div>
-        </Section>
 
         {/* Bottom spacing */}
         <div className="h-8" />

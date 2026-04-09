@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from 'react-router-dom'
-import { BarChart2, TrendingUp, AlertTriangle, CheckCircle, PieChart, Table, GitCompare, FileText, Globe, RotateCcw, SlidersHorizontal, Users, Trophy } from 'lucide-react'
+import { BarChart2, TrendingUp, AlertTriangle, CheckCircle, PieChart, Table, GitCompare, FileText, Globe, RotateCcw, SlidersHorizontal, Users, Trophy, ChevronDown, ChevronUp } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import api from '../utils/api'
@@ -62,6 +62,7 @@ export default function Analysis() {
   const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([])
   const [sortCol, setSortCol] = useState<string>('total_written_premium')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
 
   // ── Lecture sessionStorage au montage ────────────────────────────────────
   useEffect(() => {
@@ -495,13 +496,19 @@ export default function Analysis() {
   // ─────────────────────────────────────────────────────────────────────────
   // VUE PRINCIPALE — pays sélectionné
   // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <div className="space-y-6 animate-fade-in p-2 pb-12">
+  // ── Filter panel open/close ────────────────────────────────────────────
 
-      {/* ── Panneau de filtres locaux (calqué sur CedanteAnalysis) ───────── */}
-      <div className="sticky top-0 z-40 bg-[var(--color-off-white)] pt-1 pb-4">
-        <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm px-4 py-3">
-          <div className="flex items-center gap-2 mb-3">
+  return (
+    <div className="flex flex-col h-full animate-fade-in">
+
+      {/* ── Panneau de filtres locaux ──────────────────────────────────── */}
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-4 px-2">
+        <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm overflow-hidden">
+          {/* Header — click to toggle */}
+          <button
+            onClick={() => setFilterPanelOpen(o => !o)}
+            className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[var(--color-gray-50)] transition-colors"
+          >
             <SlidersHorizontal size={13} className="text-[var(--color-navy)]" />
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-navy)]">Filtres de la vue</span>
             {activeCount > 0 && (
@@ -509,148 +516,164 @@ export default function Analysis() {
                 {activeCount}
               </span>
             )}
-          </div>
+            {hasLocalFilters && (
+              <span
+                className="ml-2 px-2 py-0.5 rounded-lg text-[10px] font-semibold"
+                style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+              >
+                Filtres actifs
+              </span>
+            )}
+            <span className="ml-auto text-[var(--color-gray-400)]">
+              {filterPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </span>
+          </button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            
-            {/* Année de Souscription (calqué sur CedanteAnalysis) */}
-            <div>
-              <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                Année de souscription
-              </label>
-              <div className="space-y-1.5 z-50">
-                <Select
-                  isMulti
-                  options={filterOptions?.underwriting_years?.map((y: any) => ({ value: y, label: String(y) })) || []}
-                  value={localUwYear.map((y: any) => ({ value: y, label: String(y) }))}
-                  onChange={(v: any) => {
-                    setLocalUwYear(v.map((x: any) => x.value))
-                    setLocalUwYearMin(null)
-                    setLocalUwYearMax(null)
-                  }}
-                  placeholder="Toutes les années..."
-                  {...selectStyle}
-                />
-                {localUwYear.length === 0 && (
-                  <div className="flex gap-1.5">
-                    <select
-                      title="Année min"
-                      className="input-dark text-xs py-1 flex-1"
-                      value={localUwYearMin ?? ''}
-                      onChange={e => setLocalUwYearMin(Number(e.target.value) || null)}
-                      style={{
-                        border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
-                        background: 'white', color: 'var(--color-navy)', padding: '0.3rem'
-                      }}
-                    >
-                      <option value="">Min</option>
-                      {(filterOptions?.underwriting_years || []).map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <select
-                      title="Année max"
-                      className="input-dark text-xs py-1 flex-1"
-                      value={localUwYearMax ?? ''}
-                      onChange={e => setLocalUwYearMax(Number(e.target.value) || null)}
-                      style={{
-                        border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
-                        background: 'white', color: 'var(--color-navy)', padding: '0.3rem'
-                      }}
-                    >
-                      <option value="">Max</option>
-                      {[...(filterOptions?.underwriting_years || [])].reverse().map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
+          {/* Collapsible body */}
+          {filterPanelOpen && (
+            <div className="px-4 pb-4 border-t border-[var(--color-gray-100)]">
+              <div className="flex justify-end pt-2 pb-2">
+                {hasLocalFilters && (
+                  <button
+                    onClick={resetLocalFilters}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                    style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+                  >
+                    <RotateCcw size={13} />
+                    Réinitialiser
+                  </button>
                 )}
               </div>
-            </div>
 
-            {/* Branche multi-select et Vie/Non-vie */}
-            <div>
-              <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                Branche
-              </label>
-              <Select
-                isMulti
-                options={brancheOptions}
-                value={brancheOptions.filter(o => localBranches.includes(o.value))}
-                onChange={v => setLocalBranches(v.map((x: any) => x.value))}
-                placeholder="Toutes les branches…"
-                {...selectStyle}
-              />
-              <div className="flex gap-3 mt-2">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={localBrancheScope.vie}
-                    onChange={e => {
-                      setLocalBrancheScope(prev => ({ vie: e.target.checked, nonVie: prev.nonVie }))
-                      setLocalBranches([])
-                    }}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                
+                {/* Année de Souscription */}
+                <div>
+                  <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
+                    Année de souscription
+                  </label>
+                  <div className="space-y-1.5 z-50">
+                    <Select
+                      isMulti
+                      options={filterOptions?.underwriting_years?.map((y: any) => ({ value: y, label: String(y) })) || []}
+                      value={localUwYear.map((y: any) => ({ value: y, label: String(y) }))}
+                      onChange={(v: any) => {
+                        setLocalUwYear(v.map((x: any) => x.value))
+                        setLocalUwYearMin(null)
+                        setLocalUwYearMax(null)
+                      }}
+                      placeholder="Toutes les années..."
+                      {...selectStyle}
+                    />
+                    {localUwYear.length === 0 && (
+                      <div className="flex gap-1.5">
+                        <select
+                          title="Année min"
+                          className="input-dark text-xs py-1 flex-1"
+                          value={localUwYearMin ?? ''}
+                          onChange={e => setLocalUwYearMin(Number(e.target.value) || null)}
+                          style={{
+                            border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
+                            background: 'white', color: 'var(--color-navy)', padding: '0.3rem'
+                          }}
+                        >
+                          <option value="">Min</option>
+                          {(filterOptions?.underwriting_years || []).map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                        <select
+                          title="Année max"
+                          className="input-dark text-xs py-1 flex-1"
+                          value={localUwYearMax ?? ''}
+                          onChange={e => setLocalUwYearMax(Number(e.target.value) || null)}
+                          style={{
+                            border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
+                            background: 'white', color: 'var(--color-navy)', padding: '0.3rem'
+                          }}
+                        >
+                          <option value="">Max</option>
+                          {[...(filterOptions?.underwriting_years || [])].reverse().map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Branche multi-select et Vie/Non-vie */}
+                <div>
+                  <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
+                    Branche
+                  </label>
+                  <Select
+                    isMulti
+                    options={brancheOptions}
+                    value={brancheOptions.filter(o => localBranches.includes(o.value))}
+                    onChange={v => setLocalBranches(v.map((x: any) => x.value))}
+                    placeholder="Toutes les branches…"
+                    {...selectStyle}
                   />
-                  <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={localBrancheScope.nonVie}
-                    onChange={e => {
-                      setLocalBrancheScope(prev => ({ vie: prev.vie, nonVie: e.target.checked }))
-                      setLocalBranches([])
-                    }}
-                  />
-                  <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
-                </label>
+                  <div className="flex gap-3 mt-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localBrancheScope.vie}
+                        onChange={e => {
+                          setLocalBrancheScope(prev => ({ vie: e.target.checked, nonVie: prev.nonVie }))
+                          setLocalBranches([])
+                        }}
+                      />
+                      <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localBrancheScope.nonVie}
+                        onChange={e => {
+                          setLocalBrancheScope(prev => ({ vie: prev.vie, nonVie: e.target.checked }))
+                          setLocalBranches([])
+                        }}
+                      />
+                      <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 xl:col-span-2">
+                  {/* Type SPC */}
+                  <div>
+                    <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
+                      Type SPC
+                    </label>
+                    <Select
+                      isMulti
+                      options={(filterOptions?.type_contrat_spc ?? []).map((v: any) => ({ value: v, label: v }))}
+                      value={localContractTypeSpc.map(v => ({ value: v, label: v }))}
+                      onChange={v => setLocalContractTypeSpc(v.map((x: any) => x.value))}
+                      placeholder="FAC / TTY / TTE…"
+                      {...selectStyle}
+                    />
+                  </div>
+
+                  {/* Type de contrat */}
+                  <div>
+                    <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
+                      Type de contrat
+                    </label>
+                    <Select
+                      isMulti
+                      options={(filterOptions?.type_of_contract ?? []).map((v: any) => ({ value: v, label: v }))}
+                      value={localTypeOfContract.map(v => ({ value: v, label: v }))}
+                      onChange={v => setLocalTypeOfContract(v.map((x: any) => x.value))}
+                      placeholder="Tous les types…"
+                      {...selectStyle}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 xl:col-span-2">
-              {/* Type SPC */}
-              <div>
-                <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                  Type SPC
-                </label>
-                <Select
-                  isMulti
-                  options={(filterOptions?.type_contrat_spc ?? []).map((v: any) => ({ value: v, label: v }))}
-                  value={localContractTypeSpc.map(v => ({ value: v, label: v }))}
-                  onChange={v => setLocalContractTypeSpc(v.map((x: any) => x.value))}
-                  placeholder="FAC / TTY / TTE…"
-                  {...selectStyle}
-                />
-              </div>
-
-              {/* Type de contrat */}
-              <div>
-                <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                  Type de contrat
-                </label>
-                <Select
-                  isMulti
-                  options={(filterOptions?.type_of_contract ?? []).map((v: any) => ({ value: v, label: v }))}
-                  value={localTypeOfContract.map(v => ({ value: v, label: v }))}
-                  onChange={v => setLocalTypeOfContract(v.map((x: any) => x.value))}
-                  placeholder="Tous les types…"
-                  {...selectStyle}
-                />
-              </div>
-            </div>
-
-            {/* Bouton Réinitialiser */}
-            <div className="flex items-end justify-end">
-              {hasLocalFilters && (
-                <button
-                  onClick={resetLocalFilters}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                  style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
-                >
-                  <RotateCcw size={13} />
-                  Réinitialiser
-                </button>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </div>
+      <div className="flex-1 overflow-y-auto space-y-6 p-2 pb-12">
 
       {/* ── Header ────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md shadow-sm">
@@ -994,6 +1017,7 @@ export default function Analysis() {
           )}
         </>
       )}
+      </div>
     </div>
   )
 }

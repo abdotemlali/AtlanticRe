@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from "react"
-import { useNavigate, useLocation } from 'react-router-dom'
-import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
-import { getScopedParams } from '../utils/pageFilterScopes'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
 import { useFetch } from '../hooks/useFetch'
 
@@ -61,32 +60,63 @@ const selectStyles = {
 
 const labelStyle = "block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]"
 
-/* ─── Inline filter panel for /analyse-cedante ─── */
+/* ─── Inline filter panel for /analyse-cedante — LOCAL state, independent of global ─── */
 interface CedantePageFiltersProps {
+  // Local filter state
+  localUwYears: number[]
+  localUwYearMin: number | null
+  localUwYearMax: number | null
+  localBranche: string[]
+  localTypeSpc: string[]
+  localTypeOfContract: string[]
   brancheScope: { vie: boolean; nonVie: boolean }
+  // Setters
+  onUwYearsChange: (years: number[]) => void
+  onUwYearMinChange: (v: number | null) => void
+  onUwYearMaxChange: (v: number | null) => void
+  onBrancheChange: (branches: string[]) => void
+  onTypeSpcChange: (types: string[]) => void
+  onTypeOfContractChange: (types: string[]) => void
   onBrancheScopeChange: (vie: boolean, nonVie: boolean) => void
+  onReset: () => void
   brancheOptions: { value: string; label: string }[]
 }
 
-function CedantePageFilters({ brancheScope, onBrancheScopeChange, brancheOptions }: CedantePageFiltersProps) {
-  const { draftFilters: filters, setDraftFilters: setFilters, filterOptions } = useData()
+function CedantePageFilters({
+  localUwYears, localUwYearMin, localUwYearMax,
+  localBranche, localTypeSpc, localTypeOfContract,
+  brancheScope,
+  onUwYearsChange, onUwYearMinChange, onUwYearMaxChange,
+  onBrancheChange, onTypeSpcChange, onTypeOfContractChange,
+  onBrancheScopeChange, onReset,
+  brancheOptions,
+}: CedantePageFiltersProps) {
+  const { filterOptions } = useData()
 
   const uwYears = filterOptions?.underwriting_years ?? []
   const typeOfContractOpts = toOptions(filterOptions?.type_of_contract ?? [])
   const typeSpcOpts = toOptions(filterOptions?.type_contrat_spc ?? [])
 
+  const [open, setOpen] = useState(false)
+
   const activeCount = useMemo(() => {
     let n = 0
-    if (filters.uw_years.length > 0 || filters.uw_year_min || filters.uw_year_max) n++
-    if (filters.branche.length > 0) n++
-    if (filters.type_contrat_spc.length > 0) n++
-    if (filters.type_of_contract.length > 0) n++
+    if (localUwYears.length > 0 || localUwYearMin !== null || localUwYearMax !== null) n++
+    if (localBranche.length > 0) n++
+    if (localTypeSpc.length > 0) n++
+    if (localTypeOfContract.length > 0) n++
     return n
-  }, [filters])
+  }, [localUwYears, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract])
+
+  const hasFilters = activeCount > 0 || !brancheScope.vie || !brancheScope.nonVie
 
   return (
-    <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm px-4 py-3">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm overflow-hidden">
+      {/* Header — click to toggle */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[var(--color-gray-50)] transition-colors"
+      >
         <SlidersHorizontal size={13} className="text-[var(--color-navy)]" />
         <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-navy)]">Filtres de la vue</span>
         {activeCount > 0 && (
@@ -94,105 +124,132 @@ function CedantePageFilters({ brancheScope, onBrancheScopeChange, brancheOptions
             {activeCount}
           </span>
         )}
-      </div>
+        {hasFilters && (
+          <span
+            className="ml-2 px-2 py-0.5 rounded-lg text-[10px] font-semibold"
+            style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+          >
+            Filtres actifs
+          </span>
+        )}
+        <span className="ml-auto text-[var(--color-gray-400)]">
+          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </span>
+      </button>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <div>
-          <label className={labelStyle}>Année de souscription</label>
-          <div className="space-y-1.5">
-            <Select
-              isMulti
-              options={toNumOptions(uwYears)}
-              {...selectStyles}
-              placeholder="Toutes les années..."
-              value={toNumOptions(filters.uw_years.length > 0 ? filters.uw_years : [])}
-              onChange={(v: any) => {
-                const selected = v.map((x: any) => x.value)
-                setFilters(f => ({ ...f, uw_years: selected, uw_year_min: null, uw_year_max: null }))
-              }}
-            />
-            {filters.uw_years.length === 0 && (
-              <div className="flex gap-1.5">
-                <select
-                  title="Année min"
-                  className="input-dark text-xs py-1 flex-1"
-                  value={filters.uw_year_min ?? ''}
-                  onChange={e => setFilters(f => ({ ...f, uw_year_min: Number(e.target.value) || null }))}
-                >
-                  <option value="">Min</option>
-                  {uwYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <select
-                  title="Année max"
-                  className="input-dark text-xs py-1 flex-1"
-                  value={filters.uw_year_max ?? ''}
-                  onChange={e => setFilters(f => ({ ...f, uw_year_max: Number(e.target.value) || null }))}
-                >
-                  <option value="">Max</option>
-                  {uwYears.slice().reverse().map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+      {/* Collapsible body */}
+      {open && (
+        <div className="px-4 pb-4 border-t border-[var(--color-gray-100)]">
+          <div className="flex items-center justify-end pt-2 pb-2">
+            {hasFilters && (
+              <button
+                onClick={onReset}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+              >
+                <RotateCcw size={11} />
+                Réinitialiser
+              </button>
             )}
           </div>
-        </div>
 
-        <div>
-          <label className={labelStyle}>Branche</label>
-          <Select
-            isMulti
-            options={brancheOptions}
-            {...selectStyles}
-            placeholder="Toutes les branches..."
-            value={toOptions(filters.branche)}
-            onChange={(v: any) => {
-              onBrancheScopeChange(false, false)
-              setFilters(f => ({ ...f, branche: v.map((x: any) => x.value), sous_branche: [] }))
-            }}
-          />
-          <div className="flex gap-3 mt-2">
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={brancheScope.vie}
-                onChange={e => onBrancheScopeChange(e.target.checked, brancheScope.nonVie)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div>
+              <label className={labelStyle}>Année de souscription</label>
+              <div className="space-y-1.5">
+                <Select
+                  isMulti
+                  options={toNumOptions(uwYears)}
+                  {...selectStyles}
+                  placeholder="Toutes les années..."
+                  value={toNumOptions(localUwYears)}
+                  onChange={(v: any) => {
+                    onUwYearsChange(v.map((x: any) => x.value))
+                    onUwYearMinChange(null)
+                    onUwYearMaxChange(null)
+                  }}
+                />
+                {localUwYears.length === 0 && (
+                  <div className="flex gap-1.5">
+                    <select
+                      title="Année min"
+                      className="input-dark text-xs py-1 flex-1"
+                      value={localUwYearMin ?? ''}
+                      onChange={e => onUwYearMinChange(Number(e.target.value) || null)}
+                    >
+                      <option value="">Min</option>
+                      {uwYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select
+                      title="Année max"
+                      className="input-dark text-xs py-1 flex-1"
+                      value={localUwYearMax ?? ''}
+                      onChange={e => onUwYearMaxChange(Number(e.target.value) || null)}
+                    >
+                      <option value="">Max</option>
+                      {uwYears.slice().reverse().map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className={labelStyle}>Branche</label>
+              <Select
+                isMulti
+                options={brancheOptions}
+                {...selectStyles}
+                placeholder="Toutes les branches..."
+                value={toOptions(localBranche)}
+                onChange={(v: any) => onBrancheChange(v.map((x: any) => x.value))}
               />
-              <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={brancheScope.nonVie}
-                onChange={e => onBrancheScopeChange(brancheScope.vie, e.target.checked)}
+              <div className="flex gap-3 mt-2">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={brancheScope.vie}
+                    onChange={e => onBrancheScopeChange(e.target.checked, brancheScope.nonVie)}
+                  />
+                  <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={brancheScope.nonVie}
+                    onChange={e => onBrancheScopeChange(brancheScope.vie, e.target.checked)}
+                  />
+                  <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelStyle}>Type SPC</label>
+              <Select
+                isMulti
+                options={typeSpcOpts}
+                {...selectStyles}
+                placeholder="FAC / TTY / TTE..."
+                value={toOptions(localTypeSpc)}
+                onChange={(v: any) => onTypeSpcChange(v.map((x: any) => x.value))}
               />
-              <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
-            </label>
+            </div>
+
+            <div>
+              <label className={labelStyle}>Type de contrat</label>
+              <Select
+                isMulti
+                options={typeOfContractOpts}
+                {...selectStyles}
+                placeholder="Tous les types..."
+                value={toOptions(localTypeOfContract)}
+                onChange={(v: any) => onTypeOfContractChange(v.map((x: any) => x.value))}
+              />
+            </div>
           </div>
         </div>
-
-        <div>
-          <label className={labelStyle}>Type SPC</label>
-          <Select
-            isMulti
-            options={typeSpcOpts}
-            {...selectStyles}
-            placeholder="FAC / TTY / TTE..."
-            value={toOptions(filters.type_contrat_spc)}
-            onChange={(v: any) => setFilters(f => ({ ...f, type_contrat_spc: v.map((x: any) => x.value) }))}
-          />
-        </div>
-
-        <div>
-          <label className={labelStyle}>Type de contrat</label>
-          <Select
-            isMulti
-            options={typeOfContractOpts}
-            {...selectStyles}
-            placeholder="Tous les types..."
-            value={toOptions(filters.type_of_contract)}
-            onChange={(v: any) => setFilters(f => ({ ...f, type_of_contract: v.map((x: any) => x.value) }))}
-          />
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -211,9 +268,8 @@ const COLORS = [
 ]
 
 export default function CedanteAnalysis() {
-  const { filterOptions, setFilters, draftFilters, setDraftFilters } = useData()
+  const { filterOptions, setFilters } = useData()
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [selectedCedante, setSelectedCedante] = useState<string | null>(null)
 
@@ -223,8 +279,43 @@ export default function CedanteAnalysis() {
   const [branchDataAll, setBranchDataAll] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
+  // ── Local filters (independent of global dashboard filters) ─────────────
+  const [localUwYears, setLocalUwYears] = useState<number[]>([])
+  const [localUwYearMin, setLocalUwYearMin] = useState<number | null>(null)
+  const [localUwYearMax, setLocalUwYearMax] = useState<number | null>(null)
+  const [localBranche, setLocalBranche] = useState<string[]>([])
+  const [localTypeSpc, setLocalTypeSpc] = useState<string[]>([])
+  const [localTypeOfContract, setLocalTypeOfContract] = useState<string[]>([])
+
   // Vie/Non-vie checkboxes (local to this page)
   const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
+
+  const resetLocalFilters = () => {
+    setLocalUwYears([])
+    setLocalUwYearMin(null)
+    setLocalUwYearMax(null)
+    setLocalBranche([])
+    setLocalTypeSpc([])
+    setLocalTypeOfContract([])
+    setBrancheScope({ vie: true, nonVie: true })
+  }
+
+  // Build API params from local filters only (never touches global filters)
+  const buildLocalParams = useMemo(() => {
+    const p: Record<string, string> = {}
+    if (localUwYears.length > 0) {
+      p['uw_years_raw'] = localUwYears.join(',')
+    } else {
+      if (localUwYearMin !== null) p['uw_year_min'] = String(localUwYearMin)
+      if (localUwYearMax !== null) p['uw_year_max'] = String(localUwYearMax)
+    }
+    if (localBranche.length > 0) p['branche'] = localBranche.join(',')
+    if (localTypeSpc.length > 0) p['type_contrat_spc'] = localTypeSpc.join(',')
+    if (localTypeOfContract.length > 0) p['type_of_contract'] = localTypeOfContract.join(',')
+    if (brancheScope.vie && !brancheScope.nonVie) p['vie_non_vie_view'] = 'VIE'
+    if (!brancheScope.vie && brancheScope.nonVie) p['vie_non_vie_view'] = 'NON_VIE'
+    return p
+  }, [localUwYears, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract, brancheScope])
 
   // B2 — Diversification params (pure local state, never persisted)
   const [totalBranches, setTotalBranches] = useState(12)
@@ -247,15 +338,8 @@ export default function CedanteAnalysis() {
 
   const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
     setBrancheScope({ vie, nonVie })
-    setDraftFilters((prev: any) => {
-      let nextBranche: string[] = []
-      if (vie && !nonVie) {
-        nextBranche = allBrancheValues.includes(LIFE_BRANCH) ? [LIFE_BRANCH] : []
-      } else if (!vie && nonVie) {
-        nextBranche = allBrancheValues.filter((b: string) => b !== LIFE_BRANCH)
-      }
-      return { ...prev, branche: nextBranche, sous_branche: [] }
-    })
+    // Clear branch selection — dropdown options update based on scope
+    setLocalBranche([])
   }
 
   const brancheOptions = useMemo(() => {
@@ -270,38 +354,44 @@ export default function CedanteAnalysis() {
     return 'Vie, Non-vie'
   }, [brancheScope])
   const headerScopeLabel = useMemo(() => {
-    if (draftFilters.branche.length === 1) return draftFilters.branche[0]
-    if (draftFilters.branche.length > 1) return `${draftFilters.branche.length} branches`
+    if (localBranche.length === 1) return localBranche[0]
+    if (localBranche.length > 1) return `${localBranche.length} branches`
     return vieNonVieLabel
-  }, [draftFilters.branche, vieNonVieLabel])
+  }, [localBranche, vieNonVieLabel])
 
   // Always show branch-mix charts (even when a single branch is selected)
   const showBranchCharts = true
 
   // Flag actif quand au moins une branche est sélectionnée
-  const isBranchFilterActive = draftFilters.branche.length > 0
+  const isBranchFilterActive = localBranche.length > 0
 
   // Params centralisés via useMemo (avec fallback vers undefined si pas de cédante pour bloquer `useFetch`)
   const params = useMemo(() => {
     if (!selectedCedante) return undefined
-    return { ...getScopedParams(location.pathname, draftFilters), cedante: selectedCedante }
-  }, [selectedCedante, draftFilters, location.pathname])
+    return { ...buildLocalParams, cedante: selectedCedante }
+  }, [selectedCedante, buildLocalParams])
 
   // Params immunisés contre le filtre branche (pour Mix Pie figé + Top Branches complément)
   const paramsNoBranch = useMemo(() => {
     if (!selectedCedante) return undefined
-    return {
-      ...getScopedParams(location.pathname, { ...draftFilters, branche: [], sous_branche: [] }),
-      cedante: selectedCedante
-    }
-  }, [selectedCedante, draftFilters, location.pathname])
+    const p = { ...buildLocalParams }
+    delete p['branche']
+    delete p['vie_non_vie_view']
+    return { ...p, cedante: selectedCedante }
+  }, [selectedCedante, buildLocalParams])
 
   // Params for diversification (no branche/vie filter — immunized)
   const diversifParams = useMemo(() => {
     if (!selectedCedante) return undefined
-    const baseScoped = getScopedParams(location.pathname, { ...draftFilters, branche: [], sous_branche: [], type_contrat_spc: [] })
-    return { ...baseScoped, cedante: selectedCedante }
-  }, [selectedCedante, draftFilters, location.pathname])
+    const p: Record<string, string> = {}
+    if (localUwYears.length > 0) {
+      p['uw_years_raw'] = localUwYears.join(',')
+    } else {
+      if (localUwYearMin !== null) p['uw_year_min'] = String(localUwYearMin)
+      if (localUwYearMax !== null) p['uw_year_max'] = String(localUwYearMax)
+    }
+    return { ...p, cedante: selectedCedante }
+  }, [selectedCedante, localUwYears, localUwYearMin, localUwYearMax])
 
   // Décomposition des appels via useFetch
   const { data: profileRes, loading: l1 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.PROFILE : null, params)
@@ -358,24 +448,24 @@ export default function CedanteAnalysis() {
   // D — Top Branches : N sélectionnées + (8-N) complément depuis branchDataAll
   const topBranchesForBar = useMemo(() => {
     if (!isBranchFilterActive || branchDataAll.length === 0) {
-      return branchData.slice(0, 8).map(b => ({ ...b, is_selected: false }))
+      return branchData.slice(0, 8).map((b: any) => ({ ...b, is_selected: false }))
     }
-    const selectedSet = new Set(draftFilters.branche)
+    const selectedSet = new Set(localBranche)
     const selectedBranches = branchDataAll
-      .filter(b => selectedSet.has(b.branche))
-      .map(b => ({ ...b, is_selected: true }))
+      .filter((b: any) => selectedSet.has(b.branche))
+      .map((b: any) => ({ ...b, is_selected: true }))
     const complementBranches = branchDataAll
-      .filter(b => !selectedSet.has(b.branche))
+      .filter((b: any) => !selectedSet.has(b.branche))
       .slice(0, Math.max(0, 8 - selectedBranches.length))
-      .map(b => ({ ...b, is_selected: false }))
+      .map((b: any) => ({ ...b, is_selected: false }))
     return [...selectedBranches, ...complementBranches]
-      .sort((a, b) => b.total_written_premium - a.total_written_premium)
-  }, [branchData, branchDataAll, draftFilters.branche, isBranchFilterActive])
+      .sort((a: any, b: any) => b.total_written_premium - a.total_written_premium)
+  }, [branchData, branchDataAll, localBranche, isBranchFilterActive])
 
   // ── Top 15 Cédantes globales (pour l'état vide) ────────────────────────────
   const topCedantesParams = useMemo(
-    () => getScopedParams(location.pathname, draftFilters),
-    [draftFilters, location.pathname]
+    () => buildLocalParams,
+    [buildLocalParams]
   )
   const { data: topCedantesGlobalRes } = useFetch<any[]>(
     !selectedCedante ? API_ROUTES.KPIS.BY_CEDANTE : null,
@@ -392,7 +482,6 @@ export default function CedanteAnalysis() {
   if (!selectedCedante) {
     return (
       <div className="space-y-6 animate-fade-in p-2">
-        <ActiveFiltersBar />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md">
           <div className="flex items-center gap-3">
@@ -503,17 +592,24 @@ export default function CedanteAnalysis() {
   const pieSourceData = isBranchFilterActive ? branchDataAll : branchData
   const pieData = pieSourceData.slice(0, 10).map(b => ({ name: b.branche, value: b.total_written_premium }))
 
-  // C.1 — Labels % dans le Pie Chart
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  // C.1 — Labels noms + % en dehors du Pie Chart
+  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }: any) => {
     if (percent < 0.04) return null
     const RADIAN = Math.PI / 180
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.6
+    const radius = outerRadius + 28
     const x = cx + radius * Math.cos(-midAngle * RADIAN)
     const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    const isRight = x > cx
     return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
-        fontSize={11} fontWeight={700} style={{ pointerEvents: 'none' }}>
-        {`${(percent * 100).toFixed(1)}%`}
+      <text
+        x={x} y={y}
+        fill="var(--color-navy)"
+        textAnchor={isRight ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={11} fontWeight={600}
+        style={{ pointerEvents: 'none' }}
+      >
+        {`${name} (${(percent * 100).toFixed(1)}%)`}
       </text>
     )
   }
@@ -526,15 +622,29 @@ export default function CedanteAnalysis() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in p-2 pb-12">
+    <div className="flex flex-col h-full animate-fade-in">
       {/* Filtres de cette vue — always visible */}
-      <div className="sticky top-0 z-40 bg-[var(--color-off-white)] pt-1">
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
         <CedantePageFilters
+          localUwYears={localUwYears}
+          localUwYearMin={localUwYearMin}
+          localUwYearMax={localUwYearMax}
+          localBranche={localBranche}
+          localTypeSpc={localTypeSpc}
+          localTypeOfContract={localTypeOfContract}
           brancheScope={brancheScope}
+          onUwYearsChange={setLocalUwYears}
+          onUwYearMinChange={setLocalUwYearMin}
+          onUwYearMaxChange={setLocalUwYearMax}
+          onBrancheChange={setLocalBranche}
+          onTypeSpcChange={setLocalTypeSpc}
+          onTypeOfContractChange={setLocalTypeOfContract}
           onBrancheScopeChange={applyBrancheScope}
+          onReset={resetLocalFilters}
           brancheOptions={brancheOptions}
         />
       </div>
+      <div className="flex-1 overflow-y-auto space-y-6 p-2 pb-12">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md shadow-sm">
@@ -565,7 +675,7 @@ export default function CedanteAnalysis() {
               {/* A — Badges branches sélectionnées (style encadré, cohérent avec Vie/Non-Vie) */}
               {isBranchFilterActive && (
                 <div className="flex flex-wrap gap-1.5">
-                  {draftFilters.branche.map((b, i) => (
+                  {localBranche.map((b, i) => (
                     <span
                       key={b}
                       style={{
@@ -602,9 +712,9 @@ export default function CedanteAnalysis() {
               )}
 
               {/* Badges Type SPC sélectionnés */}
-              {draftFilters.type_contrat_spc.length > 0 && (
+              {localTypeSpc.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {draftFilters.type_contrat_spc.map((t) => (
+                  {localTypeSpc.map((t: string) => (
                     <span
                       key={t}
                       style={{
@@ -625,9 +735,9 @@ export default function CedanteAnalysis() {
               )}
 
               {/* Badges Type de Contrat sélectionnés */}
-              {draftFilters.type_of_contract.length > 0 && (
+              {localTypeOfContract.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {draftFilters.type_of_contract.map((t) => (
+                  {localTypeOfContract.map((t: string) => (
                     <span
                       key={t}
                       style={{
@@ -858,39 +968,39 @@ export default function CedanteAnalysis() {
           </div>
 
           {/* Mix Portefeuille — masqué si une seule branche sélectionnée */}
-          {showBranchCharts && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {showBranchCharts && <div className="flex flex-col gap-6">
              <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-5">
                <div className="flex items-center gap-2 mb-4 flex-wrap">
                  <PieChart size={18} className="text-[var(--color-navy)]" />
-                 <h3 className="text-sm font-bold text-[var(--color-navy)]">Mix par Branche (Primes)</h3>
+                 <h3 className="text-sm font-bold text-[var(--color-navy)]">Répartition par Branche (Primes)</h3>
                  {isBranchFilterActive && (
                    <span style={{
                      fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px',
                      background: 'hsla(43,96%,56%,0.15)', color: 'hsl(43,96%,40%)',
                      border: '1px solid hsla(43,96%,56%,0.3)', borderRadius: 99,
                    }}>
-                     🔒 Vue 100% · {draftFilters.branche.length} sélectionnée(s)
+                     🔒 Vue 100% · {localBranche.length} sélectionnée(s)
                    </span>
                  )}
                </div>
-               <div className="h-64">
+               <div className="h-[420px]">
                  <ResponsiveContainer width="100%" height="100%">
-                   <RechartsPieChart>
+                   <RechartsPieChart margin={{ top: 20, right: 120, bottom: 20, left: 120 }}>
                      <Pie
                        data={pieData}
                        cx="50%"
                        cy="50%"
-                       innerRadius={60}
-                       outerRadius={90}
+                       innerRadius={80}
+                       outerRadius={130}
                        paddingAngle={2}
                        dataKey="value"
-                       labelLine={false}
+                       labelLine={true}
                        label={renderCustomLabel}
                        stroke="none"
                      >
                        {pieData.map((entry, index) => {
                          const baseColor = COLORS[index % COLORS.length]
-                         const isSelected = isBranchFilterActive && draftFilters.branche.includes(entry.name)
+                         const isSelected = isBranchFilterActive && localBranche.includes(entry.name)
                          const fill = isBranchFilterActive
                            ? (isSelected ? baseColor : `${baseColor}33`)
                            : baseColor
@@ -898,13 +1008,6 @@ export default function CedanteAnalysis() {
                        })}
                      </Pie>
                      <RechartsTooltip formatter={(val: number) => formatCompact(val)} />
-                     <Legend
-                        layout="vertical"
-                        verticalAlign="middle"
-                        align="right"
-                        wrapperStyle={{ fontSize: '11px', maxHeight: '200px', overflowY: 'auto' }}
-                        iconType="circle"
-                     />
                    </RechartsPieChart>
                  </ResponsiveContainer>
                </div>
@@ -920,11 +1023,11 @@ export default function CedanteAnalysis() {
                      background: 'hsla(83,50%,45%,0.15)', color: 'hsl(83,50%,35%)',
                      border: '1px solid hsla(83,50%,45%,0.3)', borderRadius: 99,
                    }}>
-                     {draftFilters.branche.length} mise(s) en avant
+                     {localBranche.length} mise(s) en avant
                    </span>
                  )}
                </div>
-               <div className="h-64">
+               <div className="h-80">
                  <ResponsiveContainer width="100%" height="100%">
                    <BarChart data={topBranchesForBar} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-gray-100)" />
@@ -1114,7 +1217,7 @@ export default function CedanteAnalysis() {
                          const comm = b.avg_commission ?? 0
                          const broka = b.avg_brokerage_rate ?? 0
                          const profita = b.avg_profit_comm_rate ?? 0
-                         const isRowSelected = isBranchFilterActive && draftFilters.branche.includes(b.branche)
+                         const isRowSelected = isBranchFilterActive && localBranche.includes(b.branche)
 
                          return (
                            <tr
@@ -1153,6 +1256,7 @@ export default function CedanteAnalysis() {
           </div>
         </>
       )}
+      </div>
     </div>
   )
 }

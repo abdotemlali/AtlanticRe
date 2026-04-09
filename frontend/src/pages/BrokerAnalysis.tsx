@@ -1,20 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie,
 } from 'recharts'
 import {
-  Briefcase, TrendingUp, DollarSign, Shield, Search,
-  ArrowRight, Users, Activity, ChevronUp, ChevronDown, X,
+  Briefcase, TrendingUp, DollarSign, Shield,
+  ArrowRight, Users, Activity, ChevronUp, ChevronDown, SlidersHorizontal, RotateCcw, ChevronLeft,
 } from 'lucide-react'
+import Select from 'react-select'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent } from '../utils/formatters'
-import { getScopedParams } from '../utils/pageFilterScopes'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import PageFilterPanel from '../components/PageFilterPanel'
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const C = {
@@ -41,32 +40,146 @@ const fmtMAD = (v: number) => {
 
 type SortKey = 'total_written_premium' | 'total_resultat' | 'avg_ulr' | 'contract_count'
 
+const LIFE_BRANCH = 'VIE'
+function toOptions(arr: string[]) { return arr.map(v => ({ value: v, label: v })) }
+function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: String(v) })) }
+
+// ── Select styles ─────────────────────────────────────────────────────────────
+const selectStyles = {
+  menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
+  menuPosition: 'fixed' as const,
+  styles: {
+    control: (base: any) => ({
+      ...base,
+      minHeight: '36px',
+      fontSize: '0.78rem',
+      borderRadius: '0.5rem',
+      borderColor: 'var(--color-gray-200)',
+      boxShadow: 'none',
+      '&:hover': { borderColor: C.navy },
+    }),
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '0.78rem',
+      backgroundColor: state.isSelected ? C.navy : state.isFocused ? '#f8fafc' : 'white',
+      color: state.isSelected ? 'white' : C.navy,
+    }),
+    multiValue: (base: any) => ({ ...base, backgroundColor: 'hsla(209,28%,24%,0.10)' }),
+    multiValueLabel: (base: any) => ({ ...base, color: C.navy, fontWeight: 700, fontSize: '0.72rem' }),
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    placeholder: (base: any) => ({ ...base, fontSize: '0.78rem' }),
+  },
+}
+
+const labelStyle = 'block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]'
+
+// ── Local filter builder ───────────────────────────────────────────────────────
+function buildLocalParams(
+  localUwYear: number[],
+  localUwYearMin: number | null,
+  localUwYearMax: number | null,
+  localBranche: string[],
+  localTypeSpc: string[],
+  localTypeOfContract: string[],
+  brancheScope: { vie: boolean; nonVie: boolean },
+): Record<string, string> {
+  const p: Record<string, string> = {}
+  if (localUwYear.length > 0) {
+    p['uw_years_raw'] = localUwYear.join(',')
+  } else {
+    if (localUwYearMin !== null) p['uw_year_min'] = String(localUwYearMin)
+    if (localUwYearMax !== null) p['uw_year_max'] = String(localUwYearMax)
+  }
+  if (localBranche.length > 0) p['branche'] = localBranche.join(',')
+  if (localTypeSpc.length > 0) p['type_contrat_spc'] = localTypeSpc.join(',')
+  if (localTypeOfContract.length > 0) p['type_of_contract'] = localTypeOfContract.join(',')
+  if (brancheScope.vie && !brancheScope.nonVie) p['vie_non_vie_view'] = 'VIE'
+  if (!brancheScope.vie && brancheScope.nonVie) p['vie_non_vie_view'] = 'NON_VIE'
+  return p
+}
+
 export default function BrokerAnalysis() {
   const navigate = useNavigate()
-  const { filters } = useData()
-  const location = useLocation()
+  const { filterOptions } = useData()
+
+  // ── Local filters (independent of global) ─────────────────────────────────
+  const [localUwYear, setLocalUwYear] = useState<number[]>([])
+  const [localUwYearMin, setLocalUwYearMin] = useState<number | null>(null)
+  const [localUwYearMax, setLocalUwYearMax] = useState<number | null>(null)
+  const [localBranche, setLocalBranche] = useState<string[]>([])
+  const [localTypeSpc, setLocalTypeSpc] = useState<string[]>([])
+  const [localTypeOfContract, setLocalTypeOfContract] = useState<string[]>([])
+  const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
+
+  const hasLocalFilters = localUwYear.length > 0 || localUwYearMin !== null || localUwYearMax !== null
+    || localBranche.length > 0 || localTypeSpc.length > 0 || localTypeOfContract.length > 0
+    || !brancheScope.vie || !brancheScope.nonVie
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0
+    if (localUwYear.length > 0 || localUwYearMin !== null || localUwYearMax !== null) n++
+    if (localBranche.length > 0) n++
+    if (localTypeSpc.length > 0) n++
+    if (localTypeOfContract.length > 0) n++
+    return n
+  }, [localUwYear, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract])
+
+  const resetLocalFilters = () => {
+    setLocalUwYear([])
+    setLocalUwYearMin(null)
+    setLocalUwYearMax(null)
+    setLocalBranche([])
+    setLocalTypeSpc([])
+    setLocalTypeOfContract([])
+    setBrancheScope({ vie: true, nonVie: true })
+  }
+
+  const allBrancheValues = filterOptions?.branc ?? []
+
+  const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
+    setBrancheScope({ vie, nonVie })
+    // Clear branch selection when scope changes — the dropdown options will update automatically
+    setLocalBranche([])
+  }
+
+  // Branch options filtered dynamically based on Vie/Non-Vie scope
+  const brancheOptions = useMemo(() => {
+    if (brancheScope.vie && !brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b === LIFE_BRANCH))
+    if (!brancheScope.vie && brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b !== LIFE_BRANCH))
+    return toOptions(allBrancheValues)
+  }, [allBrancheValues, brancheScope])
+
+  // ── Sort & search ──────────────────────────────────────────────────────────
   const [sortBy, setSortBy] = useState<SortKey>('total_written_premium')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState('')
   const [searchFocus, setSearchFocus] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+
+  // ── Data ───────────────────────────────────────────────────────────────────
   const [brokers, setBrokers] = useState<any[]>([])
   const [retroCourtiers, setRetroCourtiers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Build params from LOCAL filters only (not global)
+  const localParams = useMemo(
+    () => buildLocalParams(localUwYear, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract, brancheScope),
+    [localUwYear, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract, brancheScope]
+  )
+
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const p = getScopedParams(location.pathname, filters)
+      const p = localParams
       const [brkRes, retRes] = await Promise.all([
         api.get(API_ROUTES.KPIS.TOP_BROKERS, { params: { ...p, limit: 500, sort_by: 'total_written_premium' } }),
-        api.get(API_ROUTES.RETRO.BY_COURTIER, { params: { uy: p.uw_years_raw } }).catch(() => ({ data: [] })),
+        api.get(API_ROUTES.RETRO.BY_COURTIER, { params: { uw: p.uw_years_raw } }).catch(() => ({ data: [] })),
       ])
       setBrokers((brkRes.data || []).filter((d: any) => d.broker && d.broker !== 'nan'))
       setRetroCourtiers(retRes.data || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }, [filters, location.pathname])
+  }, [localParams])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -79,7 +192,7 @@ export default function BrokerAnalysis() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Merge retro data into broker rows
+  // ── Merge retro data into broker rows ─────────────────────────────────────
   const merged = useMemo(() => {
     const retMap = new Map<string, any>()
     retroCourtiers.forEach((r: any) => retMap.set(r.courtier, r))
@@ -94,17 +207,21 @@ export default function BrokerAnalysis() {
     })
   }, [brokers, retroCourtiers])
 
-  // Autocomplete suggestions (must be after merged)
+  // ── Autocomplete suggestions ───────────────────────────────────────────────
+  // Show full list on focus (even without input), filtered by search when typed
   const searchSuggestions = useMemo(() => {
-    if (!search || search.length < 1) return []
+    const sorted = [...merged].sort((a, b) => b.total_written_premium - a.total_written_premium)
+    if (!search || search.length < 1) {
+      // Show top 12 brokers when focused with no search
+      return sorted.slice(0, 12)
+    }
     const s = search.toLowerCase()
-    return merged
+    return sorted
       .filter(b => b.broker.toLowerCase().includes(s))
-      .sort((a, b) => a.broker.localeCompare(b.broker))
       .slice(0, 12)
   }, [merged, search])
 
-  // Filter + sort
+  // ── Filter + sort table ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let data = merged
     if (search) {
@@ -119,7 +236,7 @@ export default function BrokerAnalysis() {
     return data
   }, [merged, search, sortBy, sortDir])
 
-  // KPI aggregations
+  // ── KPI aggregations ──────────────────────────────────────────────────────
   const agg = useMemo(() => {
     const total_wp = merged.reduce((s, b) => s + (b.total_written_premium || 0), 0)
     const total_res = merged.reduce((s, b) => s + (b.total_resultat || 0), 0)
@@ -161,12 +278,181 @@ export default function BrokerAnalysis() {
     ].filter(d => d.value > 0)
   }, [merged])
 
-  return (
-    <div className="space-y-4 animate-fade-in p-2 pb-12">
-      <ActiveFiltersBar />
-      <PageFilterPanel />
+  const uwYears = filterOptions?.underwriting_years ?? []
+  const typeOfContractOpts = toOptions(filterOptions?.type_of_contract ?? [])
+  const typeSpcOpts = toOptions(filterOptions?.type_contrat_spc ?? [])
 
-      {/* Header */}
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
+
+  return (
+    <div className="flex flex-col h-full animate-fade-in">
+
+      {/* ── Panneau de filtres local — collapsible ───────────────────── */}
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
+        <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm overflow-hidden">
+          {/* Header — always visible, click to toggle */}
+          <button
+            onClick={() => setFilterPanelOpen(o => !o)}
+            className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[var(--color-gray-50)] transition-colors"
+          >
+            <SlidersHorizontal size={13} className="text-[var(--color-navy)]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-navy)]">
+              Filtres de la vue
+            </span>
+            {activeFilterCount > 0 && (
+              <span
+                className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"
+                style={{ background: C.navy }}
+              >
+                {activeFilterCount}
+              </span>
+            )}
+            {hasLocalFilters && (
+              <span
+                className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold"
+                style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+              >
+                Filtres actifs
+              </span>
+            )}
+            <span className="ml-auto text-[var(--color-gray-400)]">
+              {filterPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </span>
+          </button>
+
+          {/* Collapsible content */}
+          {filterPanelOpen && (
+          <div className="px-4 pb-4 border-t border-[var(--color-gray-100)]">
+            <div className="flex items-center justify-end pt-2 pb-2">
+              {hasLocalFilters && (
+                <button
+                  onClick={resetLocalFilters}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+                >
+                  <RotateCcw size={11} />
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Année de souscription */}
+            <div>
+              <label className={labelStyle}>Année de souscription</label>
+              <div className="space-y-1.5">
+                <Select
+                  isMulti
+                  options={toNumOptions(uwYears)}
+                  value={toNumOptions(localUwYear)}
+                  onChange={(v: any) => {
+                    setLocalUwYear(v.map((x: any) => x.value))
+                    setLocalUwYearMin(null)
+                    setLocalUwYearMax(null)
+                  }}
+                  placeholder="Toutes les années..."
+                  {...selectStyles}
+                />
+                {localUwYear.length === 0 && (
+                  <div className="flex gap-1.5">
+                    <select
+                      title="Année min"
+                      className="input-dark text-xs py-1 flex-1"
+                      value={localUwYearMin ?? ''}
+                      onChange={e => setLocalUwYearMin(Number(e.target.value) || null)}
+                      style={{
+                        border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
+                        background: 'white', color: C.navy, padding: '0.3rem',
+                      }}
+                    >
+                      <option value="">Min</option>
+                      {uwYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select
+                      title="Année max"
+                      className="input-dark text-xs py-1 flex-1"
+                      value={localUwYearMax ?? ''}
+                      onChange={e => setLocalUwYearMax(Number(e.target.value) || null)}
+                      style={{
+                        border: '1px solid var(--color-gray-200)', borderRadius: '0.5rem',
+                        background: 'white', color: C.navy, padding: '0.3rem',
+                      }}
+                    >
+                      <option value="">Max</option>
+                      {[...uwYears].reverse().map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Branche */}
+            <div>
+              <label className={labelStyle}>Branche</label>
+              <Select
+                isMulti
+                options={brancheOptions}
+                {...selectStyles}
+                placeholder="Toutes les branches..."
+                value={toOptions(localBranche)}
+                onChange={(v: any) => {
+                  applyBrancheScope(false, false)
+                  setLocalBranche(v.map((x: any) => x.value))
+                }}
+              />
+              <div className="flex gap-3 mt-2">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={brancheScope.vie}
+                    onChange={e => applyBrancheScope(e.target.checked, brancheScope.nonVie)}
+                  />
+                  <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={brancheScope.nonVie}
+                    onChange={e => applyBrancheScope(brancheScope.vie, e.target.checked)}
+                  />
+                  <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Type SPC */}
+            <div>
+              <label className={labelStyle}>Type SPC</label>
+              <Select
+                isMulti
+                options={typeSpcOpts}
+                {...selectStyles}
+                placeholder="FAC / TTY / TTE..."
+                value={toOptions(localTypeSpc)}
+                onChange={(v: any) => setLocalTypeSpc(v.map((x: any) => x.value))}
+              />
+            </div>
+
+            {/* Type de contrat */}
+            <div>
+              <label className={labelStyle}>Type de contrat</label>
+              <Select
+                isMulti
+                options={typeOfContractOpts}
+                {...selectStyles}
+                placeholder="Tous les types..."
+                value={toOptions(localTypeOfContract)}
+                onChange={(v: any) => setLocalTypeOfContract(v.map((x: any) => x.value))}
+              />
+            </div>
+          </div>
+          </div>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-4 p-2 pb-12">
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: 'white', padding: '16px 24px', borderRadius: 14,
@@ -181,77 +467,39 @@ export default function BrokerAnalysis() {
             <p style={{ fontSize: '0.78rem', color: C.gray, margin: 0 }}>Vue consolidée — Contrats & Rétrocession</p>
           </div>
         </div>
-        <div ref={searchRef} style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: C.gray, zIndex: 3 }} />
-          <input
-            type="text" value={search}
-            onChange={e => { setSearch(e.target.value); setSearchFocus(true) }}
-            onFocus={() => setSearchFocus(true)}
+
+        {/* ── Champ recherche courtier avec react-select ─────────────── */}
+        <div style={{ width: 300, zIndex: 10 }}>
+          <Select 
+            options={[...merged].sort((a,b) => b.total_written_premium - a.total_written_premium).map(b => ({ value: b.broker, label: b.broker }))}
+            value={null}
+            onChange={(v: any) => {
+              if (v?.value) {
+                navigate(`/analyse-courtiers/${encodeURIComponent(v.value)}`)
+              }
+            }}
             placeholder="Rechercher un courtier..."
-            style={{
-              padding: '8px 32px 8px 32px', borderRadius: 10,
-              border: `1px solid ${searchFocus && search ? C.olive : C.grayLight}`,
-              fontSize: '0.78rem', width: 280, outline: 'none', color: C.navy,
-              transition: 'border-color 0.2s',
+            isClearable
+            menuPortalTarget={document.body}
+            styles={{
+              menuPortal: base => ({ ...base, zIndex: 9999 }),
+              control: base => ({
+                ...base,
+                minHeight: '40px',
+                borderRadius: '0.75rem',
+                borderColor: 'var(--color-gray-100)',
+                fontSize: '0.78rem'
+              }),
+              option: base => ({
+                ...base,
+                fontSize: '0.78rem'
+              })
             }}
           />
-          {search && (
-            <button onClick={() => { setSearch(''); setSearchFocus(false) }}
-              style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-              <X size={14} color={C.gray} />
-            </button>
-          )}
-          {/* Dropdown */}
-          {searchFocus && searchSuggestions.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-              background: 'white', borderRadius: 12, border: `1px solid ${C.grayLight}`,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 50, maxHeight: 360, overflowY: 'auto',
-            }}>
-              <div style={{ padding: '8px 12px', fontSize: '0.68rem', color: C.gray, fontWeight: 600, borderBottom: `1px solid ${C.grayLight}` }}>
-                {searchSuggestions.length} courtier{searchSuggestions.length > 1 ? 's' : ''} trouvé{searchSuggestions.length > 1 ? 's' : ''}
-              </div>
-              {searchSuggestions.map(b => {
-                const rs = roleStyle(b.retro_role)
-                return (
-                  <div key={b.broker}
-                    onClick={() => { navigate(`/analyse-courtiers/${encodeURIComponent(b.broker)}`); setSearchFocus(false) }}
-                    style={{
-                      padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                      justifyContent: 'space-between', transition: 'background 0.12s',
-                      borderBottom: `1px solid ${C.grayLight}`,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Briefcase size={13} color={rs.color} />
-                      <span style={{ fontWeight: 700, fontSize: '0.8rem', color: C.navy }}>{b.broker}</span>
-                      <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: '0.6rem', fontWeight: 700, background: rs.bg, color: rs.color }}>{rs.label}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.72rem' }}>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: C.navy }}>{fmtMAD(b.total_written_premium)}</span>
-                      <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700, color: 'white', background: ulrColor(b.avg_ulr) }}>{formatPercent(b.avg_ulr)}</span>
-                      <ArrowRight size={12} color={C.gray} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {searchFocus && search && searchSuggestions.length === 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-              background: 'white', borderRadius: 12, border: `1px solid ${C.grayLight}`,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 50, padding: '16px 14px',
-              textAlign: 'center', fontSize: '0.76rem', color: C.gray,
-            }}>
-              Aucun courtier trouvé pour « {search} »
-            </div>
-          )}
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
         {[
           { label: 'Courtiers', value: String(agg.count), icon: Users, color: C.blue },
@@ -275,7 +523,7 @@ export default function BrokerAnalysis() {
         ))}
       </div>
 
-      {/* Charts Row */}
+      {/* ── Charts Row (Top 10 + Pie) ──────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         {/* Top 10 Bar */}
         <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.grayLight}` }}>
@@ -344,7 +592,7 @@ export default function BrokerAnalysis() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table ─────────────────────────────────────────────────────────── */}
       <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${C.grayLight}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.grayLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, margin: 0 }}>
@@ -415,6 +663,7 @@ export default function BrokerAnalysis() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   )
