@@ -4,20 +4,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Racine du projet (remonte depuis backend/core/ → racine du repo)
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 # Env context
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Chemin du fichier Excel (modifiable via Admin)
+# Chemin du fichier Excel Réassurance (modifiable via variable d'env)
 EXCEL_FILE_PATH = os.getenv(
     "EXCEL_FILE_PATH",
-    r"C:\Users\TEMLALI\Downloads\Template_data_filled (1).xlsx"
+    str(BASE_DIR / "database" / "AtlanticRe_Reassurance.xlsx")
 )
-EXCEL_SHEET_NAME = "Feuil2"
+EXCEL_SHEET_NAME = os.getenv("EXCEL_SHEET_NAME", "Feuil2")
 
-# Chemin du fichier Excel Rétrocession (modifiable via Admin)
+# Chemin du fichier Excel Rétrocession (modifiable via variable d'env)
 RETRO_EXCEL_FILE_PATH = os.getenv(
     "RETRO_EXCEL_FILE_PATH",
-    r"C:\Users\TEMLALI\.gemini\antigravity\scratch\reinsurance-platform\retrocession_traites_realiste.xlsx"
+    str(BASE_DIR / "database" / "AtlanticRe_Retrocession_AffairesTraites.xlsx")
 )
 RETRO_EXCEL_SHEET_NAME = os.getenv("RETRO_EXCEL_SHEET_NAME", "Rétrocession Traités")
 

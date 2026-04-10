@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { useLocation } from 'react-router-dom'
 import FilterPanel from '../components/FilterPanel'
 import KPICards from '../components/KPICards'
-import DashboardAlerts from '../components/DashboardAlerts'
 import WorldMap from '../components/Charts/WorldMap'
 import EvolutionChart from '../components/Charts/EvolutionChart'
 import DistributionCharts from '../components/Charts/DistributionCharts'
@@ -77,8 +76,6 @@ export default function Dashboard() {
           <KPICards />
         </div>
 
-        {/* ─── Alerts Area ─── */}
-        <DashboardAlerts />
 
         {/* ─── Charts / Table area ─── */}
         <div
