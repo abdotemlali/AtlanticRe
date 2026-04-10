@@ -161,3 +161,6 @@ app.include_router(clients.router,    prefix="/api/clients",    tags=["Clients"]
 from routers.retro import router as retro_router
 app.include_router(retro_router, prefix="/api/retro", tags=["Retrocession"])
 
+from routers.target_share import router as target_share_router
+app.include_router(target_share_router, prefix="/api/target-share", tags=["target-share"])
+

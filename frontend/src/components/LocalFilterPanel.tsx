@@ -27,8 +27,14 @@ interface LocalFilterPanelProps {
   typeSpcOptions?: string[]
   /** Type of contract options (filterOptions.type_of_contract) */
   typeOfContractOptions?: string[]
+  /** Cedante options */
+  cedanteOptions?: string[]
+  /** Broker options */
+  brokerOptions?: string[]
+  /** Country options */
+  countryOptions?: string[]
   /** Which filter controls to show (default: all) */
-  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope')[]
+  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope' | 'cedante' | 'broker' | 'country')[]
   /** Start open (default: false) */
   defaultOpen?: boolean
 }
@@ -39,6 +45,9 @@ export default function LocalFilterPanel({
   uwYears,
   typeSpcOptions = [],
   typeOfContractOptions = [],
+  cedanteOptions = [],
+  brokerOptions = [],
+  countryOptions = [],
   features,
   defaultOpen = false,
 }: LocalFilterPanelProps) {
@@ -47,6 +56,7 @@ export default function LocalFilterPanel({
   const {
     state, setUwYears, setUwYearMin, setUwYearMax,
     setBranches, setTypeSpc, setTypeOfContract,
+    setCedantes, setBrokers, setCountries,
     applyBrancheScope, reset, activeCount, hasFilters,
   } = filters
 
@@ -215,6 +225,51 @@ export default function LocalFilterPanel({
                   placeholder="Tous les types..."
                   value={toOptions(state.typeOfContract)}
                   onChange={(v: any) => setTypeOfContract(v.map((x: any) => x.value))}
+                />
+              </div>
+            )}
+
+            {/* Cédante */}
+            {show('cedante') && cedanteOptions.length > 0 && (
+              <div>
+                <label className={LABEL_STYLE}>Cédante</label>
+                <Select
+                  isMulti
+                  options={toOptions(cedanteOptions)}
+                  {...SHARED_SELECT_PROPS}
+                  placeholder="Toutes les cédantes..."
+                  value={toOptions(state.cedantes)}
+                  onChange={(v: any) => setCedantes(v.map((x: any) => x.value))}
+                />
+              </div>
+            )}
+
+            {/* Courtier */}
+            {show('broker') && brokerOptions.length > 0 && (
+              <div>
+                <label className={LABEL_STYLE}>Courtier</label>
+                <Select
+                  isMulti
+                  options={toOptions(brokerOptions)}
+                  {...SHARED_SELECT_PROPS}
+                  placeholder="Tous les courtiers..."
+                  value={toOptions(state.brokers)}
+                  onChange={(v: any) => setBrokers(v.map((x: any) => x.value))}
+                />
+              </div>
+            )}
+
+            {/* Pays Risque */}
+            {show('country') && countryOptions.length > 0 && (
+              <div>
+                <label className={LABEL_STYLE}>Pays</label>
+                <Select
+                  isMulti
+                  options={toOptions(countryOptions)}
+                  {...SHARED_SELECT_PROPS}
+                  placeholder="Tous les pays..."
+                  value={toOptions(state.countries)}
+                  onChange={(v: any) => setCountries(v.map((x: any) => x.value))}
                 />
               </div>
             )}

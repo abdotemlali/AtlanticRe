@@ -1,3 +1,6 @@
+import os
+from dotenv import set_key
+import core.config
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core import database
@@ -55,10 +58,32 @@ def get_config(user: dict = Depends(require_role("admin"))):
 
 @router.put("/config")
 def update_config(updates: schemas.ConfigUpdate, user: dict = Depends(require_role("admin"))):
+    env_path = str(core.config.BASE_DIR / "backend" / ".env")
+    if not os.path.exists(env_path):
+        env_path = ".env"
+
     if updates.excel_file_path:
+        core.config.EXCEL_FILE_PATH = updates.excel_file_path
+        os.environ["EXCEL_FILE_PATH"] = updates.excel_file_path
         _app_config["excel_file_path"] = updates.excel_file_path
+        
+        try:
+            set_key(env_path, "EXCEL_FILE_PATH", updates.excel_file_path)
+        except Exception:
+            pass
+            
         log_repository.add_log(user["username"], "UPDATE_CONFIG", updates.excel_file_path)
+        
     if updates.retro_excel_file_path:
+        core.config.RETRO_EXCEL_FILE_PATH = updates.retro_excel_file_path
+        os.environ["RETRO_EXCEL_FILE_PATH"] = updates.retro_excel_file_path
         _app_config["retro_excel_file_path"] = updates.retro_excel_file_path
+        
+        try:
+            set_key(env_path, "RETRO_EXCEL_FILE_PATH", updates.retro_excel_file_path)
+        except Exception:
+            pass
+            
         log_repository.add_log(user["username"], "UPDATE_RETRO_CONFIG", updates.retro_excel_file_path)
+        
     return _app_config

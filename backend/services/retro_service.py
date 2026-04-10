@@ -53,8 +53,7 @@ def load_retro_excel(file_path: str = None) -> Dict[str, Any]:
         raise FileNotFoundError(f"Fichier Excel rétrocession introuvable : {path}")
 
     logger.info(f"Chargement rétrocession : {path}")
-    sheet = getattr(config, "RETRO_EXCEL_SHEET_NAME", "Sheet1")
-    df = pd.read_excel(path, sheet_name=sheet, dtype=str)
+    df = pd.read_excel(path, sheet_name=0, dtype=str)
 
     # Rename French headers → internal uppercase names
     df = df.rename(columns=COLUMN_RENAME)

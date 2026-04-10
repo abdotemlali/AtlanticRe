@@ -459,7 +459,7 @@ export default function Admin() {
         <div className="space-y-5 max-w-xl">
           {/* Excel Données de Base */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] flex items-center gap-2">
               <Database size={14} color="#4361ee" />Fichier Excel — Données de Base
             </h3>
             <div>
@@ -479,7 +479,7 @@ export default function Admin() {
 
           {/* Excel Rétrocession */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] flex items-center gap-2">
               <Shield size={14} color="hsl(83,50%,55%)" />Fichier Excel — Rétrocession par Traités
             </h3>
             <div>

@@ -18,6 +18,7 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword'))
 const Analysis = lazy(() => import('./pages/Analysis'))
 const ExpositionRisques = lazy(() => import('./pages/ExpositionRisques'))
 const CedanteAnalysis = lazy(() => import('./pages/CedanteAnalysis'))
+const TargetShare = lazy(() => import('./pages/TargetShare'))
 const FacSaturation = lazy(() => import('./pages/FacSaturation'))
 const BrokerAnalysis = lazy(() => import('./pages/BrokerAnalysis'))
 const BrokerDetail = lazy(() => import('./pages/BrokerDetail'))
@@ -84,6 +85,7 @@ function AppRoutes() {
           <Route path="analyse/:pays" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
           <Route path="analyse-cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
           <Route path="analyse-cedante/:cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="cibles-tty" element={<ErrorBoundary><TargetShare /></ErrorBoundary>} />
           <Route path="exposition" element={<ErrorBoundary><ExpositionRisques /></ErrorBoundary>} />
           <Route path="fac-saturation" element={<ErrorBoundary><FacSaturation /></ErrorBoundary>} />
           <Route path="top-brokers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />

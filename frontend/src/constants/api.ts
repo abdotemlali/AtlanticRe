@@ -82,6 +82,10 @@ export const API_ROUTES = {
         INACTIVE_EXPORT: '/clients/inactive/export',
         RENEWALS: '/clients/renewals',
     },
+    TARGET_SHARE: {
+        LIST:            '/target-share/list',
+        FILTER_OPTIONS:  '/target-share/filter-options',
+    },
     RETRO: {
         REFRESH:          '/retro/refresh',
         STATUS:           '/retro/status',

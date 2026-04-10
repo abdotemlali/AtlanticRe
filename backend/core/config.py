@@ -15,14 +15,12 @@ EXCEL_FILE_PATH = os.getenv(
     "EXCEL_FILE_PATH",
     str(BASE_DIR / "database" / "AtlanticRe_Reassurance.xlsx")
 )
-EXCEL_SHEET_NAME = os.getenv("EXCEL_SHEET_NAME", "Feuil2")
 
 # Chemin du fichier Excel Rétrocession (modifiable via variable d'env)
 RETRO_EXCEL_FILE_PATH = os.getenv(
     "RETRO_EXCEL_FILE_PATH",
     str(BASE_DIR / "database" / "AtlanticRe_Retrocession_AffairesTraites.xlsx")
 )
-RETRO_EXCEL_SHEET_NAME = os.getenv("RETRO_EXCEL_SHEET_NAME", "Rétrocession Traités")
 
 # JWT
 JWT_SECRET_KEY = os.getenv("SECRET_KEY")

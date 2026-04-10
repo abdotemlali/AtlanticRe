@@ -17,6 +17,9 @@ export interface LocalFilterState {
   typeSpc: string[]
   typeOfContract: string[]
   brancheScope: { vie: boolean; nonVie: boolean }
+  cedantes: string[]
+  brokers: string[]
+  countries: string[]
 }
 
 export interface UseLocalFiltersReturn {
@@ -29,6 +32,9 @@ export interface UseLocalFiltersReturn {
   setBranches: (v: string[]) => void
   setTypeSpc: (v: string[]) => void
   setTypeOfContract: (v: string[]) => void
+  setCedantes: (v: string[]) => void
+  setBrokers: (v: string[]) => void
+  setCountries: (v: string[]) => void
   setBrancheScope: (v: { vie: boolean; nonVie: boolean }) => void
   // Convenience
   applyBrancheScope: (vie: boolean, nonVie: boolean) => void
@@ -50,11 +56,15 @@ export function useLocalFilters(): UseLocalFiltersReturn {
   const [branches, setBranches] = useState<string[]>([])
   const [typeSpc, setTypeSpc] = useState<string[]>([])
   const [typeOfContract, setTypeOfContract] = useState<string[]>([])
+  const [cedantes, setCedantes] = useState<string[]>([])
+  const [brokers, setBrokers] = useState<string[]>([])
+  const [countries, setCountries] = useState<string[]>([])
   const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
 
   const state: LocalFilterState = {
     uwYears, uwYearMin, uwYearMax,
     branches, typeSpc, typeOfContract, brancheScope,
+    cedantes, brokers, countries,
   }
 
   const reset = () => {
@@ -64,6 +74,9 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     setBranches([])
     setTypeSpc([])
     setTypeOfContract([])
+    setCedantes([])
+    setBrokers([])
+    setCountries([])
     setBrancheScope({ vie: true, nonVie: true })
   }
 
@@ -78,8 +91,11 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     if (branches.length > 0) n++
     if (typeSpc.length > 0) n++
     if (typeOfContract.length > 0) n++
+    if (cedantes.length > 0) n++
+    if (brokers.length > 0) n++
+    if (countries.length > 0) n++
     return n
-  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, typeOfContract])
+  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, typeOfContract, cedantes, brokers, countries])
 
   const hasFilters = activeCount > 0 || !brancheScope.vie || !brancheScope.nonVie
 
@@ -94,10 +110,13 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     if (branches.length > 0) p['branche'] = branches.join(',')
     if (typeSpc.length > 0) p['type_contrat_spc'] = typeSpc.join(',')
     if (typeOfContract.length > 0) p['type_of_contract'] = typeOfContract.join(',')
+    if (cedantes.length > 0) p['cedante'] = cedantes.join(',')
+    if (brokers.length > 0) p['broker'] = brokers.join(',')
+    if (countries.length > 0) p['country'] = countries.join(',')
     if (brancheScope.vie && !brancheScope.nonVie) p['vie_non_vie_view'] = 'VIE'
     if (!brancheScope.vie && brancheScope.nonVie) p['vie_non_vie_view'] = 'NON_VIE'
     return p
-  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, typeOfContract, brancheScope])
+  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, typeOfContract, cedantes, brokers, countries, brancheScope])
 
   const buildParamsNoBranch = useMemo(() => {
     const p = { ...buildParams }
@@ -120,6 +139,7 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     state,
     setUwYears, setUwYearMin, setUwYearMax,
     setBranches, setTypeSpc, setTypeOfContract, setBrancheScope,
+    setCedantes, setBrokers, setCountries,
     applyBrancheScope, reset,
     activeCount, hasFilters,
     buildParams, buildParamsNoBranch,

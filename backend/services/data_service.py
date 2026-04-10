@@ -64,7 +64,7 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
         raise FileNotFoundError(f"Fichier Excel introuvable : {path}")
 
     logger.info(f"Chargement du fichier Excel : {path}")
-    raw = pd.read_excel(path, sheet_name=config.EXCEL_SHEET_NAME, dtype=str)
+    raw = pd.read_excel(path, sheet_name=0, dtype=str)
 
     numeric_cols = [
         "SUBJECT_PREMIUM", "WRITTEN_PREMIUM", "SHARE_SIGNED", "SHARE_WRITTEN",

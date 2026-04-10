@@ -7,7 +7,7 @@ import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
   LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
-  Globe, Briefcase, Shield, FileText, Users
+  Globe, Briefcase, Shield, FileText, Users, Crosshair
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
     children: [
       { to: '/analyse',           label: 'Analyse Globale',      icon: BarChart2  },
       { to: '/analyse-cedante',   label: 'Analyse Cédante',      icon: PieChart   },
+      { to: '/cibles-tty',        label: 'Cibles TTY',           icon: Crosshair  },
       { to: '/analyse-courtiers', label: 'Analyse Courtiers',    icon: Briefcase  },
       { to: '/exposition',        label: 'Exposition & Risques', icon: Globe      },
     ],
