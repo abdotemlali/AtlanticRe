@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import api from '../utils/api'
 
 export interface FetchResult<T> {
@@ -11,6 +11,9 @@ export function useFetch<T>(url: string | null, params?: Record<string, any>): F
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
+
+  // Stable serialization of params — computed in useMemo, not inline in deps
+  const paramsKey = useMemo(() => JSON.stringify(params ?? {}), [params])
 
   useEffect(() => {
     // Si l'URL est nulle, on ne fetch pas
@@ -39,7 +42,8 @@ export function useFetch<T>(url: string | null, params?: Record<string, any>): F
     return () => {
       controller.abort() // Annulation de la requête précédente
     }
-  }, [url, JSON.stringify(params)]) // On sérialise params pour éviter les boucles infinies de re-rendus
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, paramsKey])
 
   return { data, loading, error }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { BarChart2, TrendingUp, AlertTriangle, CheckCircle, PieChart, Table, GitCompare, FileText, Globe, RotateCcw, SlidersHorizontal, Users, Trophy, ChevronDown, ChevronUp } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
@@ -7,19 +7,13 @@ import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData, filtersToParams } from '../context/DataContext'
 import { useFetch } from '../hooks/useFetch'
-import { formatCompact, formatPercent } from '../utils/formatters'
+import { formatCompact, formatPercent, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import WorldMap from '../components/Charts/WorldMap'
+import { BRANCH_COLORS, SHARED_SELECT_PROPS, LABEL_STYLE } from '../constants/styles'
 
 // ─── Palette dynamique branche (couleur vive par index) ──────────────────────
-const BRANCH_PALETTE = [
-  'hsl(358,66%,54%)',   // Rouge
-  'hsl(83,52%,36%)',    // Vert
-  'hsl(218,70%,55%)',   // Bleu
-  'hsl(30,88%,56%)',    // Orange
-  'hsl(280,40%,50%)',   // Violet
-  '#94A3B8',            // Gris (fallback)
-]
+const BRANCH_PALETTE = BRANCH_COLORS
 const GRAY_BAR = '#94A3B8'
 
 const SELECTED_ROW_BG = 'hsla(83, 52%, 36%, 0.06)'
@@ -40,14 +34,8 @@ export default function Analysis() {
   const { filters, filterOptions, setFilters } = useData()
   const navigate = useNavigate()
 
-  // ── Sélection pays (mode unifié "Par pays") ───────────────────────────────
-  const [selectedPays, setSelectedPays] = useState<string | null>(() => {
-    try {
-      const stored = sessionStorage.getItem('analysis_country')
-      if (stored) { const { pays } = JSON.parse(stored); return pays || null }
-    } catch {}
-    return null
-  })
+  const { pays: routePays } = useParams<{ pays?: string }>()
+  const selectedPays = routePays ? decodeURIComponent(routePays) : null
 
   // ── Filtres locaux ─────────────────────────────────────────────────────────
   const [localUwYear, setLocalUwYear] = useState<number[]>([])              // Multi-select année
@@ -64,21 +52,7 @@ export default function Analysis() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
 
-  // ── Lecture sessionStorage au montage ────────────────────────────────────
-  useEffect(() => {
-    const storedCountry = sessionStorage.getItem('analysis_country')
-    const storedMarket = sessionStorage.getItem('analysis_market')
-    if (storedCountry) {
-      try { const { pays } = JSON.parse(storedCountry); setSelectedPays(pays) } catch {}
-      sessionStorage.removeItem('analysis_country')
-    }
-    if (storedMarket) {
-      try { const { pays } = JSON.parse(storedMarket); setSelectedPays(pays) } catch {}
-      sessionStorage.removeItem('analysis_market')
-    }
-    const storedMode = sessionStorage.getItem('analysis_mode')
-    if (storedMode) sessionStorage.removeItem('analysis_mode')
-  }, [])
+  // sessionStorage startup checks removed in favor of direct routing
 
   // ── Réinitialiser filtres locaux ──────────────────────────────────────────
   const resetLocalFilters = () => {
@@ -366,20 +340,12 @@ export default function Analysis() {
     }
   }
 
-  // ── Helpers couleur ────────────────────────────────────────────────────────
-  const ulrColor = (ulr: number | null) => {
-    if (ulr === null) return 'var(--color-gray-400)'
-    if (ulr > 100) return 'hsl(358,66%,54%)'
-    if (ulr > 70) return 'hsl(30,88%,56%)'
-    return 'hsl(83,52%,36%)'
-  }
-
   // ─── Styles Select ────────────────────────────────────────────────────────
   const selectStyle = {
     menuPortalTarget: document.body,
     menuPosition: 'fixed' as const,
     styles: {
-      menuPortal: (b: any) => ({ ...b, zIndex: 9999 }),
+      ...SHARED_SELECT_PROPS.styles,
       control: (b: any) => ({
         ...b, minHeight: '42px', borderRadius: '0.75rem',
         borderColor: 'var(--color-gray-100)', boxShadow: 'none',
@@ -417,7 +383,14 @@ export default function Analysis() {
             <Select
               options={countryOptions}
               value={null}
-              onChange={(v) => setSelectedPays(v?.value || null)}
+              onChange={(v) => {
+                const p = v?.value || null
+                if (p) {
+                  navigate(`/analyse/${encodeURIComponent(p)}`)
+                } else {
+                  navigate(`/analyse`)
+                }
+              }}
               placeholder="Rechercher un pays..."
               isClearable
               {...selectStyle}
@@ -474,7 +447,7 @@ export default function Analysis() {
                         fill="var(--color-navy)"
                         className="cursor-pointer transition-opacity hover:opacity-80"
                         onClick={() => {
-                          setSelectedPays(entry.pays)
+                          navigate(`/analyse/${encodeURIComponent(entry.pays)}`)
                           window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
                       />
@@ -692,7 +665,15 @@ export default function Analysis() {
             <Select
               options={countryOptions}
               value={countryOptions.find(o => o.value === selectedPays) || null}
-              onChange={(v) => { setSelectedPays(v?.value || null); resetLocalFilters() }}
+              onChange={(v) => {
+                const p = v?.value || null
+                resetLocalFilters()
+                if (p) {
+                  navigate(`/analyse/${encodeURIComponent(p)}`)
+                } else {
+                  navigate(`/analyse`)
+                }
+              }}
               placeholder="Changer de pays..."
               isClearable
               {...selectStyle}

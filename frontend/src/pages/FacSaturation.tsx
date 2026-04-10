@@ -112,22 +112,22 @@ function ModalDetail({
             <tbody>
               {branches.map((b, i) => {
                 const pct = Math.min((b.saturation_score / 2) * 100, 100)
-                const barColor = b.is_saturated ? 'hsl(358,66%,54%)' : 'hsl(83,52%,36%)'
+                const barColor = b.is_saturated ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)'
                 return (
                   <tr
                     key={i}
-                    className={`border-b border-[var(--color-gray-100)] last:border-0 ${b.is_saturated ? 'bg-[hsla(358,66%,54%,0.03)]' : ''}`}
+                    className={`border-b border-[var(--color-gray-100)] last:border-0 ${b.is_saturated ? 'bg-green-50' : 'bg-red-50'}`}
                   >
                     <td className="py-2.5 px-3 text-xs font-bold text-[var(--color-navy)]">{b.branche}</td>
                     <td
                       className="py-2.5 px-3 text-xs font-mono text-right font-bold"
-                      style={{ color: b.total_prime_fac > seuilPrime ? 'hsl(358,66%,54%)' : 'inherit' }}
+                      style={{ color: b.total_prime_fac > seuilPrime ? 'hsl(83,52%,36%)' : 'inherit' }}
                     >
                       {formatMontant(b.total_prime_fac)}
                     </td>
                     <td
                       className="py-2.5 px-3 text-xs font-mono text-right font-bold"
-                      style={{ color: b.nb_affaires_fac > seuilAffaires ? 'hsl(358,66%,54%)' : 'inherit' }}
+                      style={{ color: b.nb_affaires_fac > seuilAffaires ? 'hsl(83,52%,36%)' : 'inherit' }}
                     >
                       {b.nb_affaires_fac}
                     </td>
@@ -136,9 +136,9 @@ function ModalDetail({
                     </td>
                     <td className="py-2.5 px-3 text-center">
                       {b.is_saturated ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[hsl(358,66%,54%)] text-white">SATURÉ</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">SATURÉ</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[hsl(83,52%,36%)] text-white">OK</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">NON SATURÉ</span>
                       )}
                     </td>
                   </tr>
@@ -275,8 +275,8 @@ function VueGlobale({
                   <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase">Cédante</th>
                   <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase text-right">Prime FAC Totale</th>
                   <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase text-center">Nb Branches FAC</th>
-                  <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase text-center">Branches Saturées</th>
-                  <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase">Branches en alerte</th>
+                  <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase text-center">Nombre Branches Saturées</th>
+                  <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase">Branches saturées</th>
                   <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase min-w-[160px]">Saturation globale</th>
                   <th className="py-3 px-4 text-[10px] font-bold text-[var(--color-gray-500)] uppercase text-center">Détail</th>
                 </tr>
@@ -289,11 +289,11 @@ function VueGlobale({
                       : 0
                   const barColor =
                     d.nb_branches_saturees === 0
-                      ? 'hsl(83,52%,36%)'
-                      : d.nb_branches_saturees >= d.nb_branches_fac
                       ? 'hsl(358,66%,54%)'
+                      : d.nb_branches_saturees >= d.nb_branches_fac
+                      ? 'hsl(83,52%,36%)'
                       : 'hsl(35,90%,50%)'
-                  const rowBg = d.nb_branches_saturees > 0 ? 'bg-[hsla(358,66%,54%,0.03)]' : ''
+                  const rowBg = d.nb_branches_saturees > 0 ? 'bg-green-50 hover:bg-green-100' : 'bg-[var(--color-off-white)]'
                   return (
                     <tr key={i} className={`border-b border-[var(--color-gray-100)] last:border-0 transition-colors ${rowBg}`}>
                       <td className="py-3 px-4 text-xs font-bold text-[var(--color-navy)]">{d.cedante}</td>
@@ -305,11 +305,11 @@ function VueGlobale({
                       </td>
                       <td className="py-3 px-4 text-center">
                         {d.nb_branches_saturees > 0 ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[hsl(358,66%,54%)] text-white">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">
                             {d.nb_branches_saturees} / {d.nb_branches_fac}
                           </span>
                         ) : (
-                          <span className="text-xs font-mono text-[var(--color-gray-500)]">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-[var(--color-gray-500)] border border-[var(--color-gray-200)]">
                             0 / {d.nb_branches_fac}
                           </span>
                         )}
@@ -319,7 +319,7 @@ function VueGlobale({
                           {d.branches_saturees.map(br => (
                             <span
                               key={br}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[hsla(358,66%,54%,0.12)] text-[hsl(358,66%,54%)] border border-[hsla(358,66%,54%,0.3)]"
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300"
                             >
                               {br}
                             </span>
@@ -478,26 +478,26 @@ function VueCedante({
                   {data.map((d: any, i: number) => (
                     <tr
                       key={i}
-                      className={`border-b border-[var(--color-gray-100)] last:border-0 transition-colors ${d.is_saturated ? 'bg-[hsla(358,66%,54%,0.02)]' : 'hover:bg-[hsla(0,0%,0%,0.02)]'}`}
+                      className={`border-b border-[var(--color-gray-100)] last:border-0 transition-colors ${d.is_saturated ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'}`}
                     >
                       <td className="py-3 px-4 text-xs font-bold text-[var(--color-navy)]">{d.branche}</td>
                       <td
                         className="py-3 px-4 text-xs font-mono text-right font-bold"
-                        style={{ color: d.total_prime_fac > seuilPrime ? 'hsl(358,66%,54%)' : 'inherit' }}
+                        style={{ color: d.total_prime_fac > seuilPrime ? 'hsl(83,52%,36%)' : 'inherit' }}
                       >
                         {formatMontant(d.total_prime_fac)}
                       </td>
                       <td
                         className="py-3 px-4 text-xs font-mono text-right font-bold"
-                        style={{ color: d.nb_affaires_fac > seuilAffaires ? 'hsl(358,66%,54%)' : 'inherit' }}
+                        style={{ color: d.nb_affaires_fac > seuilAffaires ? 'hsl(83,52%,36%)' : 'inherit' }}
                       >
                         {d.nb_affaires_fac}
                       </td>
                       <td className="py-3 px-4 flex justify-center">
                         {d.is_saturated ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[hsl(358,66%,54%)] text-white">SATURÉ</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">SATURÉ</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[hsl(83,52%,36%)] text-white">OK</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">NON SATURÉ</span>
                         )}
                       </td>
                     </tr>

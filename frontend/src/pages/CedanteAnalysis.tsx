@@ -1,277 +1,27 @@
 import { useState, useEffect, useMemo } from "react"
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
-import { formatCompact, formatPercent } from '../utils/formatters'
+import { formatCompact, formatPercent, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
 import { useFetch } from '../hooks/useFetch'
+import { useLocalFilters } from '../hooks/useLocalFilters'
+import LocalFilterPanel from '../components/LocalFilterPanel'
+import { BRANCH_COLORS, SHARED_SELECT_PROPS } from '../constants/styles'
+import type { CedanteProfile } from '../types/kpis.types'
 
-interface CedanteProfile {
-  cedante: string
-  pays_cedante: string
-  total_written_premium: number
-  total_resultat: number
-  avg_ulr: number
-  contract_count: number
-  avg_share_signed: number
-  avg_commission: number
-  avg_profit_comm_rate: number
-  avg_brokerage_rate: number
-  type_cedante?: string  // B1
-  branches_actives?: number  // B2
-  fac_saturation_alerts?: string[] // B3
-  filtered_view?: boolean
-}
-
-const LIFE_BRANCH = 'VIE'
-
-function toOptions(arr: string[]) { return arr.map(v => ({ value: v, label: v })) }
-function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: String(v) })) }
-
-const selectStyles = {
-  menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
-  menuPosition: 'fixed' as const,
-  styles: {
-    control: (base: any) => ({
-      ...base,
-      minHeight: '36px',
-      fontSize: '0.78rem',
-      borderRadius: '0.5rem',
-      borderColor: 'var(--color-gray-200)',
-      boxShadow: 'none',
-      '&:hover': { borderColor: 'var(--color-navy)' },
-    }),
-    option: (base: any, state: any) => ({
-      ...base,
-      fontSize: '0.78rem',
-      backgroundColor: state.isSelected ? 'var(--color-navy)' : state.isFocused ? 'var(--color-off-white)' : 'white',
-      color: state.isSelected ? 'white' : 'var(--color-navy)',
-    }),
-    multiValue: (base: any) => ({ ...base, backgroundColor: 'hsla(209,28%,24%,0.10)' }),
-    multiValueLabel: (base: any) => ({ ...base, color: 'var(--color-navy)', fontWeight: 700, fontSize: '0.72rem' }),
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-    placeholder: (base: any) => ({ ...base, fontSize: '0.78rem' }),
-  },
-}
-
-const labelStyle = "block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]"
-
-/* ─── Inline filter panel for /analyse-cedante — LOCAL state, independent of global ─── */
-interface CedantePageFiltersProps {
-  // Local filter state
-  localUwYears: number[]
-  localUwYearMin: number | null
-  localUwYearMax: number | null
-  localBranche: string[]
-  localTypeSpc: string[]
-  localTypeOfContract: string[]
-  brancheScope: { vie: boolean; nonVie: boolean }
-  // Setters
-  onUwYearsChange: (years: number[]) => void
-  onUwYearMinChange: (v: number | null) => void
-  onUwYearMaxChange: (v: number | null) => void
-  onBrancheChange: (branches: string[]) => void
-  onTypeSpcChange: (types: string[]) => void
-  onTypeOfContractChange: (types: string[]) => void
-  onBrancheScopeChange: (vie: boolean, nonVie: boolean) => void
-  onReset: () => void
-  brancheOptions: { value: string; label: string }[]
-}
-
-function CedantePageFilters({
-  localUwYears, localUwYearMin, localUwYearMax,
-  localBranche, localTypeSpc, localTypeOfContract,
-  brancheScope,
-  onUwYearsChange, onUwYearMinChange, onUwYearMaxChange,
-  onBrancheChange, onTypeSpcChange, onTypeOfContractChange,
-  onBrancheScopeChange, onReset,
-  brancheOptions,
-}: CedantePageFiltersProps) {
-  const { filterOptions } = useData()
-
-  const uwYears = filterOptions?.underwriting_years ?? []
-  const typeOfContractOpts = toOptions(filterOptions?.type_of_contract ?? [])
-  const typeSpcOpts = toOptions(filterOptions?.type_contrat_spc ?? [])
-
-  const [open, setOpen] = useState(false)
-
-  const activeCount = useMemo(() => {
-    let n = 0
-    if (localUwYears.length > 0 || localUwYearMin !== null || localUwYearMax !== null) n++
-    if (localBranche.length > 0) n++
-    if (localTypeSpc.length > 0) n++
-    if (localTypeOfContract.length > 0) n++
-    return n
-  }, [localUwYears, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract])
-
-  const hasFilters = activeCount > 0 || !brancheScope.vie || !brancheScope.nonVie
-
-  return (
-    <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm overflow-hidden">
-      {/* Header — click to toggle */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[var(--color-gray-50)] transition-colors"
-      >
-        <SlidersHorizontal size={13} className="text-[var(--color-navy)]" />
-        <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-navy)]">Filtres de la vue</span>
-        {activeCount > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--color-navy)' }}>
-            {activeCount}
-          </span>
-        )}
-        {hasFilters && (
-          <span
-            className="ml-2 px-2 py-0.5 rounded-lg text-[10px] font-semibold"
-            style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
-          >
-            Filtres actifs
-          </span>
-        )}
-        <span className="ml-auto text-[var(--color-gray-400)]">
-          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </span>
-      </button>
-
-      {/* Collapsible body */}
-      {open && (
-        <div className="px-4 pb-4 border-t border-[var(--color-gray-100)]">
-          <div className="flex items-center justify-end pt-2 pb-2">
-            {hasFilters && (
-              <button
-                onClick={onReset}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
-              >
-                <RotateCcw size={11} />
-                Réinitialiser
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div>
-              <label className={labelStyle}>Année de souscription</label>
-              <div className="space-y-1.5">
-                <Select
-                  isMulti
-                  options={toNumOptions(uwYears)}
-                  {...selectStyles}
-                  placeholder="Toutes les années..."
-                  value={toNumOptions(localUwYears)}
-                  onChange={(v: any) => {
-                    onUwYearsChange(v.map((x: any) => x.value))
-                    onUwYearMinChange(null)
-                    onUwYearMaxChange(null)
-                  }}
-                />
-                {localUwYears.length === 0 && (
-                  <div className="flex gap-1.5">
-                    <select
-                      title="Année min"
-                      className="input-dark text-xs py-1 flex-1"
-                      value={localUwYearMin ?? ''}
-                      onChange={e => onUwYearMinChange(Number(e.target.value) || null)}
-                    >
-                      <option value="">Min</option>
-                      {uwYears.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <select
-                      title="Année max"
-                      className="input-dark text-xs py-1 flex-1"
-                      value={localUwYearMax ?? ''}
-                      onChange={e => onUwYearMaxChange(Number(e.target.value) || null)}
-                    >
-                      <option value="">Max</option>
-                      {uwYears.slice().reverse().map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className={labelStyle}>Branche</label>
-              <Select
-                isMulti
-                options={brancheOptions}
-                {...selectStyles}
-                placeholder="Toutes les branches..."
-                value={toOptions(localBranche)}
-                onChange={(v: any) => onBrancheChange(v.map((x: any) => x.value))}
-              />
-              <div className="flex gap-3 mt-2">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={brancheScope.vie}
-                    onChange={e => onBrancheScopeChange(e.target.checked, brancheScope.nonVie)}
-                  />
-                  <span className="text-[0.78rem] font-medium text-gray-600">Vie</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={brancheScope.nonVie}
-                    onChange={e => onBrancheScopeChange(brancheScope.vie, e.target.checked)}
-                  />
-                  <span className="text-[0.78rem] font-medium text-gray-600">Non-vie</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className={labelStyle}>Type SPC</label>
-              <Select
-                isMulti
-                options={typeSpcOpts}
-                {...selectStyles}
-                placeholder="FAC / TTY / TTE..."
-                value={toOptions(localTypeSpc)}
-                onChange={(v: any) => onTypeSpcChange(v.map((x: any) => x.value))}
-              />
-            </div>
-
-            <div>
-              <label className={labelStyle}>Type de contrat</label>
-              <Select
-                isMulti
-                options={typeOfContractOpts}
-                {...selectStyles}
-                placeholder="Tous les types..."
-                value={toOptions(localTypeOfContract)}
-                onChange={(v: any) => onTypeOfContractChange(v.map((x: any) => x.value))}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const COLORS = [
-  'hsl(209,28%,24%)', // Navy (dark)
-  'hsl(83,52%,36%)', // Green (primary)
-  'hsl(12,76%,45%)', // Rust (warm accent)
-  'hsl(218,12%,68%)', // Gray-blue (neutral)
-  'hsl(358,66%,54%)', // Red (alert)
-  'hsl(30,88%,56%)', // Orange (secondary)
-  'hsl(180,25%,35%)', // Teal (cool accent)
-  'hsl(43,96%,56%)', // Yellow (warning)
-  'hsl(280,30%,45%)', // Purple (special)
-  'hsl(0,0%,40%)'    // Dark gray (other)
-]
+const COLORS = BRANCH_COLORS
 
 export default function CedanteAnalysis() {
   const { filterOptions, setFilters } = useData()
   const navigate = useNavigate()
 
-  const [selectedCedante, setSelectedCedante] = useState<string | null>(null)
+  const { cedante: routeCedante } = useParams<{ cedante?: string }>()
+  const selectedCedante = routeCedante ? decodeURIComponent(routeCedante) : null
 
   const [profile, setProfile] = useState<CedanteProfile | null>(null)
   const [yearData, setYearData] = useState<any[]>([])
@@ -279,43 +29,8 @@ export default function CedanteAnalysis() {
   const [branchDataAll, setBranchDataAll] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // ── Local filters (independent of global dashboard filters) ─────────────
-  const [localUwYears, setLocalUwYears] = useState<number[]>([])
-  const [localUwYearMin, setLocalUwYearMin] = useState<number | null>(null)
-  const [localUwYearMax, setLocalUwYearMax] = useState<number | null>(null)
-  const [localBranche, setLocalBranche] = useState<string[]>([])
-  const [localTypeSpc, setLocalTypeSpc] = useState<string[]>([])
-  const [localTypeOfContract, setLocalTypeOfContract] = useState<string[]>([])
-
-  // Vie/Non-vie checkboxes (local to this page)
-  const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
-
-  const resetLocalFilters = () => {
-    setLocalUwYears([])
-    setLocalUwYearMin(null)
-    setLocalUwYearMax(null)
-    setLocalBranche([])
-    setLocalTypeSpc([])
-    setLocalTypeOfContract([])
-    setBrancheScope({ vie: true, nonVie: true })
-  }
-
-  // Build API params from local filters only (never touches global filters)
-  const buildLocalParams = useMemo(() => {
-    const p: Record<string, string> = {}
-    if (localUwYears.length > 0) {
-      p['uw_years_raw'] = localUwYears.join(',')
-    } else {
-      if (localUwYearMin !== null) p['uw_year_min'] = String(localUwYearMin)
-      if (localUwYearMax !== null) p['uw_year_max'] = String(localUwYearMax)
-    }
-    if (localBranche.length > 0) p['branche'] = localBranche.join(',')
-    if (localTypeSpc.length > 0) p['type_contrat_spc'] = localTypeSpc.join(',')
-    if (localTypeOfContract.length > 0) p['type_of_contract'] = localTypeOfContract.join(',')
-    if (brancheScope.vie && !brancheScope.nonVie) p['vie_non_vie_view'] = 'VIE'
-    if (!brancheScope.vie && brancheScope.nonVie) p['vie_non_vie_view'] = 'NON_VIE'
-    return p
-  }, [localUwYears, localUwYearMin, localUwYearMax, localBranche, localTypeSpc, localTypeOfContract, brancheScope])
+  // ── Shared local filters (replaces ~70 lines of state + logic) ──────────
+  const lf = useLocalFilters()
 
   // B2 — Diversification params (pure local state, never persisted)
   const [totalBranches, setTotalBranches] = useState(12)
@@ -336,62 +51,49 @@ export default function CedanteAnalysis() {
 
   const allBrancheValues = filterOptions?.branc || []
 
-  const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
-    setBrancheScope({ vie, nonVie })
-    // Clear branch selection — dropdown options update based on scope
-    setLocalBranche([])
-  }
-
-  const brancheOptions = useMemo(() => {
-    if (brancheScope.vie && !brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b === LIFE_BRANCH))
-    if (!brancheScope.vie && brancheScope.nonVie) return toOptions(allBrancheValues.filter((b: string) => b !== LIFE_BRANCH))
-    return toOptions(allBrancheValues)
-  }, [allBrancheValues, brancheScope])
+  const brancheOptions = useMemo(() => lf.brancheOptions(allBrancheValues), [allBrancheValues, lf])
 
   const vieNonVieLabel = useMemo(() => {
-    if (brancheScope.vie && !brancheScope.nonVie) return 'Vie'
-    if (!brancheScope.vie && brancheScope.nonVie) return 'Non-vie'
+    if (lf.state.brancheScope.vie && !lf.state.brancheScope.nonVie) return 'Vie'
+    if (!lf.state.brancheScope.vie && lf.state.brancheScope.nonVie) return 'Non-vie'
     return 'Vie, Non-vie'
-  }, [brancheScope])
+  }, [lf.state.brancheScope])
   const headerScopeLabel = useMemo(() => {
-    if (localBranche.length === 1) return localBranche[0]
-    if (localBranche.length > 1) return `${localBranche.length} branches`
+    if (lf.state.branches.length === 1) return lf.state.branches[0]
+    if (lf.state.branches.length > 1) return `${lf.state.branches.length} branches`
     return vieNonVieLabel
-  }, [localBranche, vieNonVieLabel])
+  }, [lf.state.branches, vieNonVieLabel])
 
   // Always show branch-mix charts (even when a single branch is selected)
   const showBranchCharts = true
 
   // Flag actif quand au moins une branche est sélectionnée
-  const isBranchFilterActive = localBranche.length > 0
+  const isBranchFilterActive = lf.state.branches.length > 0
 
   // Params centralisés via useMemo (avec fallback vers undefined si pas de cédante pour bloquer `useFetch`)
   const params = useMemo(() => {
     if (!selectedCedante) return undefined
-    return { ...buildLocalParams, cedante: selectedCedante }
-  }, [selectedCedante, buildLocalParams])
+    return { ...lf.buildParams, cedante: selectedCedante }
+  }, [selectedCedante, lf.buildParams])
 
   // Params immunisés contre le filtre branche (pour Mix Pie figé + Top Branches complément)
   const paramsNoBranch = useMemo(() => {
     if (!selectedCedante) return undefined
-    const p = { ...buildLocalParams }
-    delete p['branche']
-    delete p['vie_non_vie_view']
-    return { ...p, cedante: selectedCedante }
-  }, [selectedCedante, buildLocalParams])
+    return { ...lf.buildParamsNoBranch, cedante: selectedCedante }
+  }, [selectedCedante, lf.buildParamsNoBranch])
 
   // Params for diversification (no branche/vie filter — immunized)
   const diversifParams = useMemo(() => {
     if (!selectedCedante) return undefined
     const p: Record<string, string> = {}
-    if (localUwYears.length > 0) {
-      p['uw_years_raw'] = localUwYears.join(',')
+    if (lf.state.uwYears.length > 0) {
+      p['uw_years_raw'] = lf.state.uwYears.join(',')
     } else {
-      if (localUwYearMin !== null) p['uw_year_min'] = String(localUwYearMin)
-      if (localUwYearMax !== null) p['uw_year_max'] = String(localUwYearMax)
+      if (lf.state.uwYearMin !== null) p['uw_year_min'] = String(lf.state.uwYearMin)
+      if (lf.state.uwYearMax !== null) p['uw_year_max'] = String(lf.state.uwYearMax)
     }
     return { ...p, cedante: selectedCedante }
-  }, [selectedCedante, localUwYears, localUwYearMin, localUwYearMax])
+  }, [selectedCedante, lf.state.uwYears, lf.state.uwYearMin, lf.state.uwYearMax])
 
   // Décomposition des appels via useFetch
   const { data: profileRes, loading: l1 } = useFetch<any>(selectedCedante ? API_ROUTES.CEDANTE.PROFILE : null, params)
@@ -450,7 +152,7 @@ export default function CedanteAnalysis() {
     if (!isBranchFilterActive || branchDataAll.length === 0) {
       return branchData.slice(0, 8).map((b: any) => ({ ...b, is_selected: false }))
     }
-    const selectedSet = new Set(localBranche)
+    const selectedSet = new Set(lf.state.branches)
     const selectedBranches = branchDataAll
       .filter((b: any) => selectedSet.has(b.branche))
       .map((b: any) => ({ ...b, is_selected: true }))
@@ -460,12 +162,12 @@ export default function CedanteAnalysis() {
       .map((b: any) => ({ ...b, is_selected: false }))
     return [...selectedBranches, ...complementBranches]
       .sort((a: any, b: any) => b.total_written_premium - a.total_written_premium)
-  }, [branchData, branchDataAll, localBranche, isBranchFilterActive])
+  }, [branchData, branchDataAll, lf.state.branches, isBranchFilterActive])
 
   // ── Top 15 Cédantes globales (pour l'état vide) ────────────────────────────
   const topCedantesParams = useMemo(
-    () => buildLocalParams,
-    [buildLocalParams]
+    () => lf.buildParams,
+    [lf.buildParams]
   )
   const { data: topCedantesGlobalRes } = useFetch<any[]>(
     !selectedCedante ? API_ROUTES.KPIS.BY_CEDANTE : null,
@@ -497,7 +199,14 @@ export default function CedanteAnalysis() {
           <div className="w-full md:w-80 z-50">
             <Select
               options={cedanteOptions}
-              onChange={(v) => setSelectedCedante(v?.value || null)}
+              onChange={(v) => {
+                const c = v?.value || null
+                if (c) {
+                  navigate(`/analyse-cedante/${encodeURIComponent(c)}`)
+                } else {
+                  navigate(`/analyse-cedante`)
+                }
+              }}
               placeholder="Rechercher une cédante..."
               isClearable
               menuPortalTarget={document.body}
@@ -567,7 +276,7 @@ export default function CedanteAnalysis() {
                         fill="var(--color-navy)"
                         className="cursor-pointer transition-opacity hover:opacity-80"
                         onClick={() => {
-                          setSelectedCedante(topCedantesGlobal[index].cedante)
+                          navigate(`/analyse-cedante/${encodeURIComponent(topCedantesGlobal[index].cedante)}`)
                           window.scrollTo({ top: 0, behavior: 'smooth' })
                         }}
                       />
@@ -614,34 +323,16 @@ export default function CedanteAnalysis() {
     )
   }
 
-  const ulrColor = (ulr: number | null) => {
-    if (ulr === null) return 'var(--color-gray-400)'
-    if (ulr > 100) return 'hsl(358,66%,54%)'
-    if (ulr > 70) return 'hsl(30,88%,56%)'
-    return 'hsl(83,52%,36%)'
-  }
-
   return (
     <div className="flex flex-col h-full animate-fade-in">
-      {/* Filtres de cette vue — always visible */}
+      {/* Filtres de cette vue — uses shared component */}
       <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
-        <CedantePageFilters
-          localUwYears={localUwYears}
-          localUwYearMin={localUwYearMin}
-          localUwYearMax={localUwYearMax}
-          localBranche={localBranche}
-          localTypeSpc={localTypeSpc}
-          localTypeOfContract={localTypeOfContract}
-          brancheScope={brancheScope}
-          onUwYearsChange={setLocalUwYears}
-          onUwYearMinChange={setLocalUwYearMin}
-          onUwYearMaxChange={setLocalUwYearMax}
-          onBrancheChange={setLocalBranche}
-          onTypeSpcChange={setLocalTypeSpc}
-          onTypeOfContractChange={setLocalTypeOfContract}
-          onBrancheScopeChange={applyBrancheScope}
-          onReset={resetLocalFilters}
-          brancheOptions={brancheOptions}
+        <LocalFilterPanel
+          filters={lf}
+          allBranches={allBrancheValues}
+          uwYears={filterOptions?.underwriting_years ?? []}
+          typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
+          typeOfContractOptions={filterOptions?.type_of_contract ?? []}
         />
       </div>
       <div className="flex-1 overflow-y-auto space-y-6 p-2 pb-12">
@@ -675,7 +366,7 @@ export default function CedanteAnalysis() {
               {/* A — Badges branches sélectionnées (style encadré, cohérent avec Vie/Non-Vie) */}
               {isBranchFilterActive && (
                 <div className="flex flex-wrap gap-1.5">
-                  {localBranche.map((b, i) => (
+                  {lf.state.branches.map((b, i) => (
                     <span
                       key={b}
                       style={{
@@ -712,9 +403,9 @@ export default function CedanteAnalysis() {
               )}
 
               {/* Badges Type SPC sélectionnés */}
-              {localTypeSpc.length > 0 && (
+              {lf.state.typeSpc.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {localTypeSpc.map((t: string) => (
+                  {lf.state.typeSpc.map((t: string) => (
                     <span
                       key={t}
                       style={{
@@ -735,9 +426,9 @@ export default function CedanteAnalysis() {
               )}
 
               {/* Badges Type de Contrat sélectionnés */}
-              {localTypeOfContract.length > 0 && (
+              {lf.state.typeOfContract.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {localTypeOfContract.map((t: string) => (
+                  {lf.state.typeOfContract.map((t: string) => (
                     <span
                       key={t}
                       style={{
@@ -774,7 +465,14 @@ export default function CedanteAnalysis() {
             <Select 
               options={cedanteOptions}
               value={cedanteOptions.find(o => o.value === selectedCedante) || null}
-              onChange={(v) => setSelectedCedante(v?.value || null)}
+              onChange={(v) => {
+                const c = v?.value || null
+                if (c) {
+                  navigate(`/analyse-cedante/${encodeURIComponent(c)}`)
+                } else {
+                  navigate(`/analyse-cedante`)
+                }
+              }}
               placeholder="Changer de cédante..."
               isClearable
               menuPortalTarget={document.body}
@@ -979,7 +677,7 @@ export default function CedanteAnalysis() {
                      background: 'hsla(43,96%,56%,0.15)', color: 'hsl(43,96%,40%)',
                      border: '1px solid hsla(43,96%,56%,0.3)', borderRadius: 99,
                    }}>
-                     🔒 Vue 100% · {localBranche.length} sélectionnée(s)
+                     🔒 Vue 100% · {lf.state.branches.length} sélectionnée(s)
                    </span>
                  )}
                </div>
@@ -1000,7 +698,7 @@ export default function CedanteAnalysis() {
                      >
                        {pieData.map((entry, index) => {
                          const baseColor = COLORS[index % COLORS.length]
-                         const isSelected = isBranchFilterActive && localBranche.includes(entry.name)
+                         const isSelected = isBranchFilterActive && lf.state.branches.includes(entry.name)
                          const fill = isBranchFilterActive
                            ? (isSelected ? baseColor : `${baseColor}33`)
                            : baseColor
@@ -1023,7 +721,7 @@ export default function CedanteAnalysis() {
                      background: 'hsla(83,50%,45%,0.15)', color: 'hsl(83,50%,35%)',
                      border: '1px solid hsla(83,50%,45%,0.3)', borderRadius: 99,
                    }}>
-                     {localBranche.length} mise(s) en avant
+                     {lf.state.branches.length} mise(s) en avant
                    </span>
                  )}
                </div>
@@ -1217,7 +915,7 @@ export default function CedanteAnalysis() {
                          const comm = b.avg_commission ?? 0
                          const broka = b.avg_brokerage_rate ?? 0
                          const profita = b.avg_profit_comm_rate ?? 0
-                         const isRowSelected = isBranchFilterActive && localBranche.includes(b.branche)
+                         const isRowSelected = isBranchFilterActive && lf.state.branches.includes(b.branche)
 
                          return (
                            <tr

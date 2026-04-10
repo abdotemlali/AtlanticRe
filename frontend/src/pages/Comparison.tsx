@@ -7,50 +7,28 @@ import { useLocation } from 'react-router-dom'
 import Select from 'react-select'
 import api from '../utils/api'
 import { useData } from '../context/DataContext'
-import { filtersToParams } from '../context/DataContext'  // AJOUTÉ
-import { formatCompact, formatPercent } from '../utils/formatters'
+import { filtersToParams } from '../context/DataContext'
+import { formatCompact, formatPercent, toOptions, toNumOptions } from '../utils/formatters'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
 import RadarChartComponent from '../components/Charts/RadarChartComponent'
+import { SHARED_SELECT_STYLES } from '../constants/styles'
+import type { MarketKPIs, ActiveBranch } from '../types/kpis.types'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
 import { GitCompare, AlertTriangle, CheckCircle, SlidersHorizontal } from 'lucide-react'
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-interface ActiveBranch { branche: string; total_written_premium: number }
-interface MarketKPIs {
-  pays: string; branche: string; written_premium: number; resultat: number
-  avg_ulr: number; sum_insured: number; contract_count: number
-  avg_commission: number; by_year: any[]; radar: Record<string, number>
-  type_cedante?: string
-  branches_actives?: number
-  fac_saturation_alerts?: string[]
-  active_branches?: ActiveBranch[]
-  has_data?: boolean  // AJOUTÉ — indique si le pays a des données
-}
-
-// ── Styles partagés pour react-select ─────────────────────────────────────────
+// ── Styles pour react-select (extends shared) ─────────────────────────────────
 const rsStyles = {
+  ...SHARED_SELECT_STYLES,
   control: (base: any) => ({
     ...base, minHeight: '34px', fontSize: '0.78rem', borderRadius: '0.5rem',
     borderColor: 'var(--color-gray-200)', boxShadow: 'none',
     '&:hover': { borderColor: 'var(--color-navy)' },
   }),
-  option: (base: any, state: any) => ({
-    ...base, fontSize: '0.78rem',
-    backgroundColor: state.isSelected ? 'var(--color-navy)' : state.isFocused ? 'var(--color-off-white)' : 'white',
-    color: state.isSelected ? 'white' : 'var(--color-navy)',
-  }),
-  multiValue: (base: any) => ({ ...base, backgroundColor: 'hsla(209,28%,24%,0.10)' }),
-  multiValueLabel: (base: any) => ({ ...base, color: 'var(--color-navy)', fontWeight: 700, fontSize: '0.72rem' }),
-  menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-  placeholder: (base: any) => ({ ...base, fontSize: '0.78rem', color: 'var(--color-gray-400)' }),
 }
 const rsProps = { styles: rsStyles, menuPortalTarget: document.body, menuPosition: 'fixed' as const }
-
-function toOptions(arr: string[]) { return arr.map(v => ({ value: v, label: v })) }
-function toNumOptions(arr: number[]) { return arr.map(v => ({ value: v, label: String(v) })) }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 const DeltaBadge = ({ valA, valB }: { valA: number, valB: number }) => {

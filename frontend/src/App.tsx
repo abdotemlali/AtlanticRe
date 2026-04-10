@@ -1,28 +1,56 @@
-import React from 'react'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
 import Layout from './components/Layout'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import MarketSelection from './pages/MarketSelection'
-import Comparison from './pages/Comparison'
-import Recommendations from './pages/Recommendations'
-import Admin from './pages/Admin'
-import ResetPassword from './pages/ResetPassword'
-import ChangePassword from './pages/ChangePassword'
+import ErrorBoundary from './components/ErrorBoundary'
 
-import Analysis from './pages/Analysis'
-import ExpositionRisques from './pages/ExpositionRisques'
-import CedanteAnalysis from './pages/CedanteAnalysis'
-import FacSaturation from './pages/FacSaturation'
-import TopBrokers from './pages/TopBrokers'
-import AffairesTraites from './pages/AffairesTraites'
-import PanelSecurites from './pages/PanelSecurites'
-import BrokerAnalysis from './pages/BrokerAnalysis'
-import BrokerDetail from './pages/BrokerDetail'
+// ── Lazy-loaded pages (P6 — code splitting) ───────────────────────────────────
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const MarketSelection = lazy(() => import('./pages/MarketSelection'))
+const Comparison = lazy(() => import('./pages/Comparison'))
+const Recommendations = lazy(() => import('./pages/Recommendations'))
+const Admin = lazy(() => import('./pages/Admin'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const ChangePassword = lazy(() => import('./pages/ChangePassword'))
+const Analysis = lazy(() => import('./pages/Analysis'))
+const ExpositionRisques = lazy(() => import('./pages/ExpositionRisques'))
+const CedanteAnalysis = lazy(() => import('./pages/CedanteAnalysis'))
+const FacSaturation = lazy(() => import('./pages/FacSaturation'))
+const BrokerAnalysis = lazy(() => import('./pages/BrokerAnalysis'))
+const BrokerDetail = lazy(() => import('./pages/BrokerDetail'))
+const AffairesTraites = lazy(() => import('./pages/AffairesTraites'))
+const PanelSecurites = lazy(() => import('./pages/PanelSecurites'))
 
+// ── Loading fallback ──────────────────────────────────────────────────────────
+function LoadingFallback() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '50vh',
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          border: '3px solid hsl(83,52%,36%)',
+          borderTopColor: 'transparent',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+// ── Protected Route ───────────────────────────────────────────────────────────
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
@@ -33,45 +61,49 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
   return (
-    <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/change-password" element={<ChangePassword />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DataProvider>
-              <Layout />
-            </DataProvider>
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="scoring" element={<MarketSelection />} />
-        <Route path="comparaison" element={<Comparison />} />
-        <Route path="recommandations" element={<Recommendations />} />
-        <Route path="analyse" element={<Analysis />} />
-        <Route path="analyse-cedante" element={<CedanteAnalysis />} />
-        <Route path="exposition" element={<ExpositionRisques />} />
-        <Route path="fac-saturation" element={<FacSaturation />} />
-        <Route path="top-brokers" element={<BrokerAnalysis />} />
-        <Route path="analyse-courtiers" element={<BrokerAnalysis />} />
-        <Route path="analyse-courtiers/:brokerName" element={<BrokerDetail />} />
-        <Route path="retrocession/traites" element={<AffairesTraites />} />
-        <Route path="retrocession/securites" element={<PanelSecurites />} />
-
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         <Route
-          path="admin"
+          path="/"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Admin />
+            <ProtectedRoute>
+              <DataProvider>
+                <Layout />
+              </DataProvider>
             </ProtectedRoute>
           }
-        />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        >
+          <Route index element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="scoring" element={<ErrorBoundary><MarketSelection /></ErrorBoundary>} />
+          <Route path="comparaison" element={<ErrorBoundary><Comparison /></ErrorBoundary>} />
+          <Route path="recommandations" element={<ErrorBoundary><Recommendations /></ErrorBoundary>} />
+          <Route path="analyse" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
+          <Route path="analyse/:pays" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
+          <Route path="analyse-cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="analyse-cedante/:cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="exposition" element={<ErrorBoundary><ExpositionRisques /></ErrorBoundary>} />
+          <Route path="fac-saturation" element={<ErrorBoundary><FacSaturation /></ErrorBoundary>} />
+          <Route path="top-brokers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
+          <Route path="analyse-courtiers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
+          <Route path="analyse-courtiers/:brokerName" element={<ErrorBoundary><BrokerDetail /></ErrorBoundary>} />
+          <Route path="retrocession/traites" element={<ErrorBoundary><AffairesTraites /></ErrorBoundary>} />
+          <Route path="retrocession/securites" element={<ErrorBoundary><PanelSecurites /></ErrorBoundary>} />
+
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ErrorBoundary><Admin /></ErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 

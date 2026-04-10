@@ -89,7 +89,7 @@ def cedante_fac_saturation(
     _: dict = Depends(get_current_user),
 ):
     df = get_df()
-    df = apply_filters(df, filters)
+    df = apply_identity_filters(df, filters)
     return kpi_cedante_service.compute_fac_saturation(df, cedante, seuil_prime, seuil_affaires)
 
 
@@ -101,7 +101,7 @@ def cedante_fac_saturation_global(
     _: dict = Depends(get_current_user),
 ):
     df = get_df()
-    df = apply_filters(df, filters)
+    df = apply_identity_filters(df, filters)
     return kpi_cedante_service.compute_fac_saturation_global(df, seuil_prime, seuil_affaires)
 
 

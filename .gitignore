@@ -57,3 +57,14 @@ htmlcov/
 
 # Ignore claude folder
 claude/
+
+# ── Temp debug / build output files ──────────────────────────────────────────
+build_output.txt
+tsc_error.txt
+tsc_output.txt
+fix_audit.cjs
+fix_lint.cjs
+fix_lint2.cjs
+
+# ── Backup files ─────────────────────────────────────────────────────────────
+*_OLD_BACKUP*

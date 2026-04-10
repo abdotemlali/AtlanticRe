@@ -203,36 +203,38 @@ def compute_fac_saturation(
 
     has_type = "TYPE_OF_CONTRACT" in df_cedante.columns
     has_spc_type = "INT_SPC_TYPE" in df_cedante.columns
-    if has_type or has_spc_type:
-        fac_mask = pd.Series(False, index=df_cedante.index)
-        if has_type:
-            fac_mask = fac_mask | df_cedante["TYPE_OF_CONTRACT"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
-        if has_spc_type:
-            fac_mask = fac_mask | df_cedante["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
-        df_cedante = df_cedante[fac_mask]
-    else:
-        df_cedante = df_cedante[:0]
+
+    fac_mask = pd.Series(False, index=df_cedante.index)
+    if has_type:
+        fac_mask = fac_mask | df_cedante["TYPE_OF_CONTRACT"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
+    if has_spc_type:
+        fac_mask = fac_mask | df_cedante["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
 
     if df_cedante.empty or "INT_BRANCHE" not in df_cedante.columns:
         return []
 
     result = []
-    for branche in df_cedante["INT_BRANCHE"].dropna().unique():
+    for branche, br_df in df_cedante.groupby("INT_BRANCHE"):
         if not branche:
             continue
-        df_br = df_cedante[df_cedante["INT_BRANCHE"] == branche]
-        total_prime = float(df_br["WRITTEN_PREMIUM"].sum()) if "WRITTEN_PREMIUM" in df_br.columns else 0.0
-        nb_affaires = int(len(df_br))
+        br_fac_df = br_df[fac_mask[br_df.index]]
+        if br_fac_df.empty:
+            total_prime = 0.0
+            nb_affaires = 0
+        else:
+            total_prime = float(pd.to_numeric(br_fac_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()) if "WRITTEN_PREMIUM" in br_fac_df.columns else 0.0
+            nb_affaires = int(len(br_fac_df))
+
         is_saturated = (total_prime > seuil_prime) or (nb_affaires > seuil_affaires)
         result.append({
-            "branche": branche,
+            "branche": str(branche),
             "total_prime_fac": round(total_prime, 2),
             "nb_affaires_fac": nb_affaires,
             "is_saturated": is_saturated,
             "seuil_prime": seuil_prime,
             "seuil_affaires": seuil_affaires,
         })
-    return sorted(result, key=lambda x: x["total_prime_fac"], reverse=True)
+    return sorted(result, key=lambda x: (not x["is_saturated"], -x["total_prime_fac"]))
 
 
 def compute_fac_saturation_global(
@@ -241,7 +243,7 @@ def compute_fac_saturation_global(
     seuil_affaires: int,
 ) -> list:
     """Saturation FAC globale — toutes cédantes."""
-    if "INT_CEDANTE" not in df.columns or ("TYPE_OF_CONTRACT" not in df.columns and "INT_SPC_TYPE" not in df.columns) or "INT_BRANCHE" not in df.columns:
+    if "INT_CEDANTE" not in df.columns or "INT_BRANCHE" not in df.columns:
         return []
 
     has_type = "TYPE_OF_CONTRACT" in df.columns
@@ -251,24 +253,33 @@ def compute_fac_saturation_global(
         fac_mask = fac_mask | df["TYPE_OF_CONTRACT"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
     if has_spc_type:
         fac_mask = fac_mask | df["INT_SPC_TYPE"].fillna("").astype(str).str.upper().str.contains("FAC", na=False)
-    df_fac = df[fac_mask]
-    if df_fac.empty:
+    
+    cedantes_with_fac = df[fac_mask]["INT_CEDANTE"].unique()
+    if len(cedantes_with_fac) == 0:
         return []
 
+    df_filtered_cedantes = df[df["INT_CEDANTE"].isin(cedantes_with_fac)]
+
     result = []
-    for cedante_name, ced_df in df_fac.groupby("INT_CEDANTE"):
+    for cedante_name, ced_df in df_filtered_cedantes.groupby("INT_CEDANTE"):
         if not cedante_name:
             continue
         branches_detail = []
         for branche, br_df in ced_df.groupby("INT_BRANCHE"):
             if not branche:
                 continue
-            total_prime = float(pd.to_numeric(br_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()) if "WRITTEN_PREMIUM" in br_df.columns else 0.0
-            nb_affaires = int(len(br_df))
+            br_fac_df = br_df[fac_mask[br_df.index]]
+            if br_fac_df.empty:
+                total_prime = 0.0
+                nb_affaires = 0
+            else:
+                total_prime = float(pd.to_numeric(br_fac_df["WRITTEN_PREMIUM"], errors="coerce").fillna(0).sum()) if "WRITTEN_PREMIUM" in br_fac_df.columns else 0.0
+                nb_affaires = int(len(br_fac_df))
+                
             is_saturated = (total_prime > seuil_prime) or (nb_affaires > seuil_affaires)
-            saturation_score = round((total_prime / seuil_prime) + (nb_affaires / seuil_affaires), 4)
+            saturation_score = round((total_prime / seuil_prime) + (nb_affaires / seuil_affaires), 4) if seuil_prime > 0 and seuil_affaires > 0 else 0
             branches_detail.append({
-                "branche": branche,
+                "branche": str(branche),
                 "total_prime_fac": round(total_prime, 2),
                 "nb_affaires_fac": nb_affaires,
                 "is_saturated": is_saturated,
@@ -279,7 +290,7 @@ def compute_fac_saturation_global(
         if not branches_detail:
             continue
         total_prime_cedante = round(sum(b["total_prime_fac"] for b in branches_detail), 2)
-        nb_branches_fac = len(branches_detail)
+        nb_branches_fac = len([b for b in branches_detail if b["nb_affaires_fac"] > 0])
         branches_saturees = [b["branche"] for b in branches_detail if b["is_saturated"]]
         nb_branches_saturees = len(branches_saturees)
         score_global = round(sum(b["saturation_score"] for b in branches_detail), 4)
@@ -290,6 +301,6 @@ def compute_fac_saturation_global(
             "nb_branches_saturees": nb_branches_saturees,
             "branches_saturees": branches_saturees,
             "score_global": score_global,
-            "branches_detail": sorted(branches_detail, key=lambda x: x["total_prime_fac"], reverse=True),
+            "branches_detail": sorted(branches_detail, key=lambda x: (not x["is_saturated"], -x["total_prime_fac"])),
         })
     return sorted(result, key=lambda x: x["score_global"], reverse=True)

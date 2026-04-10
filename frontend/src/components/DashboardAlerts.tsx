@@ -153,8 +153,7 @@ export default function DashboardAlerts() {
                                                     onClick={(e) => {
                                                         e.stopPropagation()
                                                         sessionStorage.setItem('analysis_mode', 'country')
-                                                        sessionStorage.setItem('analysis_country', JSON.stringify({ pays: a.pays }))
-                                                        navigate('/analyse')
+                                                        navigate(`/analyse/${encodeURIComponent(a.pays)}`)
                                                     }}
                                                     title={`Analyser le pays ${a.pays}`}
                                                 >
@@ -166,7 +165,7 @@ export default function DashboardAlerts() {
                                                         e.stopPropagation()
                                                         sessionStorage.setItem('analysis_mode', 'market')
                                                         sessionStorage.setItem('analysis_market', JSON.stringify({ pays: a.pays, branche: a.branche }))
-                                                        navigate('/analyse')
+                                                        navigate(`/analyse/${encodeURIComponent(a.pays)}`)
                                                     }}
                                                     title={`Analyser le marché ${a.pays} — ${a.branche}`}
                                                 >

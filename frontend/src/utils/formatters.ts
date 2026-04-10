@@ -87,3 +87,32 @@ export function truncate(str: string, maxLen = 30): string {
   if (!str) return ''
   return str.length > maxLen ? str.slice(0, maxLen) + '…' : str
 }
+
+// ── Helpers previously duplicated in 5+ page files ────────────────────────────
+
+/** Convert a string array to react-select options */
+export function toOptions(arr: string[]) {
+  return arr.map(v => ({ value: v, label: v }))
+}
+
+/** Convert a number array to react-select options */
+export function toNumOptions(arr: number[]) {
+  return arr.map(v => ({ value: v, label: String(v) }))
+}
+
+/** Return a color string for ULR (percentage) thresholds */
+export function ulrColor(ulr: number | null | undefined): string {
+  if (ulr === null || ulr === undefined) return 'var(--color-gray-400, hsl(218,14%,65%))'
+  if (ulr > 100) return 'hsl(358,66%,54%)'
+  if (ulr > 70) return 'hsl(30,88%,56%)'
+  return 'hsl(83,52%,36%)'
+}
+
+/** Return a color string for ULR as decimal (0-1 range) — for broker pages */
+export function ulrColorDecimal(ulr: number | null | undefined): string {
+  if (!ulr) return 'hsl(218,14%,65%)'
+  if (ulr <= 0.5) return 'hsl(145,55%,42%)'
+  if (ulr <= 0.7) return 'hsl(83,52%,36%)'
+  if (ulr <= 0.9) return 'hsl(28,88%,55%)'
+  return 'hsl(358,66%,54%)'
+}
