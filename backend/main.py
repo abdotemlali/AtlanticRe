@@ -10,7 +10,8 @@ from models import db_models
 from middlewares.cors import setup_cors
 from middlewares.rate_limit import setup_rate_limiter
 from middlewares.security_headers import SecurityHeadersMiddleware
-from routers import auth, admin, kpis, contracts, scoring, comparison, data, export, clients
+from routers import auth, admin, contracts, scoring, comparison, data, export, clients
+from routers import kpis_global, exposition as exposition_router, cedantes, brokers, alerts as alerts_router
 from services.data_service import load_excel
 from services.retro_service import load_retro_excel
 
@@ -142,7 +143,14 @@ setup_rate_limiter(app)
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router,       prefix="/api/auth",       tags=["Auth"])
 app.include_router(admin.router,      prefix="/api/admin",      tags=["Admin"])
-app.include_router(kpis.router,       prefix="/api/kpis",       tags=["KPIs"])
+
+# KPIs — découpé en 5 routers par domaine métier
+app.include_router(kpis_global.router,       prefix="/api/kpis",              tags=["KPIs"])
+app.include_router(exposition_router.router, prefix="/api/kpis/exposition",   tags=["Exposition"])
+app.include_router(cedantes.router,          prefix="/api/kpis",              tags=["Cédantes"])
+app.include_router(brokers.router,           prefix="/api/kpis",              tags=["Brokers"])
+app.include_router(alerts_router.router,     prefix="/api/kpis",              tags=["Alerts"])
+
 app.include_router(contracts.router,  prefix="/api/contracts",  tags=["Contracts"])
 app.include_router(scoring.router,    prefix="/api/scoring",    tags=["Scoring"])
 app.include_router(comparison.router, prefix="/api/comparison", tags=["Comparison"])
@@ -152,3 +160,4 @@ app.include_router(clients.router,    prefix="/api/clients",    tags=["Clients"]
 
 from routers.retro import router as retro_router
 app.include_router(retro_router, prefix="/api/retro", tags=["Retrocession"])
+

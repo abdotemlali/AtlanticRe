@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional, List
 from models.schemas import FilterParams
 from routers.auth import get_current_user
-from routers.kpis import parse_filter_params
+from routers.filter_parser import parse_filter_params
 from services.data_service import get_df, apply_filters, apply_identity_filters, compute_kpi_summary
 
 router = APIRouter()

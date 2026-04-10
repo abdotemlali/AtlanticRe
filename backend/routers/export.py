@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from datetime import datetime
 from routers.auth import require_role
-from routers.kpis import parse_filter_params
+from routers.filter_parser import parse_filter_params
 from models.schemas import FilterParams
 from services.data_service import get_df, apply_filters, compute_kpi_summary
 import io

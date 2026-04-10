@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from models.schemas import FilterParams, ScoringCriterion
 from routers.auth import get_current_user, require_role
-from routers.kpis import parse_filter_params
+from routers.filter_parser import parse_filter_params
 from repositories.log_repository import add_log
 from services.data_service import get_df, apply_filters
 from services import scoring_service

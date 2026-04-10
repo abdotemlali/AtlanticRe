@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from models.schemas import FilterParams, PaginatedContracts, ContractSummary
 from routers.auth import get_current_user
-from routers.kpis import parse_filter_params
+from routers.filter_parser import parse_filter_params
 from services.data_service import get_df, apply_filters
 
 router = APIRouter()
