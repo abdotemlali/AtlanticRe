@@ -202,8 +202,9 @@ export default function Admin() {
   const [tab, setTab] = useState<'users' | 'config' | 'logs'>('users')
   const [users, setUsers] = useState<User[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [config, setConfig] = useState<{ excel_file_path: string; retro_excel_file_path: string }>({ excel_file_path: '', retro_excel_file_path: '' })
+  const [config, setConfig] = useState<{ excel_file_path: string; retro_excel_file_path: string; fcm_partenaires_file_path: string }>({ excel_file_path: '', retro_excel_file_path: '', fcm_partenaires_file_path: '' })
   const [retroRefreshing, setRetroRefreshing] = useState(false)
+  const [fcmRefreshing, setFcmRefreshing] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({ username: '', full_name: '', email: '', role: 'lecteur' as User['role'] })
@@ -286,6 +287,18 @@ export default function Admin() {
       toast.error(e?.response?.data?.detail || 'Erreur lors du rechargement rétrocession')
     } finally {
       setRetroRefreshing(false)
+    }
+  }
+
+  const refreshFcmData = async () => {
+    setFcmRefreshing(true)
+    try {
+      const res = await api.post(API_ROUTES.FAC_TO_FAC.REFRESH)
+      toast.success(`Données FCM Partenaires actualisées — ${res.data.row_count} lignes chargées`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erreur lors du rechargement FCM')
+    } finally {
+      setFcmRefreshing(false)
     }
   }
 
@@ -456,10 +469,10 @@ export default function Admin() {
 
       {/* ── Config tab ───────────────────────────────────────────────────── */}
       {tab === 'config' && (
-        <div className="space-y-5 max-w-xl">
+        <div className="grid grid-cols-2 gap-6">
           {/* Excel Données de Base */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] flex items-center gap-2">
               <Database size={14} color="#4361ee" />Fichier Excel — Données de Base
             </h3>
             <div>
@@ -477,9 +490,46 @@ export default function Admin() {
             <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder</button>
           </div>
 
+          {/* Excel FCM Partenaires FAC-to-FAC */}
+          <div className="glass-card p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] flex items-center gap-2">
+              <Shield size={14} color="hsl(28,88%,55%)" />Fichier Excel — FCM Partenaires (FAC-to-FAC)
+            </h3>
+            <div>
+              <p className="text-xs mb-2" style={{ color: '#94a3b8' }}>Chemin du fichier FCM_Partenaires_v2.xlsx (réseau ou local)</p>
+              <input
+                type="text" value={config.fcm_partenaires_file_path}
+                onChange={e => setConfig(c => ({ ...c, fcm_partenaires_file_path: e.target.value }))}
+                className="input-dark text-xs py-2"
+                placeholder="\\serveur\dossier\FCM_Partenaires_v2.xlsx"
+              />
+              <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                Feuille attendue : <span className="font-mono">FCM_2025</span> — contient les données FAC-to-FAC (partenaires, primes, engagements)
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder le chemin</button>
+              <button
+                onClick={refreshFcmData}
+                disabled={fcmRefreshing}
+                className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(28,80%,40%), hsl(28,88%,55%))',
+                  color: 'white',
+                  border: 'none',
+                  cursor: fcmRefreshing ? 'wait' : 'pointer',
+                  opacity: fcmRefreshing ? 0.6 : 1,
+                }}
+              >
+                <RefreshCw size={12} className={fcmRefreshing ? 'animate-spin' : ''} />
+                {fcmRefreshing ? 'Chargement…' : 'Actualiser les données FAC-to-FAC'}
+              </button>
+            </div>
+          </div>
+
           {/* Excel Rétrocession */}
           <div className="glass-card p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] flex items-center gap-2">
               <Shield size={14} color="hsl(83,50%,55%)" />Fichier Excel — Rétrocession par Traités
             </h3>
             <div>

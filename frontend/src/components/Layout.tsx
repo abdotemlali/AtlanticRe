@@ -7,7 +7,7 @@ import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
   LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
-  Globe, Briefcase, Shield, FileText, Users
+  Globe, Briefcase, Shield, FileText, Users, Crosshair, Shuffle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -36,16 +36,18 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'Risques', icon: ShieldAlert,
+    label: 'Pilotage', icon: ShieldAlert,
     children: [
+      { to: '/cibles-tty',    label: 'Cibles TTY',    icon: Crosshair  },
       { to: '/fac-saturation', label: 'Saturation FAC', icon: ShieldAlert },
     ],
   },
   {
     label: 'Rétrocession', icon: Shield,
     children: [
-      { to: '/retrocession/traites',   label: 'Affaires Traités',    icon: FileText },
-      { to: '/retrocession/securites', label: 'Panel de Sécurités',  icon: Users    },
+      { to: '/retrocession/traites',    label: 'Affaires Traités',    icon: FileText },
+      { to: '/retrocession/securites',  label: 'Panel de Sécurités',  icon: Users    },
+      { to: '/retrocession/fac-to-fac', label: 'FAC-to-FAC',          icon: Shuffle  },
     ],
   },
   { to: '/recommandations', label: 'Recommandations', icon: Star },

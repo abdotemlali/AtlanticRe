@@ -235,3 +235,4 @@ class LogEntry(BaseModel):
 class ConfigUpdate(BaseModel):
     excel_file_path: Optional[str] = None
     retro_excel_file_path: Optional[str] = None
+    fcm_partenaires_file_path: Optional[str] = None

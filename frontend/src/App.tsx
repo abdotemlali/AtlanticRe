@@ -18,11 +18,13 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword'))
 const Analysis = lazy(() => import('./pages/Analysis'))
 const ExpositionRisques = lazy(() => import('./pages/ExpositionRisques'))
 const CedanteAnalysis = lazy(() => import('./pages/CedanteAnalysis'))
+const TargetShare = lazy(() => import('./pages/TargetShare'))
 const FacSaturation = lazy(() => import('./pages/FacSaturation'))
 const BrokerAnalysis = lazy(() => import('./pages/BrokerAnalysis'))
 const BrokerDetail = lazy(() => import('./pages/BrokerDetail'))
 const AffairesTraites = lazy(() => import('./pages/AffairesTraites'))
 const PanelSecurites = lazy(() => import('./pages/PanelSecurites'))
+const FacToFac = lazy(() => import('./pages/FacToFac'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -84,6 +86,7 @@ function AppRoutes() {
           <Route path="analyse/:pays" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
           <Route path="analyse-cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
           <Route path="analyse-cedante/:cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="cibles-tty" element={<ErrorBoundary><TargetShare /></ErrorBoundary>} />
           <Route path="exposition" element={<ErrorBoundary><ExpositionRisques /></ErrorBoundary>} />
           <Route path="fac-saturation" element={<ErrorBoundary><FacSaturation /></ErrorBoundary>} />
           <Route path="top-brokers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
@@ -91,6 +94,7 @@ function AppRoutes() {
           <Route path="analyse-courtiers/:brokerName" element={<ErrorBoundary><BrokerDetail /></ErrorBoundary>} />
           <Route path="retrocession/traites" element={<ErrorBoundary><AffairesTraites /></ErrorBoundary>} />
           <Route path="retrocession/securites" element={<ErrorBoundary><PanelSecurites /></ErrorBoundary>} />
+          <Route path="retrocession/fac-to-fac" element={<ErrorBoundary><FacToFac /></ErrorBoundary>} />
 
           <Route
             path="admin"

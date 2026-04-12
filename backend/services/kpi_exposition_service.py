@@ -17,8 +17,15 @@ def _compute_exposition_col(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def compute_exposition_by_country(df: pd.DataFrame) -> list:
-    """Exposition agrégée par pays risque."""
+def compute_exposition_by_country(
+    df: pd.DataFrame,
+    selected_pays: List[str] | None = None,
+) -> list:
+    """Exposition agrégée par pays risque.
+
+    Retourne tous les pays avec un flag ``is_selected``.
+    La mise en évidence et la limitation à 10 barres sont gérées côté frontend.
+    """
     if df.empty or "PAYS_RISQUE" not in df.columns:
         return []
     df = _compute_exposition_col(df)
@@ -36,11 +43,21 @@ def compute_exposition_by_country(df: pd.DataFrame) -> list:
             "contract_count": len(group),
         })
     result.sort(key=lambda x: x["exposition"], reverse=True)
+    selected_set = set(selected_pays) if selected_pays else set()
+    for item in result:
+        item["is_selected"] = item["pays"] in selected_set
     return result
 
 
-def compute_exposition_by_branch(df: pd.DataFrame) -> list:
-    """Exposition agrégée par branche d'assurance."""
+def compute_exposition_by_branch(
+    df: pd.DataFrame,
+    selected_branche: List[str] | None = None,
+) -> list:
+    """Exposition agrégée par branche d'assurance.
+
+    Retourne toutes les branches avec un flag ``is_selected``.
+    La mise en évidence et la limitation à 10 barres sont gérées côté frontend.
+    """
     if df.empty or "INT_BRANCHE" not in df.columns:
         return []
     df = _compute_exposition_col(df)
@@ -58,6 +75,9 @@ def compute_exposition_by_branch(df: pd.DataFrame) -> list:
             "contract_count": len(group),
         })
     result.sort(key=lambda x: x["exposition"], reverse=True)
+    selected_set = set(selected_branche) if selected_branche else set()
+    for item in result:
+        item["is_selected"] = item["branche"] in selected_set
     return result
 
 
