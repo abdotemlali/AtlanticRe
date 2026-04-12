@@ -4,7 +4,7 @@ import { API_ROUTES } from '../constants/api'
 import type { RetroFilters, RetroOptions, RetroSummary, RetroSecurite } from '../types/retro'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, CartesianGrid,
+  Cell, CartesianGrid,
 } from 'recharts'
 import { Shield, Users, TrendingUp, AlertTriangle, Check, Minus } from 'lucide-react'
 
@@ -26,7 +26,7 @@ const fmtMAD = (v: number) => {
 
 export default function PanelSecurites() {
   const [filters, setFilters] = useState<RetroFilters>({
-    uy: [], nature: null, traite: null, courtier: null, securite: null, rating_a_only: false,
+    uy: [], nature: null, traite: null, courtier: null, securite: null,
   })
   const [options, setOptions] = useState<RetroOptions | null>(null)
   const [summary, setSummary] = useState<RetroSummary | null>(null)
@@ -50,11 +50,7 @@ export default function PanelSecurites() {
         api.get(API_ROUTES.RETRO.BY_SECURITE, { params: p }),
       ])
       setSummary(sumR.data)
-      let secs = secR.data as RetroSecurite[]
-      if (filters.rating_a_only) {
-        secs = secs.filter(s => s.rating_a_plus)
-      }
-      setSecurites(secs)
+      setSecurites(secR.data as RetroSecurite[])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [filters])
@@ -63,14 +59,6 @@ export default function PanelSecurites() {
 
   // Top 10 by PMD
   const top10 = securites.slice(0, 10)
-
-  // Rating distribution
-  const ratingA = securites.filter(s => s.rating_a_plus).length
-  const ratingBelow = securites.filter(s => !s.rating_a_plus).length
-  const pieData = [
-    { name: 'Rating ≥ A', value: ratingA },
-    { name: 'Rating < A', value: ratingBelow },
-  ]
 
   // Concentration alerts
   const concentrated = securites.filter(s => s.concentration_score > 30)
@@ -112,11 +100,7 @@ export default function PanelSecurites() {
           <option value="">Tous les traités</option>
           {options?.traites.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: C.gray, cursor: 'pointer' }}>
-          <input type="checkbox" checked={filters.rating_a_only} onChange={e => setFilters(f => ({ ...f, rating_a_only: e.target.checked }))} />
-          Rating ≥ A uniquement
-        </label>
-        <button onClick={() => setFilters({ uy: [], nature: null, traite: null, courtier: null, securite: null, rating_a_only: false })}
+        <button onClick={() => setFilters({ uy: [], nature: null, traite: null, courtier: null, securite: null })}
           style={{ padding: '6px 14px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600, background: '#f1f5f9', color: C.gray, border: 'none', cursor: 'pointer' }}>
           Réinitialiser
         </button>
@@ -149,7 +133,7 @@ export default function PanelSecurites() {
       )}
 
       {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 20, marginBottom: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         {/* Top 10 Sécurités */}
         <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.borderCard}` }}>
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, marginBottom: 16 }}>Top 10 Sécurités par PMD reçue</h3>
@@ -163,21 +147,6 @@ export default function PanelSecurites() {
                 {top10.map((s, i) => <Cell key={i} fill={s.rating_a_plus ? C.olive : C.orange} />)}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Donut Rating */}
-        <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.borderCard}` }}>
-          <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, marginBottom: 16 }}>Répartition par Rating</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={105} paddingAngle={4} dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}>
-                <Cell fill={C.green} />
-                <Cell fill={C.orange} />
-              </Pie>
-              <Tooltip />
-            </PieChart>
           </ResponsiveContainer>
         </div>
       </div>

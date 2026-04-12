@@ -12,7 +12,7 @@ import PageFilterPanel from '../components/PageFilterPanel'
 import { useFetch } from '../hooks/useFetch'
 import WorldMap from '../components/Charts/WorldMap'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts'
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell} from 'recharts'
 
 const SortIcon = ({ field, currentField, direction }: { field: keyof TopRisk; currentField: keyof TopRisk; direction: 'asc' | 'desc' }) => {
   if (currentField !== field) return <ArrowUpDown size={14} className="opacity-30" />
@@ -49,6 +49,7 @@ interface CountryExposition {
   sum_insured_100: number
   avg_share_signed: number
   contract_count: number
+  is_selected: boolean
 }
 
 interface BranchExposition {
@@ -57,6 +58,7 @@ interface BranchExposition {
   sum_insured_100: number
   avg_share_signed: number
   contract_count: number
+  is_selected: boolean
 }
 
 interface TopRisk {
@@ -103,12 +105,22 @@ export default function ExpositionRisques() {
   const [sortField, setSortField] = useState<keyof TopRisk>('exposition')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const params = useMemo(() => getScopedParams(location.pathname, filters), [filters, location.pathname])
-  const topParams = useMemo(() => {
-    return { ...params, top: 20 }
-  }, [params])
+  const topParams = useMemo(() => ({ ...params, top: 20 }), [params])
 
-  const { data: countryData, loading: l1 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_COUNTRY, params)
-  const { data: branchFetch, loading: l2 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_BRANCH, params)
+  const countryParams = useMemo(() => {
+    const p: Record<string, string> = { ...params }
+    if (filters.pays_risque?.length > 0) p.selected_pays = filters.pays_risque.join(',')
+    return p
+  }, [params, filters.pays_risque])
+
+  const branchParams = useMemo(() => {
+    const p: Record<string, string> = { ...params }
+    if (filters.branche?.length > 0) p.selected_branche = filters.branche.join(',')
+    return p
+  }, [params, filters.branche])
+
+  const { data: countryData, loading: l1 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_COUNTRY, countryParams)
+  const { data: branchFetch, loading: l2 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_BRANCH, branchParams)
   const { data: risksData, loading: l3 } = useFetch<any[]>(API_ROUTES.EXPOSITION.TOP_RISKS, topParams)
 
   useEffect(() => {
@@ -140,8 +152,18 @@ export default function ExpositionRisques() {
     }
   }, [byCountry])
 
-  const topCountries = useMemo(() => byCountry.slice(0, 10), [byCountry])
-  const branchData = useMemo(() => byBranch, [byBranch])
+  // Chart display: selected items first (even if outside top 10), then top (10-n) non-selected
+  const chartCountries = useMemo(() => {
+    const selected = byCountry.filter(c => c.is_selected)
+    const nonSelected = byCountry.filter(c => !c.is_selected)
+    return [...selected, ...nonSelected.slice(0, Math.max(0, 10 - selected.length))]
+  }, [byCountry])
+
+  const chartBranches = useMemo(() => {
+    const selected = byBranch.filter(b => b.is_selected)
+    const nonSelected = byBranch.filter(b => !b.is_selected)
+    return [...selected, ...nonSelected.slice(0, Math.max(0, 10 - selected.length))]
+  }, [byBranch])
 
   const sortedRisks = useMemo(() => {
     return [...topRisks].sort((a, b) => {
@@ -218,7 +240,7 @@ export default function ExpositionRisques() {
             <div className="skeleton w-full h-full rounded-md" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topCountries} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+              <BarChart data={chartCountries} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                 <defs>
                   <linearGradient id="gradPays" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="hsl(209,32%,17%)" />
@@ -228,18 +250,30 @@ export default function ExpositionRisques() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-gray-100)" />
                 <XAxis type="number" tickFormatter={formatCompact} tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="pays" type="category" width={80} tick={{ fill: 'var(--color-navy)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'var(--color-gray-100)', opacity: 0.4 }}
-                  contentStyle={{ 
-                    background: 'hsla(209,28%,18%,0.92)', 
-                    backdropFilter: 'blur(16px)', 
-                    border: '1px solid hsla(0,0%,100%,0.12)', 
-                    borderRadius: 10, 
-                    color: '#FFF' 
+                  contentStyle={{
+                    background: 'hsla(209,28%,18%,0.92)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid hsla(0,0%,100%,0.12)',
+                    borderRadius: 10,
+                    color: '#FFF'
                   }}
                   formatter={(value: any) => [formatCompact(value), 'Exposition AR']}
                 />
-                <Bar dataKey="exposition" fill="url(#gradPays)" radius={[0, 4, 4, 0]} barSize={16} />
+                <Bar dataKey="exposition" fill="url(#gradPays)" radius={[0, 4, 4, 0]} barSize={16}>
+                  {chartCountries.map((d, i) => {
+                    const hasSelection = chartCountries.some(c => c.is_selected)
+                    if (!hasSelection) return <Cell key={i} fill="url(#gradPays)" />
+                    return (
+                      <Cell
+                        key={i}
+                        fill={d.is_selected ? 'hsl(38,95%,54%)' : 'url(#gradPays)'}
+                        fillOpacity={d.is_selected ? 1 : 0.3}
+                      />
+                    )
+                  })}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -252,7 +286,7 @@ export default function ExpositionRisques() {
             <div className="skeleton w-full h-full rounded-md" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={branchData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+              <BarChart data={chartBranches} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
                 <defs>
                   <linearGradient id="gradBranche" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="hsl(83,54%,27%)" />
@@ -262,18 +296,30 @@ export default function ExpositionRisques() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-gray-100)" />
                 <XAxis type="number" tickFormatter={formatCompact} tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="branche" type="category" width={120} tick={{ fill: 'var(--color-navy)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'var(--color-gray-100)', opacity: 0.4 }}
-                  contentStyle={{ 
-                    background: 'hsla(209,28%,18%,0.92)', 
-                    backdropFilter: 'blur(16px)', 
-                    border: '1px solid hsla(0,0%,100%,0.12)', 
-                    borderRadius: 10, 
-                    color: '#FFF' 
+                  contentStyle={{
+                    background: 'hsla(209,28%,18%,0.92)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid hsla(0,0%,100%,0.12)',
+                    borderRadius: 10,
+                    color: '#FFF'
                   }}
                   formatter={(value: any) => [formatCompact(value), 'Exposition AR']}
                 />
-                <Bar dataKey="exposition" fill="url(#gradBranche)" radius={[0, 4, 4, 0]} barSize={16} />
+                <Bar dataKey="exposition" fill="url(#gradBranche)" radius={[0, 4, 4, 0]} barSize={16}>
+                  {chartBranches.map((d, i) => {
+                    const hasSelection = chartBranches.some(b => b.is_selected)
+                    if (!hasSelection) return <Cell key={i} fill="url(#gradBranche)" />
+                    return (
+                      <Cell
+                        key={i}
+                        fill={d.is_selected ? 'hsl(38,95%,54%)' : 'url(#gradBranche)'}
+                        fillOpacity={d.is_selected ? 1 : 0.3}
+                      />
+                    )
+                  })}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}

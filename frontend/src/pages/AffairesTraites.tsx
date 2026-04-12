@@ -14,7 +14,7 @@ import {
 } from 'recharts'
 import {
   TrendingUp, Shield, Users, DollarSign, AlertTriangle,
-  ChevronDown, ChevronRight, Percent,
+  ChevronDown, ChevronRight, Percent, Download,
 } from 'lucide-react'
 
 // ── Colors ───────────────────────────────────────────────────────────────────
@@ -97,6 +97,8 @@ export default function AffairesTraites() {
   const [placement, setPlacement] = useState<RetroPlacementStatus[]>([])
   const [expandedTraite, setExpandedTraite] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [pursApporteurOpen, setPursApporteurOpen] = useState(false)
+  const [pursPlaceurOpen, setPursPlaceurOpen] = useState(false)
 
   // Load options on mount
   useEffect(() => {
@@ -210,6 +212,34 @@ export default function AffairesTraites() {
     placement.map(p => ({ ...p, label: multiYear ? `${p.traite} (${p.uy})` : p.traite }))
   , [placement, multiYear])
 
+  function exportCourtiers() {
+    import('xlsx').then(XLSX => {
+      const rows = courtiers.map(c => {
+        const croise = courtiersCroise.find(x => x.courtier === c.courtier)
+        const role = croise?.role_double ? ROLE_CONFIG.double.label
+          : croise?.role_placeur ? ROLE_CONFIG.placeur.label
+          : croise?.role_apporteur ? ROLE_CONFIG.apporteur.label
+          : c.est_direct ? 'Direct' : 'Placeur'
+        return {
+          Courtier: c.courtier,
+          Rôle: role,
+          Traités: c.nb_traites_places,
+          'EPI Géré (MAD)': c.epi_gere,
+          'PMD Placée (MAD)': c.pmd_placee,
+          'Courtage (MAD)': c.courtage_percu,
+          'Taux Moy. (%)': c.taux_courtage_moyen,
+          Sécurités: c.securites_utilisees.join(', '),
+          'Rating>A (%)': c.rating_a_plus_moyen,
+        }
+      })
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Courtiers')
+      const date = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `courtiers_retrocession_${date}.xlsx`)
+    })
+  }
+
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Title */}
@@ -235,7 +265,7 @@ export default function AffairesTraites() {
           <KPICard label="EPI Total" value={`${fmtMAD(summary.epi_total)} MAD`} sub="Volume de prime protégé" color={COLORS.blue} icon={DollarSign} />
           <KPICard label="PMD Totale" value={`${fmtMAD(summary.pmd_totale)} MAD`} sub="Coût de protection payé" color={COLORS.orange} icon={TrendingUp} />
           <KPICard label="Courtage Total" value={`${fmtMAD(summary.courtage_total)} MAD`} sub="Coût d'intermédiation" color={COLORS.red} icon={DollarSign} />
-          <KPICard label="Taux Placement" value={`${summary.taux_placement_moyen}%`} sub="Part du traité couverte" color={summary.taux_placement_moyen >= 95 ? COLORS.green : COLORS.orange} icon={Percent} />
+          <KPICard label="Taux Placement" value={`${summary.taux_placement_moyen}%`} sub="Ratio PMD / EPI" color={COLORS.olive} icon={Percent} />
           <KPICard label="Rating > A" value={`${summary.rating_a_plus_moyen}%`} sub="Part chez sécurités solides" color={summary.rating_a_plus_moyen >= 70 ? COLORS.green : COLORS.orange} icon={Shield} />
         </div>
       )}
@@ -244,26 +274,7 @@ export default function AffairesTraites() {
       {tab === 'global' && (
         <>
           {/* Charts Row 1 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 20, marginBottom: 24 }}>
-            {/* Evolution EPI + PMD */}
-            <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}` }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 16 }}>
-                Évolution EPI & PMD par année
-              </h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={byYear}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="uy" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={fmtMAD} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => fmtMAD(v) + ' MAD'} />
-                  <Legend />
-                  <Line type="monotone" dataKey="epi_total" name="EPI" stroke={COLORS.blue} strokeWidth={2.5} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="pmd_totale" name="PMD" stroke={COLORS.orange} strokeWidth={2.5} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="cout_net" name="Coût Net" stroke={COLORS.red} strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
+          <div style={{ marginBottom: 24 }}>
             {/* Donut Prop vs Non-Prop */}
             <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}` }}>
               <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 16 }}>
@@ -308,12 +319,10 @@ export default function AffairesTraites() {
               <ResponsiveContainer width="100%" height={Math.max(260, placementChart.length * 32)}>
                 <BarChart data={placementChart} layout="vertical" margin={{ left: multiYear ? 150 : 120 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} unit="%" />
                   <YAxis dataKey="label" type="category" tick={{ fontSize: 10 }} width={multiYear ? 140 : 110} />
                   <Tooltip formatter={(v: number) => `${v}%`} />
-                  <Bar dataKey="taux_placement" name="Placement %" radius={[0, 6, 6, 0]}>
-                    {placementChart.map((p, i) => <Cell key={i} fill={placementColor(p.taux_placement)} />)}
-                  </Bar>
+                  <Bar dataKey="taux_placement" name="Placement %" radius={[0, 6, 6, 0]} fill={COLORS.blue} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -325,7 +334,7 @@ export default function AffairesTraites() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${COLORS.borderCard}` }}>
-                  {['', 'Traité', 'Nature', 'UY', 'EPI', 'PMD 100%', 'PMD Totale', 'Courtage', 'Ratio%', 'Séc.', 'Plac.%', 'Rating>A'].map(h => (
+                  {['', 'Traité', 'Nature', 'UY', 'EPI', 'PMD 100%', 'PMD Totale', 'Courtage', 'Taux de Plac.%', 'Séc.', 'Rating>A'].map(h => (
                     <th key={h} style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 700, color: COLORS.gray, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -353,11 +362,10 @@ export default function AffairesTraites() {
                       <td style={{ padding: '10px 8px' }}>{fmtMAD(t.pmd_100)}</td>
                       <td style={{ padding: '10px 8px', fontWeight: 600 }}>{fmtMAD(t.pmd_totale)}</td>
                       <td style={{ padding: '10px 8px' }}>{fmtMAD(t.courtage_total)}</td>
-                      <td style={{ padding: '10px 8px' }}>{t.ratio_cout_epi_pct}%</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>{t.nb_securites}</td>
                       <td style={{ padding: '10px 8px' }}>
-                        <span style={{ color: placementColor(t.taux_placement), fontWeight: 700 }}>{t.taux_placement}%</span>
+                        <span style={{ fontWeight: 700 }}>{t.taux_placement}%</span>
                       </td>
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>{t.nb_securites}</td>
                       <td style={{ padding: '10px 8px' }}>{t.rating_a_plus_pct}%</td>
                     </tr>
                     {expandedTraite === `${t.traite}-${t.uy}` && t.securites?.map(s => (
@@ -369,7 +377,6 @@ export default function AffairesTraites() {
                         <td />
                         <td style={{ padding: '8px', fontSize: '0.74rem' }}>{fmtMAD(s.pmd_par_securite)}</td>
                         <td style={{ padding: '8px', fontSize: '0.74rem' }}>{fmtMAD(s.commission_courtage)}</td>
-                        <td style={{ padding: '8px', fontSize: '0.74rem' }}>{s.commission_courtage_pct}%</td>
                         <td style={{ padding: '8px', fontSize: '0.74rem', textAlign: 'center' }}>{s.part_pct}%</td>
                         <td colSpan={2} />
                       </tr>
@@ -380,20 +387,6 @@ export default function AffairesTraites() {
             </table>
           </div>
 
-          {/* Alerts */}
-          {placement.filter(p => p.statut !== 'COMPLET').length > 0 && (
-            <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: '#FEF5EC', border: '1px solid #FDEBD0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <AlertTriangle size={16} color={COLORS.orange} />
-                <span style={{ fontWeight: 700, color: COLORS.navy, fontSize: '0.82rem' }}>Alertes Placement</span>
-              </div>
-              {placement.filter(p => p.statut !== 'COMPLET').map(p => (
-                <div key={`${p.traite}-${p.uy}`} style={{ fontSize: '0.76rem', color: '#7f4f24', marginBottom: 4 }}>
-                  <strong>{p.traite}</strong> ({p.uy}) : {p.taux_placement}% placé — <span style={{ color: p.statut === 'CRITIQUE' ? COLORS.red : COLORS.orange, fontWeight: 700 }}>{p.statut}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
 
@@ -401,61 +394,200 @@ export default function AffairesTraites() {
       {tab === 'courtier' && (
         <>
           {/* Croisement Chart */}
-          <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}`, marginBottom: 24 }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 16 }}>
-              Croisement : Courtiers Apporteurs × Courtiers Placeurs
-            </h3>
-            <ResponsiveContainer width="100%" height={320}>
-              <ScatterChart margin={{ left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis dataKey="primes_apportees" name="Primes apportées" tickFormatter={fmtMAD} tick={{ fontSize: 11 }} label={{ value: 'Primes apportées (contrats)', position: 'bottom', fontSize: 11 }} />
-                <YAxis dataKey="pmd_placee" name="PMD placée" tickFormatter={fmtMAD} tick={{ fontSize: 11 }} label={{ value: 'PMD placée (rétro)', angle: -90, position: 'left', fontSize: 11 }} />
-                <ZAxis dataKey="volume_total" range={[50, 500]} />
-                <Tooltip content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const d = payload[0].payload as RetroCourtierCroise
-                  const role = d.role_double ? ROLE_CONFIG.double : d.role_placeur ? ROLE_CONFIG.placeur : ROLE_CONFIG.apporteur
-                  const soldeNet = d.primes_apportees - d.pmd_placee
-                  return (
-                    <div style={{ background: 'white', borderRadius: 10, padding: '12px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', border: `2px solid ${role.color}`, minWidth: 220 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.88rem', color: COLORS.navy }}>{d.courtier}</span>
-                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.65rem', fontWeight: 700, background: role.bg, color: role.color }}>{role.label}</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px', fontSize: '0.75rem' }}>
-                        <span style={{ color: COLORS.gray }}>Primes apportées</span>
-                        <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.primes_apportees)} MAD</span>
-                        <span style={{ color: COLORS.gray }}>PMD placée</span>
-                        <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.pmd_placee)} MAD</span>
-                        <span style={{ color: COLORS.gray }}>Courtage rétro</span>
-                        <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.courtage_retro)} MAD</span>
-                        <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${COLORS.borderCard}`, margin: '4px 0' }} />
-                        <span style={{ color: COLORS.navy, fontWeight: 700 }}>Volume total</span>
-                        <span style={{ fontWeight: 800, color: role.color, textAlign: 'right' }}>{fmtMAD(d.volume_total)} MAD</span>
-                        <span style={{ color: COLORS.navy, fontWeight: 700 }}>Solde Net</span>
-                        <span style={{ fontWeight: 800, color: soldeNet >= 0 ? COLORS.green : COLORS.red, textAlign: 'right' }}>
-                          {soldeNet >= 0 ? '+' : ''}{fmtMAD(soldeNet)} MAD
-                        </span>
-                      </div>
-                    </div>
-                  )
-                }} />
-                <Scatter data={courtiersCroise} name="Courtiers">
-                  {courtiersCroise.map((c, i) => (
-                    <Cell key={i} fill={c.role_double ? ROLE_CONFIG.double.color : c.role_placeur ? ROLE_CONFIG.placeur.color : ROLE_CONFIG.apporteur.color} />
-                  ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12 }}>
-              {Object.entries(ROLE_CONFIG).map(([key, cfg]) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
-                  <span style={{ fontSize: '0.72rem', color: COLORS.gray, fontWeight: 600 }}>{cfg.label}</span>
+          {(() => {
+            const doubles    = courtiersCroise.filter(c => c.role_double)
+            const apporteurs = courtiersCroise.filter(c => !c.role_double && !c.role_placeur)
+            const placeurs   = courtiersCroise.filter(c => c.role_placeur && !c.role_double)
+            const scatterTooltip = ({ active, payload }: any) => {
+              if (!active || !payload?.length) return null
+              const d = payload[0].payload as RetroCourtierCroise
+              const role = d.role_double ? ROLE_CONFIG.double : d.role_placeur ? ROLE_CONFIG.placeur : ROLE_CONFIG.apporteur
+              const soldeNet = d.primes_apportees - d.pmd_placee
+              return (
+                <div style={{ background: 'white', borderRadius: 10, padding: '12px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', border: `2px solid ${role.color}`, minWidth: 220 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.88rem', color: COLORS.navy }}>{d.courtier}</span>
+                    <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.65rem', fontWeight: 700, background: role.bg, color: role.color }}>{role.label}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 12px', fontSize: '0.75rem' }}>
+                    <span style={{ color: COLORS.gray }}>Primes apportées</span>
+                    <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.primes_apportees)} MAD</span>
+                    <span style={{ color: COLORS.gray }}>PMD placée</span>
+                    <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.pmd_placee)} MAD</span>
+                    <span style={{ color: COLORS.gray }}>Courtage rétro</span>
+                    <span style={{ fontWeight: 600, color: COLORS.navy, textAlign: 'right' }}>{fmtMAD(d.courtage_retro)} MAD</span>
+                    <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${COLORS.borderCard}`, margin: '4px 0' }} />
+                    <span style={{ color: COLORS.navy, fontWeight: 700 }}>Volume total</span>
+                    <span style={{ fontWeight: 800, color: role.color, textAlign: 'right' }}>{fmtMAD(d.volume_total)} MAD</span>
+                    <span style={{ color: COLORS.navy, fontWeight: 700 }}>Solde Net</span>
+                    <span style={{ fontWeight: 800, color: soldeNet >= 0 ? COLORS.green : COLORS.red, textAlign: 'right' }}>
+                      {soldeNet >= 0 ? '+' : ''}{fmtMAD(soldeNet)} MAD
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )
+            }
+            const pureTableStyle: React.CSSProperties = {
+              width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem',
+            }
+            const thStyle: React.CSSProperties = {
+              padding: '5px 8px', textAlign: 'left', color: COLORS.gray,
+              fontWeight: 600, borderBottom: `1px solid ${COLORS.borderCard}`,
+            }
+            const tdStyle: React.CSSProperties = {
+              padding: '5px 8px', color: COLORS.navy,
+            }
+            return (
+              <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}`, marginBottom: 24 }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 4 }}>
+                  Croisement : Courtiers Apporteurs × Courtiers Placeurs
+                </h3>
+                <p style={{ fontSize: '0.72rem', color: COLORS.gray, marginBottom: 16 }}>
+                  Scatter : Double Rôle uniquement — Apporteurs &amp; Placeurs purs listés ci-dessous
+                </p>
+
+                {/* ── Scatter principal : Double Rôle ── */}
+                {doubles.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <ScatterChart margin={{ left: 20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                      <XAxis
+                        dataKey="primes_apportees"
+                        name="Primes apportées"
+                        tickFormatter={fmtMAD}
+                        tick={{ fontSize: 10 }}
+                        angle={-30}
+                        textAnchor="end"
+                        interval="preserveStartEnd"
+                        label={{ value: 'Primes apportées (contrats)', position: 'insideBottom', offset: -30, fontSize: 11 }}
+                      />
+                      <YAxis
+                        dataKey="pmd_placee"
+                        name="PMD placée"
+                        tickFormatter={fmtMAD}
+                        tick={{ fontSize: 11 }}
+                        label={{ value: 'PMD placée (rétro)', angle: -90, position: 'insideLeft', offset: 10, fontSize: 11 }}
+                      />
+                      <ZAxis dataKey="volume_total" range={[60, 500]} />
+                      <Tooltip content={scatterTooltip} />
+                      <Scatter data={doubles} name={ROLE_CONFIG.double.label} fill={ROLE_CONFIG.double.color} />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.gray, fontSize: '0.78rem' }}>
+                    Aucun courtier Double Rôle
+                  </div>
+                )}
+
+                {/* ── Accordions purs ── */}
+                {(apporteurs.length > 0 || placeurs.length > 0) && (
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${COLORS.borderCard}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: apporteurs.length > 0 && placeurs.length > 0 ? '1fr 1fr' : '1fr', gap: 12 }}>
+                      {/* Apporteurs purs */}
+                      {apporteurs.length > 0 && (
+                        <div style={{ border: `1px solid ${COLORS.borderCard}`, borderRadius: 10, overflow: 'hidden' }}>
+                          <button
+                            onClick={() => setPursApporteurOpen(o => !o)}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '9px 14px', background: ROLE_CONFIG.apporteur.bg,
+                              border: 'none', cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_CONFIG.apporteur.color, display: 'inline-block', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: ROLE_CONFIG.apporteur.color }}>
+                                Apporteurs purs ({apporteurs.length})
+                              </span>
+                            </div>
+                            <ChevronDown
+                              size={13}
+                              style={{ color: ROLE_CONFIG.apporteur.color, transition: 'transform 0.25s ease', transform: pursApporteurOpen ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0 }}
+                            />
+                          </button>
+                          <div style={{ maxHeight: pursApporteurOpen ? `${apporteurs.length * 36 + 48}px` : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease-in-out', opacity: pursApporteurOpen ? 1 : 0 }}>
+                            <table style={{ ...pureTableStyle, margin: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>Courtier</th>
+                                  <th style={{ ...thStyle, textAlign: 'right' }}>Prime apportée</th>
+                                  <th style={{ ...thStyle, textAlign: 'right' }}>Volume total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {apporteurs.map((c, i) => (
+                                  <tr key={i} style={{ borderBottom: `1px solid ${COLORS.borderCard}` }}>
+                                    <td style={tdStyle}>{c.courtier}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtMAD(c.primes_apportees)}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right' }}>{fmtMAD(c.volume_total)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Placeurs purs */}
+                      {placeurs.length > 0 && (
+                        <div style={{ border: `1px solid ${COLORS.borderCard}`, borderRadius: 10, overflow: 'hidden' }}>
+                          <button
+                            onClick={() => setPursPlaceurOpen(o => !o)}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '9px 14px', background: ROLE_CONFIG.placeur.bg,
+                              border: 'none', cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_CONFIG.placeur.color, display: 'inline-block', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: ROLE_CONFIG.placeur.color }}>
+                                Placeurs purs ({placeurs.length})
+                              </span>
+                            </div>
+                            <ChevronDown
+                              size={13}
+                              style={{ color: ROLE_CONFIG.placeur.color, transition: 'transform 0.25s ease', transform: pursPlaceurOpen ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0 }}
+                            />
+                          </button>
+                          <div style={{ maxHeight: pursPlaceurOpen ? `${placeurs.length * 36 + 48}px` : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease-in-out', opacity: pursPlaceurOpen ? 1 : 0 }}>
+                            <table style={{ ...pureTableStyle, margin: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>Courtier</th>
+                                  <th style={{ ...thStyle, textAlign: 'right' }}>PMD placée</th>
+                                  <th style={{ ...thStyle, textAlign: 'right' }}>Volume total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {placeurs.map((c, i) => (
+                                  <tr key={i} style={{ borderBottom: `1px solid ${COLORS.borderCard}` }}>
+                                    <td style={tdStyle}>{c.courtier}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtMAD(c.pmd_placee)}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right' }}>{fmtMAD(c.volume_total)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Légende partagée ── */}
+                <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 16 }}>
+                  {Object.entries(ROLE_CONFIG).map(([key, cfg]) => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
+                      <span style={{ fontSize: '0.72rem', color: COLORS.gray, fontWeight: 600 }}>{cfg.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Courtier Charts Row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
@@ -488,7 +620,17 @@ export default function AffairesTraites() {
 
           {/* Courtier Table */}
           <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}`, overflowX: 'auto' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 16 }}>Tableau des Courtiers</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, margin: 0 }}>Tableau des Courtiers</h3>
+              <button
+                onClick={exportCourtiers}
+                disabled={courtiers.length === 0}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--color-navy)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Download size={14} />
+                Exporter Excel
+              </button>
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${COLORS.borderCard}` }}>

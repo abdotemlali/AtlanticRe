@@ -22,6 +22,12 @@ RETRO_EXCEL_FILE_PATH = os.getenv(
     str(BASE_DIR / "database" / "AtlanticRe_Retrocession_AffairesTraites.xlsx")
 )
 
+# Chemin du fichier Excel FCM Partenaires FAC-to-FAC (modifiable via variable d'env)
+FCM_PARTENAIRES_FILE_PATH = os.getenv(
+    "FCM_PARTENAIRES_FILE_PATH",
+    str(BASE_DIR / "database" / "FCM_Partenaires_v2.xlsx")
+)
+
 # JWT
 JWT_SECRET_KEY = os.getenv("SECRET_KEY")
 if not JWT_SECRET_KEY:

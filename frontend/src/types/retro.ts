@@ -7,7 +7,6 @@ export interface RetroFilters {
   traite: string | null
   courtier: string | null
   securite: string | null
-  rating_a_only: boolean
 }
 
 export interface RetroOptions {

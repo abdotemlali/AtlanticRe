@@ -99,4 +99,18 @@ export const API_ROUTES = {
         PLACEMENT_STATUS: '/retro/placement-status',
         COURTIER_CROISE:  '/retro/courtier-croise',
     },
+    FAC_TO_FAC: {
+        REFRESH:                   '/fac-to-fac/refresh',
+        STATUS:                    '/fac-to-fac/status',
+        OPTIONS:                   '/fac-to-fac/options',
+        KPIS:                      '/fac-to-fac/kpis',
+        EVOLUTION_PRIMES:          '/fac-to-fac/evolution-primes',
+        PRIMES_PAR_BRANCHE:        '/fac-to-fac/primes-par-branche',
+        DETAIL_BRANCHES:           '/fac-to-fac/detail-branches',
+        TOP_PARTENAIRES_PRIMES:    '/fac-to-fac/top-partenaires-primes',
+        TOP_PARTENAIRES_ENGAGEMENT:'/fac-to-fac/top-partenaires-engagement',
+        TAUX_PART_MOYEN:           '/fac-to-fac/taux-part-moyen',
+        TABLEAU_PARTENAIRES:       '/fac-to-fac/tableau-partenaires',
+        CROSSING:                  '/fac-to-fac/crossing-donneur-preneur',
+    },
 } as const

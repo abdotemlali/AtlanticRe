@@ -8,7 +8,7 @@ from models import schemas
 from services import user_service
 from repositories import log_repository
 from routers.auth import require_role
-from core.config import EXCEL_FILE_PATH, RETRO_EXCEL_FILE_PATH
+from core.config import EXCEL_FILE_PATH, RETRO_EXCEL_FILE_PATH, FCM_PARTENAIRES_FILE_PATH
 
 router = APIRouter()
 
@@ -16,6 +16,7 @@ router = APIRouter()
 _app_config = {
     "excel_file_path": EXCEL_FILE_PATH,
     "retro_excel_file_path": RETRO_EXCEL_FILE_PATH,
+    "fcm_partenaires_file_path": FCM_PARTENAIRES_FILE_PATH,
 }
 
 
@@ -85,5 +86,17 @@ def update_config(updates: schemas.ConfigUpdate, user: dict = Depends(require_ro
             pass
             
         log_repository.add_log(user["username"], "UPDATE_RETRO_CONFIG", updates.retro_excel_file_path)
-        
+
+    if updates.fcm_partenaires_file_path:
+        core.config.FCM_PARTENAIRES_FILE_PATH = updates.fcm_partenaires_file_path
+        os.environ["FCM_PARTENAIRES_FILE_PATH"] = updates.fcm_partenaires_file_path
+        _app_config["fcm_partenaires_file_path"] = updates.fcm_partenaires_file_path
+
+        try:
+            set_key(env_path, "FCM_PARTENAIRES_FILE_PATH", updates.fcm_partenaires_file_path)
+        except Exception:
+            pass
+
+        log_repository.add_log(user["username"], "UPDATE_FCM_CONFIG", updates.fcm_partenaires_file_path)
+
     return _app_config

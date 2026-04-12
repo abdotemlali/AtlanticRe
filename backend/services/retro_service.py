@@ -28,6 +28,7 @@ COLUMN_RENAME = {
     "Assiette de prime (EPI)": "EPI",
     "Direct / Courtier":       "DIRECT_COURTIER",
     "Sécurité":                "SECURITE",
+    "Sécuritré":               "SECURITE",
     "Rating > A":              "RATING_A_PLUS_PCT",
     "Part":                    "PART_PCT",
     "PMD / EPI 100%":          "PMD_EPI_100",
@@ -161,7 +162,7 @@ def compute_retro_summary(df: pd.DataFrame) -> Dict[str, Any]:
     # EPI est par traité/UY, pas par ligne — on prend la valeur unique par traité/UY
     traite_uy = df.groupby(["TRAITE", "UY"]).agg(
         epi=("EPI", "first"),
-        taux_placement=("PART_PCT", "sum"),
+        pmd_100=("PMD_EPI_100", "first"),
         rating_a=("RATING_A_PLUS_PCT", "first"),
     ).reset_index()
 
@@ -175,7 +176,11 @@ def compute_retro_summary(df: pd.DataFrame) -> Dict[str, Any]:
     nb_securites = int(df["SECURITE"].nunique())
     nb_courtiers = int(df[df["EST_DIRECT"] == False]["DIRECT_COURTIER"].nunique()) if "EST_DIRECT" in df.columns else 0
 
-    taux_placement_moyen = round(float(traite_uy["taux_placement"].mean()), 2)
+    taux_placement_list = [
+        round(float(row["pmd_100"]) / float(row["epi"]) * 100, 2) if float(row["epi"]) > 0 else 0
+        for _, row in traite_uy.iterrows()
+    ]
+    taux_placement_moyen = round(np.mean(taux_placement_list), 2) if len(taux_placement_list) > 0 else 0
     rating_a_plus_moyen = round(float(traite_uy["rating_a"].mean()), 2)
 
     return {
@@ -208,7 +213,7 @@ def compute_by_traite(df: pd.DataFrame) -> List[Dict[str, Any]]:
         taux_pmd_pct = round(pmd_100 / epi * 100, 2) if epi > 0 else 0
         ratio_cout_epi_pct = round(cout_net / epi * 100, 2) if epi > 0 else 0
         nb_securites = int(grp["SECURITE"].nunique())
-        taux_placement = round(float(grp["PART_PCT"].sum()), 2)
+        taux_placement = round(pmd_100 / epi * 100, 2) if epi > 0 else 0
         rating_a_plus_pct = float(grp["RATING_A_PLUS_PCT"].iloc[0])
         courtier = grp["DIRECT_COURTIER"].iloc[0] if len(grp) > 0 else ""
 
@@ -375,17 +380,14 @@ def compute_placement_status(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
     result = []
     for (traite, uy), grp in df.groupby(["TRAITE", "UY"]):
-        taux_placement = round(float(grp["PART_PCT"].sum()), 2)
-        part_non_placee = round(100 - taux_placement, 2)
         epi = float(grp["EPI"].iloc[0])
-        epi_non_couvert = round(epi * part_non_placee / 100, 2)
-
-        if taux_placement >= 95:
-            statut = "COMPLET"
-        elif taux_placement >= 85:
-            statut = "PARTIEL"
-        else:
-            statut = "CRITIQUE"
+        pmd_100 = float(grp["PMD_EPI_100"].iloc[0])
+        taux_placement = round(pmd_100 / epi * 100, 2) if epi > 0 else 0
+        
+        # Obsolete for this new metric, setting to 0 or neutral
+        part_non_placee = 0
+        epi_non_couvert = 0
+        statut = "N/A"
 
         result.append({
             "traite": str(traite),

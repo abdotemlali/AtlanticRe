@@ -14,6 +14,7 @@ from routers import auth, admin, contracts, scoring, comparison, data, export, c
 from routers import kpis_global, exposition as exposition_router, cedantes, brokers, alerts as alerts_router
 from services.data_service import load_excel
 from services.retro_service import load_retro_excel
+from services.fac_to_fac_service import load_fcm_excel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -122,6 +123,12 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Impossible de charger le fichier rétrocession au démarrage : {exc}")
 
+    try:
+        load_fcm_excel()
+        logger.info("Fichier Excel FCM Partenaires chargé au démarrage")
+    except Exception as exc:
+        logger.warning(f"Impossible de charger le fichier FCM Partenaires au démarrage : {exc}")
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -160,6 +167,9 @@ app.include_router(clients.router,    prefix="/api/clients",    tags=["Clients"]
 
 from routers.retro import router as retro_router
 app.include_router(retro_router, prefix="/api/retro", tags=["Retrocession"])
+
+from routers.fac_to_fac import router as fac_to_fac_router
+app.include_router(fac_to_fac_router, prefix="/api/fac-to-fac", tags=["FAC-to-FAC"])
 
 from routers.target_share import router as target_share_router
 app.include_router(target_share_router, prefix="/api/target-share", tags=["target-share"])
