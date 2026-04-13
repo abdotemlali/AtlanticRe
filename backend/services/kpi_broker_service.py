@@ -43,29 +43,96 @@ def compute_kpis_by_broker(
     return all_results[:top]
 
 
+_EMPTY_KPIS = {
+    "total_written_premium": 0.0,
+    "total_resultat": 0.0,
+    "avg_ulr": 0.0,
+    "total_sum_insured": 0.0,
+    "contract_count": 0,
+    "ratio_resultat_prime": 0.0,
+}
+
+
+def _clean_broker(v) -> str:
+    s = str(v).strip() if v is not None else ""
+    return s if s and s.upper() != "NAN" else ""
+
+
 def compute_top_brokers(
     df: pd.DataFrame,
     limit: int = 20,
     sort_by: str = "total_written_premium",
 ) -> list:
-    """Top courtiers triés par un champ donné (pour /top-brokers)."""
-    if df.empty or "INT_BROKER" not in df.columns:
+    """
+    Liste unifiée courtiers (contrats) + placeurs (rétrocession).
+    Un courtier présent uniquement en rétrocession est inclus avec des KPIs
+    contrats à zéro et le rôle 'placeur'.
+
+    Algo : un seul groupby par source (O(N_rows)) puis fusion par dict.
+    """
+    # ── Agrégation contrats (un seul groupby) ─────────────────────────
+    contract_data: dict[str, dict] = {}
+    if not df.empty and "INT_BROKER" in df.columns:
+        for broker, grp in df.groupby("INT_BROKER"):
+            cleaned = _clean_broker(broker)
+            if not cleaned:
+                continue
+            contract_data[cleaned] = compute_kpi_summary(grp)
+
+    # ── Agrégation rétrocession (un seul groupby) ─────────────────────
+    retro_data: dict[str, dict] = {}
+    try:
+        from services.retro_service import get_retro_df
+        df_retro = get_retro_df()
+        if not df_retro.empty and "DIRECT_COURTIER" in df_retro.columns:
+            for courtier, grp in df_retro.groupby("DIRECT_COURTIER"):
+                cleaned = _clean_broker(courtier)
+                # Exclusion case-insensitive de la valeur littérale "DIRECT"
+                if not cleaned or cleaned.upper() == "DIRECT":
+                    continue
+                retro_data[cleaned] = {
+                    "retro_pmd_placee": round(float(grp["PMD_PAR_SECURITE"].sum()), 2),
+                    "retro_courtage": round(float(grp["COMMISSION_COURTAGE"].sum()), 2),
+                    "retro_nb_traites": int(grp["TRAITE"].nunique()),
+                }
+    except Exception:
+        pass
+
+    all_brokers = set(contract_data.keys()) | set(retro_data.keys())
+    if not all_brokers:
         return []
 
     result = []
-    for broker, group in df.groupby("INT_BROKER"):
-        if not broker or str(broker).strip() == "" or str(broker).strip().upper() == "NAN":
-            continue
-        kpis = compute_kpi_summary(group)
+    for broker in all_brokers:
+        kpis = contract_data.get(broker, _EMPTY_KPIS)
+        rt = retro_data.get(broker, {
+            "retro_pmd_placee": 0.0,
+            "retro_courtage": 0.0,
+            "retro_nb_traites": 0,
+        })
+
+        has_apporteur = kpis["contract_count"] > 0
+        has_placeur = rt["retro_pmd_placee"] > 0 or rt["retro_nb_traites"] > 0
+        role = ("double" if has_apporteur and has_placeur
+                else "placeur" if has_placeur
+                else "apporteur")
+
         result.append({
-            "broker": str(broker).strip(),
+            "broker": broker,
             "total_written_premium": kpis["total_written_premium"],
             "total_resultat": kpis["total_resultat"],
             "avg_ulr": kpis["avg_ulr"],
             "contract_count": kpis["contract_count"],
+            "retro_pmd_placee": rt["retro_pmd_placee"],
+            "retro_courtage": rt["retro_courtage"],
+            "retro_nb_traites": rt["retro_nb_traites"],
+            "role": role,
         })
 
-    sort_key = sort_by if sort_by in ["total_written_premium", "total_resultat", "avg_ulr", "contract_count"] else "total_written_premium"
+    sort_key = sort_by if sort_by in [
+        "total_written_premium", "total_resultat", "avg_ulr",
+        "contract_count", "retro_pmd_placee"
+    ] else "total_written_premium"
     if sort_key == "avg_ulr":
         result.sort(key=lambda x: x[sort_key] if x[sort_key] is not None else float('inf'), reverse=False)
     else:
@@ -75,17 +142,20 @@ def compute_top_brokers(
 
 
 def compute_broker_profile(df: pd.DataFrame, broker: str) -> Dict[str, Any]:
-    """Profil consolidé d'un courtier — contrats + rétrocession."""
+    """Profil consolidé d'un courtier — contrats + rétrocession.
+    Supporte les courtiers placeur-only (présents uniquement en rétrocession)."""
     group = df[df["INT_BROKER"] == broker] if "INT_BROKER" in df.columns else pd.DataFrame()
+
     if group.empty:
-        return {}
-
-    kpis = compute_kpi_summary(group)
-
-    # Cedantes servies
-    cedantes = sorted(group["INT_CEDANTE"].dropna().unique().tolist()) if "INT_CEDANTE" in group.columns else []
-    branches = sorted(group["INT_BRANCHE"].dropna().unique().tolist()) if "INT_BRANCHE" in group.columns else []
-    pays = sorted(group["PAYS_RISQUE"].dropna().unique().tolist()) if "PAYS_RISQUE" in group.columns else []
+        kpis = dict(_EMPTY_KPIS)
+        cedantes: list = []
+        branches: list = []
+        pays: list = []
+    else:
+        kpis = compute_kpi_summary(group)
+        cedantes = sorted(group["INT_CEDANTE"].dropna().unique().tolist()) if "INT_CEDANTE" in group.columns else []
+        branches = sorted(group["INT_BRANCHE"].dropna().unique().tolist()) if "INT_BRANCHE" in group.columns else []
+        pays = sorted(group["PAYS_RISQUE"].dropna().unique().tolist()) if "PAYS_RISQUE" in group.columns else []
 
     # Retro data
     retro_pmd = 0.0
@@ -106,6 +176,10 @@ def compute_broker_profile(df: pd.DataFrame, broker: str) -> Dict[str, Any]:
                 retro_role = "apporteur"
     except Exception:
         pass
+
+    # Si aucun match ni côté contrats ni côté rétrocession → courtier inconnu
+    if group.empty and retro_traites == 0 and retro_pmd == 0:
+        return {}
 
     solde_net = round(kpis.get("total_written_premium", 0) - retro_pmd, 2)
 

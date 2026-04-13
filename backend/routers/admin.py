@@ -52,6 +52,47 @@ def get_logs(user: dict = Depends(require_role("admin"))):
     return log_repository.get_logs()
 
 
+@router.get("/broker-matching-report")
+def broker_matching_report(user: dict = Depends(require_role("admin"))):
+    """
+    Statistiques de normalisation des courtiers sur le dataset chargé.
+    Utile pour auditer la qualité du matching SmartBrokerMatcher.
+    """
+    from services.data_service import get_df
+
+    df = get_df()
+    if df.empty or "INT_BROKER" not in df.columns:
+        return {
+            "total_brokers_distincts": 0,
+            "total_contrats": 0,
+            "brokers": [],
+        }
+
+    agg_cols = {}
+    if "POLICY_SEQUENCE_NUMBER" in df.columns:
+        agg_cols["nb_contrats"] = ("POLICY_SEQUENCE_NUMBER", "count")
+    else:
+        agg_cols["nb_contrats"] = ("INT_BROKER", "count")
+    if "WRITTEN_PREMIUM" in df.columns:
+        agg_cols["prime_totale"] = ("WRITTEN_PREMIUM", "sum")
+
+    broker_counts = (
+        df.groupby("INT_BROKER")
+        .agg(**agg_cols)
+        .reset_index()
+    )
+    if "prime_totale" in broker_counts.columns:
+        broker_counts = broker_counts.sort_values("prime_totale", ascending=False)
+        broker_counts["prime_totale"] = broker_counts["prime_totale"].fillna(0).round(2)
+    broker_counts["nb_contrats"] = broker_counts["nb_contrats"].astype(int)
+
+    return {
+        "total_brokers_distincts": int(broker_counts["INT_BROKER"].nunique()),
+        "total_contrats": int(len(df)),
+        "brokers": broker_counts.to_dict(orient="records"),
+    }
+
+
 @router.get("/config")
 def get_config(user: dict = Depends(require_role("admin"))):
     return _app_config

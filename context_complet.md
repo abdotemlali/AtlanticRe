@@ -1,6 +1,6 @@
 # Atlantic Re — Contexte Complet de la Plateforme de Réassurance
 
-> **Version** : 2.0.0 | **Date** : Avril 2026  
+> **Version** : 2.1.0 | **Date** : Avril 2026 (Actualisé)  
 > **Projet** : `reinsurance-platform`  
 > **Société** : Atlantic Re
 
@@ -10,7 +10,7 @@
 
 1. [Vision Métier et Objectifs](#1-vision-métier-et-objectifs)
 2. [Architecture Générale](#2-architecture-générale)
-3. [Source de Données — Le Fichier Excel](#3-source-de-données--le-fichier-excel)
+3. [Sources de Données — Les Fichiers Excel](#3-sources-de-données--les-fichiers-excel)
 4. [Modèle de Données — Colonnes Clés](#4-modèle-de-données--colonnes-clés)
 5. [Système de Filtres](#5-système-de-filtres)
 6. [Backend — API FastAPI](#6-backend--api-fastapi)
@@ -69,9 +69,9 @@ reinsurance-platform/
 │   ├── main.py       # Point d'entrée, lifespan, routers
 │   ├── core/         # Config, DB, Sécurité
 │   ├── models/       # Schémas Pydantic (schemas.py), modèles SQLAlchemy (db_models.py)
-│   ├── services/     # Logique métier (data, scoring, clients, auth, email...)
+│   ├── services/     # Logique métier (data, scoring, clients, auth, retro, fcm...)
 │   ├── repositories/ # Accès base de données (logs, users)
-│   ├── routers/      # Endpoints HTTP (auth, kpis, comparison, scoring, export...)
+│   ├── routers/      # Endpoints HTTP (auth, kpis, comparison, scoring, retro, fac_to_fac...)
 │   └── middlewares/  # CORS, rate limiting, security headers
 │
 └── frontend/         # React + TypeScript + Vite
@@ -104,11 +104,15 @@ Fichier Excel (source de vérité)
 
 ---
 
-## 3. Source de Données — Le Fichier Excel
+## 3. Sources de Données — Les Fichiers Excel
 
-Toute la donnée provient d'**un unique fichier Excel** chargé au démarrage du serveur. Le chemin est configuré via la variable d'environnement `EXCEL_FILE_PATH`.
+La plateforme s'appuie désormais sur **plusieurs sources de données Excel** chargées au démarrage du serveur :
 
-### Chargement (`data_service.py` — `load_excel()`)
+1. **Fichier Principal (Contrats)** : Source de vérité unique pour les contrats de réassurance globaux.
+2. **Fichier Rétrocession** : Contient les données des affaires traitées et le panel de sécurités.
+3. **Fichier FAC-to-FAC (FCM Partenaires)** : Contient les données spécifiques à la réassurance facultative.
+
+### Chargement (Services)
 
 1. Lecture avec `pandas.read_excel()` — toutes les colonnes en `dtype=str`
 2. Conversion des colonnes numériques (`WRITTEN_PREMIUM`, `ULR`, `RESULTAT`, etc.)
@@ -244,6 +248,9 @@ Seuils numériques sur les indicateurs.
 | `/api/data` | `data.py` | Statut données, options de filtres, rechargement Excel |
 | `/api/export` | `export.py` | Export CSV, Excel, Pivot Excel, PDF |
 | `/api/clients` | `clients.py` | Analyse clients inactifs, analyse renouvellement |
+| `/api/retro` | `retro.py` | Analyse des traités de rétrocession et sécurité |
+| `/api/fac-to-fac` | `fac_to_fac.py`| Données du module FAC-to-FAC |
+| `/api/target-share`| `target_share.py`| Ciblage de part de marché TTY |
 
 ---
 
@@ -345,6 +352,8 @@ La détection utilise `TYPE_OF_CONTRACT == "FAC"` OU `INT_SPC_TYPE == "FAC"` pou
 
 **Impact métier** : Trop de contrats FAC sur une branche peut indiquer qu'Atlantic Re devrait proposer un traité à la cédante plutôt que de souscrire risque par risque.
 
+**Interface UI** : La modale de détail affiche la liste complète des branches associées à une cédante. Un code couleur visuel intuitif a été intégré : indicateur VERT pour les branches en état de saturation et indicateur ROUGE pour les branches non saturées.
+
 ### 7.6 — Classification Automatique (`classification_rules.py`)
 
 #### Classification TYPE_CEDANTE
@@ -396,7 +405,7 @@ Représente la **part réelle du risque** supportée par Atlantic Re (fraction d
 
 | Composant | Rôle |
 |-----------|------|
-| `Layout.tsx` | Barre de navigation + Sidebar + contenu principal |
+| `Layout.tsx` | Barre de navigation (menus déroulants) + Sidebar + contenu principal |
 | `FilterPanel.tsx` | Panneau de filtres global avec tous les critères |
 | `PageFilterPanel.tsx` | Panneau de filtres local pour certaines pages |
 | `KPICards.tsx` | Cartes de métriques clés (prime, résultat, ULR, contrats) |
@@ -416,74 +425,52 @@ Page d'accueil. Affiche :
 - Graphe d'évolution par année
 - Alertes ULR élevé (marchés à surveiller)
 - Répartition par branche
-- Tableau des cédantes inactives (liste rapide)
+- **Module des Cédantes inactives** intégré nativement pour une visibilité immédiate.
 - Top cédantes et top pays
 
-### 9.2 — Analyse Globale (`/analyse`)
-Vue analytique **centrée sur les pays**. Permet d'explorer la performance du portefeuille par :
+### 9.2 — Analyse Globale (`/analyse` ou `/analyse/:pays`)
+Vue analytique **centrée sur les pays**. Paramètres de filtrage mémorisés dans l'URL. Permet d'explorer :
 - Carte choroplèthe mondiale (pays colorés par prime ou ULR)
 - Top 15 pays par prime écrite
-- Top cédantes
-- Décomposition financière (waterfall : prime → commissions → courtage → résultat)
-- Tableau croisé dynamique (Pivot) configurable
-- Filtres **locaux** indépendants des filtres globaux
+- Décomposition financière, filtres locaux indépendants.
 
-### 9.3 — Analyse Cédante (`/analyse-cedante`)
-Fiche analytique complète d'une **cédante sélectionnée** :
-- KPIs globaux de la cédante (sur tous les filtres identitaires — immunisé contre branche/pays)
-- Type de cédante (Assureur Direct vs Réassureur)
-- Nombre de branches actives (diversification)
+### 9.3 — Analyse Cédante (`/analyse-cedante` ou `/analyse-cedante/:cedante`)
+Fiche analytique complète d'une **cédante sélectionnée** (mémorisée dans l'URL) :
+- KPIs globaux, type de cédante, diversification
 - Alertes de saturation FAC par branche
-- Évolution historique (primes + ULR sur toutes les années, sans filtre année)
-- Performance par branche
-- Contrats individuels de la cédante
-- Vue Vie / Non-Vie configurable
+- Évolution historique et performance par branche
 
 ### 9.4 — Exposition et Risques (`/exposition`)
 Analyse de la **concentration des risques** :
 - Carte mondiale avec niveau d'exposition par pays
-- Graphe barres : exposition par branche
-- Top N risques individuels les plus exposés (par somme assurée × part signée)
+- Graphe barres : exposition par branche et top risques
 
-### 9.5 — Scoring / Sélection de Marchés (`/scoring`)
-**Outil de sélection stratégique** des marchés à développer :
-- Tableau des couples (pays, branche) scorés de 0 à 100
-- Badge ATTRACTIF / NEUTRE / À ÉVITER
-- Critères de scoring **entièrement configurables** par l'utilisateur (poids, seuils, direction)
-- Filtrage par badge, pays, branche
-- Export PDF du rapport de recommandations
+### 9.5 — Scoring et Recommandations (`/scoring`, `/recommandations`)
+**Outil de sélection stratégique** : 
+- Scoring paramétrable (poids, directions)
+- Tableau de recommandations d'investissement
+- Export PDF
 
-### 9.6 — Recommandations (`/recommandations`)
-Affiche le résultat du scoring comme une liste de recommandations d'investissement. Vue simplifiée du scoring, orientée prise de décision rapide.
+### 9.6 — Comparaison (`/comparaison`)
+Module de comparaison côte à côte pour explorer les différences :
+- Marché vs Marché, Pays vs Pays, Cédante vs Cédante
 
-### 9.7 — Comparaison (`/comparaison`)
-Module de comparaison côte à côte avec **4 modes** :
-1. **Marché vs Marché** : (Pays A, Branche A) vs (Pays B, Branche B)
-2. **Pays vs Pays** : tous secteurs vs tous secteurs
-3. **Pays vs Pays (détaillé)** : avec sélection de branches indépendante par pays et filtre Vie/Non-Vie
-4. **Cédante vs Cédante** : profil complet de deux cédantes
+### 9.7 — Saturation FAC (`/fac-saturation`)
+Détecte les **branches surexposées en FAC** (logique OR > 5 contrats et > 1M primes). Indicateurs Vert/Rouge.
 
-Pour chaque mode :
-- Graphe Radar (5 axes normalisés)
-- Graphe d'évolution historique (sur toutes les années)
-- Tableau de KPIs comparatif
+### 9.8 — Modules Rétrocession (`/retrocession/*`)
+- **Affaires Traitées** (`/retrocession/traites`)
+- **Panel Sécurités** (`/retrocession/securites`)
+- **FAC-to-FAC** (`/retrocession/fac-to-fac`) : Suivi dédié aux partenaires facultatifs.
 
-### 9.8 — Saturation FAC (`/fac-saturation`)
-Détecte les **branches surexposées en FAC** pour une cédante ou l'ensemble du portefeuille :
-- Filtre par année, statut, cédante
-- Liste des branches en saturation
-- Détail des contrats FAC par branche dans une modale
+### 9.9 — Cibles TTY (`/cibles-tty`)
+Module pour l'identification des cibles de parts cibles (Target Share).
 
-### 9.9 — Clients Inactifs (`/` intégré dans Dashboard)
-Détecte les cédantes n'ayant plus souscrit depuis N années :
-- Paramètres configurables : seuil d'années, nombre minimum de contrats
-- Liste triable des cédantes inactives avec détail
-- **Export Excel stylisé** avec formatage conditionnel (rouge > 3 ans, orange 2-3 ans)
-
-### 9.10 — Top Brokers (`/top-brokers`)
-Analyse de la performance des **courtiers** :
-- Classement par prime écrite, résultat, ULR ou nombre de contrats
-- Graphes comparatifs
+### 9.10 — Analyse Courtiers (`/analyse-courtiers` et `/analyse-courtiers/:brokerName`)
+**Analyse Unifiée des Courtiers** (consolidation des données directes et rétrocession) :
+- Classements par prime et ULR.
+- Vue détaillée d'un courtier sélectionné (paramètre d'URL persistant) avec KPIs individuels et distribution.
+- Graphes comparatifs.
 
 ### 9.11 — Administration (`/admin`)
 Réservée au rôle `admin` :
@@ -619,4 +606,4 @@ SMTP_PASSWORD=...
 
 ---
 
-*Document généré le 08/04/2026 — Analyse complète du code source de la plateforme Atlantic Re v2.0.0*
+*Document généré et actualisé en Avril 2026 — Analyse complète de l'architecture de la plateforme Atlantic Re v2.1.0*

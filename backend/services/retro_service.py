@@ -81,6 +81,36 @@ def load_retro_excel(file_path: str = None) -> Dict[str, Any]:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str).str.strip()
 
+    # ── Normalisation des courtiers placeurs (même matcher que INT_BROKER) ──
+    # On preserve "DIRECT" littéral (= pas de courtier) et les valeurs hors mapping.
+    if "DIRECT_COURTIER" in df.columns:
+        import time
+        from services.broker_matching_service import get_broker_matcher
+
+        matcher = get_broker_matcher()
+        t0 = time.perf_counter()
+
+        unique_names = df["DIRECT_COURTIER"].dropna().unique().tolist()
+        before_unique = len(unique_names)
+
+        lookup: dict[str, str] = {}
+        for name in unique_names:
+            if not name or name.upper().strip() == "DIRECT":
+                lookup[name] = name
+                continue
+            result = matcher.match(name)
+            if result["confidence"] == "Exact":
+                lookup[name] = result["canonical"]
+            else:
+                lookup[name] = name
+
+        df["DIRECT_COURTIER"] = df["DIRECT_COURTIER"].map(lambda v: lookup.get(v, v))
+        after_unique = df["DIRECT_COURTIER"].nunique()
+        logger.info(
+            f"[BrokerMatching] Placeurs normalisés en {time.perf_counter() - t0:.2f}s — "
+            f"{before_unique} → {after_unique} placeurs distincts."
+        )
+
     _retro_df = df
     _retro_last_loaded = datetime.now()
     _retro_row_count = len(df)

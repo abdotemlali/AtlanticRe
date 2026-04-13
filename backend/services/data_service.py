@@ -106,6 +106,37 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
         if col in raw.columns:
             raw[col] = raw[col].fillna("").astype(str).str.strip()
 
+    # ── Normalisation des noms de courtiers (SmartBrokerMatcher) ──
+    # Optimisation : on matche uniquement les valeurs uniques (quelques centaines)
+    # puis on mappe la colonne complète — évite N appels coûteux sur N lignes.
+    if "INT_BROKER" in raw.columns:
+        import time
+        from services.broker_matching_service import get_broker_matcher
+
+        matcher = get_broker_matcher()
+        t0 = time.perf_counter()
+
+        unique_names = raw["INT_BROKER"].dropna().unique().tolist()
+        before_unique = len(unique_names)
+
+        lookup: dict[str, str] = {}
+        for name in unique_names:
+            if not name:
+                lookup[name] = name
+                continue
+            result = matcher.match(name)
+            if result["confidence"] == "Exact":
+                lookup[name] = result["canonical"]
+            else:
+                lookup[name] = name
+
+        raw["INT_BROKER"] = raw["INT_BROKER"].map(lambda v: lookup.get(v, v))
+        after_unique = raw["INT_BROKER"].nunique()
+        logger.info(
+            f"[BrokerMatching] Normalisation terminée en {time.perf_counter() - t0:.2f}s — "
+            f"{before_unique} → {after_unique} courtiers distincts."
+        )
+
     _df = raw
     _last_loaded = datetime.now()
     _row_count = len(_df)
