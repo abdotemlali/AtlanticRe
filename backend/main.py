@@ -132,18 +132,27 @@ async def lifespan(app: FastAPI):
 
     # ── Seed des données externes (marché africain) ─────────────────────────
     # Les tables sont créées par init_db() via create_all (idempotent).
-    # On ne seede que si ref_pays est vide — sinon on saute l'étape.
+    # On saute le seed uniquement si les 5 tables contiennent déjà des lignes.
+    # Un simple check "table existe" ne suffit pas : un run partiel précédent
+    # peut avoir rempli ref_pays mais laissé les ext_* vides.
     try:
-        db = database.SessionLocal()
-        try:
-            already_seeded = db.query(external_db_models.RefPays).first() is not None
-        finally:
-            db.close()
+        from sqlalchemy import text as _sql_text
 
-        if already_seeded:
-            logger.info("Données externes déjà présentes — seed ignoré")
+        counts: dict[str, int] = {}
+        with database.engine.connect() as conn:
+            for tbl in ("ref_pays", "ext_marche_non_vie", "ext_marche_vie",
+                        "ext_gouvernance", "ext_macroeconomie"):
+                try:
+                    counts[tbl] = conn.execute(_sql_text(f"SELECT COUNT(*) FROM {tbl}")).scalar() or 0
+                except Exception:
+                    counts[tbl] = 0
+
+        all_populated = all(c > 0 for c in counts.values())
+
+        if all_populated:
+            logger.info(f"Données externes déjà présentes — seed ignoré ({counts})")
         else:
-            logger.info("Seed des données externes (marché africain)…")
+            logger.info(f"Tables externes vides ou incomplètes {counts} — lancement du seed…")
             from scripts.seed_external_data import run_seed
             rc = run_seed()
             if rc == 0:

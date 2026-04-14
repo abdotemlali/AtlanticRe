@@ -25,6 +25,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import pandas as pd  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 from sqlalchemy.dialects.mysql import insert as mysql_insert  # noqa: E402
 
 from core.database import engine, SessionLocal, Base  # noqa: E402
@@ -172,7 +173,7 @@ def _load_csv(path: Path, mapping: Dict[str, str], decimal: str = ".") -> List[D
 
 
 def _upsert(session, model, rows: List[Dict[str, Any]], unique_cols: List[str]) -> Dict[str, int]:
-    """INSERT ... ON DUPLICATE KEY UPDATE via dialecte MySQL."""
+    """INSERT ... ON DUPLICATE KEY UPDATE compatible toutes versions MySQL 8.x."""
     if not rows:
         return {"inserted_or_updated": 0}
 
@@ -182,7 +183,9 @@ def _upsert(session, model, rows: List[Dict[str, Any]], unique_cols: List[str]) 
     inserted = 0
     for row in rows:
         stmt = mysql_insert(table).values(**row)
-        stmt = stmt.on_duplicate_key_update({c: stmt.inserted[c] for c in update_cols})
+        stmt = stmt.on_duplicate_key_update(
+            {c: text(f"VALUES({c})") for c in update_cols}
+        )
         session.execute(stmt)
         inserted += 1
     session.commit()
@@ -195,7 +198,9 @@ def _seed_ref_pays(session) -> Dict[str, int]:
     count = 0
     for row in REF_PAYS:
         stmt = mysql_insert(table).values(**row)
-        stmt = stmt.on_duplicate_key_update({c: stmt.inserted[c] for c in update_cols})
+        stmt = stmt.on_duplicate_key_update(
+            {c: text(f"VALUES({c})") for c in update_cols}
+        )
         session.execute(stmt)
         count += 1
     session.commit()

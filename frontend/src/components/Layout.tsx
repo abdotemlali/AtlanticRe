@@ -18,7 +18,7 @@ type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[];
 type NavItem   = NavDirect | NavGroup
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
+  { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
   {
     label: 'Analyse', icon: BarChart2,
     children: [

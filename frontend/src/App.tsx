@@ -7,6 +7,8 @@ import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // ── Lazy-loaded pages (P6 — code splitting) ───────────────────────────────────
+const Home = lazy(() => import('./pages/Home'))
+const ModelisationHome = lazy(() => import('./pages/ModelisationHome'))
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const MarketSelection = lazy(() => import('./pages/MarketSelection'))
@@ -56,7 +58,7 @@ function LoadingFallback() {
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -65,11 +67,14 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+        {/* ── Public landing routes (Axe 1 / Axe 2 entry) ── */}
+        <Route path="/" element={<Home />} />
+        <Route path="/modelisation" element={<ModelisationHome />} />
+
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route
-          path="/"
           element={
             <ProtectedRoute>
               <DataProvider>
@@ -78,26 +83,26 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
-          <Route path="scoring" element={<ErrorBoundary><MarketSelection /></ErrorBoundary>} />
-          <Route path="comparaison" element={<ErrorBoundary><Comparison /></ErrorBoundary>} />
-          <Route path="recommandations" element={<ErrorBoundary><Recommendations /></ErrorBoundary>} />
-          <Route path="analyse" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
-          <Route path="analyse/:pays" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
-          <Route path="analyse-cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
-          <Route path="analyse-cedante/:cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
-          <Route path="cibles-tty" element={<ErrorBoundary><TargetShare /></ErrorBoundary>} />
-          <Route path="exposition" element={<ErrorBoundary><ExpositionRisques /></ErrorBoundary>} />
-          <Route path="fac-saturation" element={<ErrorBoundary><FacSaturation /></ErrorBoundary>} />
-          <Route path="top-brokers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
-          <Route path="analyse-courtiers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
-          <Route path="analyse-courtiers/:brokerName" element={<ErrorBoundary><BrokerDetail /></ErrorBoundary>} />
-          <Route path="retrocession/traites" element={<ErrorBoundary><AffairesTraites /></ErrorBoundary>} />
-          <Route path="retrocession/securites" element={<ErrorBoundary><PanelSecurites /></ErrorBoundary>} />
-          <Route path="retrocession/fac-to-fac" element={<ErrorBoundary><FacToFac /></ErrorBoundary>} />
+          <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="/scoring" element={<ErrorBoundary><MarketSelection /></ErrorBoundary>} />
+          <Route path="/comparaison" element={<ErrorBoundary><Comparison /></ErrorBoundary>} />
+          <Route path="/recommandations" element={<ErrorBoundary><Recommendations /></ErrorBoundary>} />
+          <Route path="/analyse" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
+          <Route path="/analyse/:pays" element={<ErrorBoundary><Analysis /></ErrorBoundary>} />
+          <Route path="/analyse-cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="/analyse-cedante/:cedante" element={<ErrorBoundary><CedanteAnalysis /></ErrorBoundary>} />
+          <Route path="/cibles-tty" element={<ErrorBoundary><TargetShare /></ErrorBoundary>} />
+          <Route path="/exposition" element={<ErrorBoundary><ExpositionRisques /></ErrorBoundary>} />
+          <Route path="/fac-saturation" element={<ErrorBoundary><FacSaturation /></ErrorBoundary>} />
+          <Route path="/top-brokers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
+          <Route path="/analyse-courtiers" element={<ErrorBoundary><BrokerAnalysis /></ErrorBoundary>} />
+          <Route path="/analyse-courtiers/:brokerName" element={<ErrorBoundary><BrokerDetail /></ErrorBoundary>} />
+          <Route path="/retrocession/traites" element={<ErrorBoundary><AffairesTraites /></ErrorBoundary>} />
+          <Route path="/retrocession/securites" element={<ErrorBoundary><PanelSecurites /></ErrorBoundary>} />
+          <Route path="/retrocession/fac-to-fac" element={<ErrorBoundary><FacToFac /></ErrorBoundary>} />
 
           <Route
-            path="admin"
+            path="/admin"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <ErrorBoundary><Admin /></ErrorBoundary>
