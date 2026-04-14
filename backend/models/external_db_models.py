@@ -1,6 +1,8 @@
 """
 Modèles SQLAlchemy pour les tables de données externes (marché africain).
 Tables : ref_pays, ext_marche_non_vie, ext_marche_vie, ext_gouvernance, ext_macroeconomie.
+
+Dernière modification : renommage integration_regionale_rank -> integration_regionale_score (Float).
 """
 from sqlalchemy import (
     Column, Integer, SmallInteger, String, Float, DateTime,
@@ -113,6 +115,7 @@ class ExtMacroeconomie(Base):
     gdp_per_capita = Column(Float, nullable=True)
     gdp_mn = Column(Float, nullable=True)
     inflation_rate_pct = Column(Float, nullable=True)
+    integration_regionale_score = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

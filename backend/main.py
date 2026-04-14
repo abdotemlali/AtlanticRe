@@ -210,3 +210,6 @@ app.include_router(target_share_router, prefix="/api/target-share", tags=["targe
 from routers.external_data import router as external_data_router
 app.include_router(external_data_router, prefix="/api", tags=["Market Context"])
 
+from routers.public_overview import router as public_overview_router
+app.include_router(public_overview_router, prefix="/api/public", tags=["Public"])
+

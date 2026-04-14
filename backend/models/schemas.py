@@ -271,6 +271,7 @@ class ExternalCountryMarket(BaseModel):
     gdp_per_capita: Optional[float] = None
     gdp_mn: Optional[float] = None
     inflation_rate_pct: Optional[float] = None
+    integration_regionale_score: Optional[float] = None
 
 
 class RegionAggregate(BaseModel):

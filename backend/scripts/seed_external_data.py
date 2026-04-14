@@ -114,6 +114,45 @@ MACRO_COLS: Dict[str, str] = {
     "GDP Per Capita": "gdp_per_capita",
     "Gross Domestic Product (mn)": "gdp_mn",
     "Inflation Rate (%)": "inflation_rate_pct",
+    "Integration_Regionale_Score": "integration_regionale_score",
+}
+
+# Mapping noms de pays français (CSV africa_eco_integration) -> noms anglais (ref_pays)
+MACRO_PAYS_FR_TO_EN: Dict[str, str] = {
+    "Afrique du Sud": "SOUTH AFRICA",
+    "Algérie":        "ALGERIE",
+    "Angola":          "ANGOLA",
+    "Botswana":        "BOTSWANA",
+    "Burkina Faso":    "BURKINA FASO",
+    "Burundi":         "BURUNDI",
+    "Bénin":          "BENIN",
+    "Cameroun":        "CAMEROON",
+    "Cap-Vert":        "CAPE VERDE",
+    "Congo":           "CONGO",
+    "Côte d'Ivoire":  "IVORY COAST",
+    "Gabon":           "GABON",
+    "Ghana":           "GHANA",
+    "Kenya":           "KENYA",
+    "Madagascar":      "MADAGASCAR",
+    "Malawi":          "MALAWI",
+    "Mali":            "MALI",
+    "Maroc":           "MOROCCO",
+    "Maurice":         "MAURITIUS",
+    "Mauritanie":      "MAURITANIE",
+    "Mozambique":      "MOZAMBIQUE",
+    "Namibie":         "NAMIBIA",
+    "Niger":           "NIGER",
+    "Nigeria":         "NIGERIA",
+    "Ouganda":         "UGANDA",
+    "RDC":             "ZAIRE",
+    "Sénégal":        "SENEGAL",
+    "Tanzanie":        "TANZANIA,UNITED REP.",
+    "Tchad":           "CHAD",
+    "Togo":            "TOGO",
+    "Tunisie":         "TUNISIE",
+    "Zambie":          "ZAMBIA",
+    "Égypte":          "EGYPT",
+    "Éthiopie":        "ETHIOPIA",
 }
 
 
@@ -144,7 +183,12 @@ def _to_int(value: Any) -> Optional[int]:
     return int(f) if f is not None else None
 
 
-def _load_csv(path: Path, mapping: Dict[str, str], decimal: str = ".") -> List[Dict[str, Any]]:
+def _load_csv(
+    path: Path,
+    mapping: Dict[str, str],
+    decimal: str = ".",
+    pays_normalize: Optional[Dict[str, str]] = None,
+) -> List[Dict[str, Any]]:
     if not path.exists():
         raise FileNotFoundError(f"CSV introuvable : {path}")
 
@@ -162,9 +206,14 @@ def _load_csv(path: Path, mapping: Dict[str, str], decimal: str = ".") -> List[D
         for csv_col, db_col in mapping.items():
             val = r[csv_col]
             if db_col == "pays":
-                row[db_col] = str(val).strip() if pd.notna(val) else None
+                raw_pays = str(val).strip() if pd.notna(val) else None
+                if raw_pays and pays_normalize:
+                    raw_pays = pays_normalize.get(raw_pays, raw_pays)
+                row[db_col] = raw_pays
             elif db_col == "annee":
                 row[db_col] = _to_int(val)
+            elif db_col == "integration_regionale_score":
+                row[db_col] = _to_float(val)
             else:
                 row[db_col] = _to_float(val)
         if row.get("pays") and row.get("annee") is not None:
@@ -275,7 +324,7 @@ def _run(data_dir: Path, create_tables: bool) -> int:
     non_vie_rows = _load_csv(files["non_vie"], NON_VIE_COLS)
     vie_rows     = _load_csv(files["vie"],     VIE_COLS)
     gouv_rows    = _load_csv(files["gouv"],    GOUV_COLS)
-    macro_rows   = _load_csv(files["macro"],   MACRO_COLS, decimal=macro_decimal)
+    macro_rows   = _load_csv(files["macro"],   MACRO_COLS, decimal=macro_decimal, pays_normalize=MACRO_PAYS_FR_TO_EN)
 
     print(f"  non_vie : {len(non_vie_rows)} lignes")
     print(f"  vie     : {len(vie_rows)} lignes")

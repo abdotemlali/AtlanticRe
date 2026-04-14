@@ -48,6 +48,7 @@ def _empty_market_row(nom_pays: str, ref: Optional[RefPays] = None, annee: Optio
         "gdp_per_capita": None,
         "gdp_mn": None,
         "inflation_rate_pct": None,
+        "integration_regionale_score": None,
     }
 
 
@@ -88,6 +89,7 @@ def _apply_macro(row: Dict[str, Any], m: Optional[ExtMacroeconomie]) -> None:
     row["gdp_per_capita"] = m.gdp_per_capita
     row["gdp_mn"] = m.gdp_mn
     row["inflation_rate_pct"] = m.inflation_rate_pct
+    row["integration_regionale_score"] = m.integration_regionale_score
 
 
 def _resolve_pays_name(db: Session, identifier: str) -> Optional[RefPays]:

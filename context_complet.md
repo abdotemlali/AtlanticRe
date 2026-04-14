@@ -1,609 +1,631 @@
-# Atlantic Re — Contexte Complet de la Plateforme de Réassurance
-
-> **Version** : 2.1.0 | **Date** : Avril 2026 (Actualisé)  
-> **Projet** : `reinsurance-platform`  
-> **Société** : Atlantic Re
-
----
-
-## Table des matières
-
-1. [Vision Métier et Objectifs](#1-vision-métier-et-objectifs)
-2. [Architecture Générale](#2-architecture-générale)
-3. [Sources de Données — Les Fichiers Excel](#3-sources-de-données--les-fichiers-excel)
-4. [Modèle de Données — Colonnes Clés](#4-modèle-de-données--colonnes-clés)
-5. [Système de Filtres](#5-système-de-filtres)
-6. [Backend — API FastAPI](#6-backend--api-fastapi)
-7. [Modules Métier Principaux](#7-modules-métier-principaux)
-8. [Frontend — Interface React](#8-frontend--interface-react)
-9. [Pages de l'Application](#9-pages-de-lapplication)
-10. [Authentification et Gestion des Utilisateurs](#10-authentification-et-gestion-des-utilisateurs)
-11. [Export et Rapports](#11-export-et-rapports)
-12. [Règles Métier Spécifiques](#12-règles-métier-spécifiques)
-13. [Stack Technique](#13-stack-technique)
+# 📋 Contexte Complet — Plateforme Atlantic Re
+> **Version :** 2.0.0 · **Mise à jour :** 14 avril 2026  
+> **Stack :** FastAPI (Python 3.11) + React 18 (TypeScript/Vite) + MySQL + TailwindCSS  
+> **Dépôt :** `github.com/abdotemlali/AtlanticRe` · Branche `main`
 
 ---
 
-## 1. Vision Métier et Objectifs
+## 1. Vue d'ensemble du projet
 
-**Atlantic Re** est un réassureur africain. Cette plateforme est un **outil d'aide à la décision** pour les équipes de souscription et de direction. Elle permet d'analyser le **portefeuille de contrats de réassurance** sous tous les angles :
+Atlantic Re est un **réassureur international** filiale du Groupe CDG (Maroc), actif sur **60+ marchés** et auprès de **400+ cédantes**. La plateforme porte la double mission du programme **Reach 2030** :
 
-- Comprendre la **performance financière** par pays, branche, cédante, courtier, année
-- Identifier les marchés attractifs ou à risque via un **système de scoring**
-- **Comparer** deux marchés ou deux cédantes côte à côte
-- Détecter les **cédantes inactives** pour relancer la relation commerciale
-- Surveiller la **saturation FAC** (trop de contrats facultatifs sur une branche)
-- Gérer l'**exposition au risque** (sommes assurées) par pays et branche
-- **Exporter** les analyses en Excel, CSV ou PDF
-
-### Terminologie Métier
-
-| Terme | Définition |
-|-------|------------|
-| **Cédante** | Compagnie d'assurance qui cède une partie de ses risques à Atlantic Re (le réassureur) |
-| **Courtier** | Intermédiaire (broker) qui apporte les affaires à Atlantic Re |
-| **Périmètre** | Zone géographique de souscription (ex. AE = Afrique de l'Est, AM = Afrique du Maghreb) |
-| **FAC** | Facultatif : contrat de réassurance souscrit police par police, risque par risque |
-| **TTY** | Treaty Proportionnel : traité où Atlantic Re partage une quote-part de tout le portefeuille de la cédante |
-| **TTE** | Treaty Non-Proportionnel : traité par excédent de sinistre (XL) |
-| **Branche** | Ligne d'activité (ex. Incendie, Marine, Vie, RC, Engineering...) |
-| **Sous-branche** | Subdivision d'une branche |
-| **ULR** | Ultimate Loss Ratio — rapport sinistres/primes final (indicateur de rentabilité) |
-| **Prime Écrite (Written Premium)** | Prime souscrite par Atlantic Re sur un contrat |
-| **Résultat** | Prime - Sinistres - Commissions - Courtage → profit ou perte généré par le contrat |
-| **Part souscrite (Share)** | Pourcentage du risque pris par Atlantic Re (entre 0 et 100%) |
-| **Commission** | Rémunération versée à la cédante (coût d'acquisition) |
-| **Courtage** | Rémunération versée au courtier |
-| **Profit Commission** | Commission de bénéfice versée à la cédante si le résultat est positif |
-| **Somme Assurée (SUM_INSURED)** | Valeur maximale couverte par le contrat |
-| **Exposition** | Part du risque réel supporté par Atlantic Re = SUM_INSURED_100 × SHARE_SIGNED / 100 |
-| **Année de souscription (UW Year)** | Année à laquelle le contrat a été souscrit |
+| Axe | Rôle | Statut |
+|-----|------|--------|
+| **Axe 1 – Opérationnel** | Pilotage du portefeuille de réassurance interne | ✅ Actif |
+| **Axe 2 – Stratégique** | Modélisation SCAR de l'expansion africaine | 🔄 En intégration |
 
 ---
 
-## 2. Architecture Générale
+## 2. Architecture générale
 
 ```
 reinsurance-platform/
-├── backend/          # API FastAPI (Python)
-│   ├── main.py       # Point d'entrée, lifespan, routers
-│   ├── core/         # Config, DB, Sécurité
-│   ├── models/       # Schémas Pydantic (schemas.py), modèles SQLAlchemy (db_models.py)
-│   ├── services/     # Logique métier (data, scoring, clients, auth, retro, fcm...)
-│   ├── repositories/ # Accès base de données (logs, users)
-│   ├── routers/      # Endpoints HTTP (auth, kpis, comparison, scoring, retro, fac_to_fac...)
-│   └── middlewares/  # CORS, rate limiting, security headers
+├── backend/          → FastAPI 0.110 · uvicorn · Python venv
+│   ├── core/         → config, security, database
+│   ├── models/       → db_models, external_db_models, schemas
+│   ├── routers/      → 21 routers HTTP
+│   ├── services/     → 25 services métier
+│   ├── repositories/ → couche d'accès BDD
+│   ├── middlewares/  → CORS, rate-limit, security-headers
+│   ├── migrations/   → SQL bruts (no Alembic)
+│   └── scripts/      → seed_external_data.py
+├── frontend/         → Vite 5 · React 18 · TypeScript · TailwindCSS 3
+│   └── src/
+│       ├── pages/    → 22 pages lazy-loaded
+│       ├── components/ → Layout, Charts, FilterPanel, DataTable…
+│       ├── context/  → AuthContext, DataContext
+│       ├── hooks/    → custom hooks
+│       ├── types/    → types TypeScript
+│       └── utils/    → formatters, helpers
+├── data/
+│   └── external/     → 4 CSV marchés africains
+└── database/         → Fichiers Excel sources (non versionnés)
+```
+
+**Ports :**
+- Backend API : `http://localhost:8000`  
+- Frontend dev : `http://localhost:5173`  
+- Swagger UI : `http://localhost:8000/docs`
+
+---
+
+## 3. Backend — FastAPI
+
+### 3.1 Démarrage & Lifespan
+
+Le fichier `main.py` orchestre le démarrage via un **lifespan asyncio** (pattern FastAPI ≥ 0.93) :
+
+1. `init_db()` — Crée les tables SQLAlchemy et l'admin par défaut (`admin / Admin@123`, `must_change_password=True`)
+2. `load_excel()` — Charge le fichier réassurance principal en mémoire (pandas DataFrame)
+3. `load_retro_excel()` — Charge le fichier rétrocession (affaires traitées)
+4. `load_fcm_excel()` — Charge le fichier FCM Partenaires (FAC-to-FAC)
+5. **Seed données externes** — Si les tables `ext_*` sont vides, lance `seed_external_data.run_seed()`
+
+### 3.2 Fichiers de données (config.py)
+
+| Variable d'env | Défaut |
+|---|---|
+| `EXCEL_FILE_PATH` | `../database/AtlanticRe_Reassurance.xlsx` |
+| `RETRO_EXCEL_FILE_PATH` | `../database/AtlanticRe_Retrocession_AffairesTraites.xlsx` |
+| `FCM_PARTENAIRES_FILE_PATH` | `../database/FCM_Partenaires_v2.xlsx` |
+
+### 3.3 Base de données MySQL (`.env`)
+
+```
+DATABASE_URL=mysql+pymysql://user:password@host/dbname
+SECRET_KEY=<jwt-secret>
+GMAIL_SENDER=...
+GMAIL_APP_PASSWORD=...
+FRONTEND_URL=http://localhost:5173
+```
+
+**JWT :** HS256, expiration 8h (`JWT_EXPIRE_MINUTES=480`)
+
+### 3.4 Modèles de base de données
+
+#### Tables utilisateurs (db_models.py)
+
+| Table | Colonnes clés |
+|---|---|
+| `users` | id, username, hashed_password, role (admin/souscripteur/lecteur), full_name, email, active, must_change_password, reset_token, token_version |
+| `activity_logs` | id, timestamp, username, action, detail |
+
+#### Tables données externes (external_db_models.py)
+
+| Table | Contenu |
+|---|---|
+| `ref_pays` | Référentiel pays (nom, ISO3, région, mapping pays_risque) |
+| `ext_marche_non_vie` | Primes non-vie, croissance, taux pénétration, ratio S/P, densité — par pays/année |
+| `ext_marche_vie` | Primes vie, croissance, pénétration, densité — par pays/année |
+| `ext_gouvernance` | FDI, stabilité politique, qualité réglementaire, KAOPEN — par pays/année |
+| `ext_macroeconomie` | PIB, croissance PIB, inflation, compte courant, tx change, PIB/hab — par pays/année |
+
+### 3.5 Routers API
+
+| Préfixe | Fichier | Description |
+|---|---|---|
+| `/api/auth` | auth.py | Login, refresh, reset password, change password |
+| `/api/admin` | admin.py | CRUD utilisateurs, logs d'activité, config Excel |
+| `/api/kpis` | kpis_global.py | KPIs globaux, filtres options, pivot |
+| `/api/kpis/exposition` | exposition.py | Exposition et risques |
+| `/api/kpis` (cedantes) | cedantes.py | KPIs par cédante, matching |
+| `/api/kpis` (brokers) | brokers.py | KPIs par courtier |
+| `/api/kpis` (alerts) | alerts.py | Alertes KPI |
+| `/api/contracts` | contracts.py | Liste paginée des contrats |
+| `/api/scoring` | scoring.py | Scoring multicritère des marchés |
+| `/api/comparison` | comparison.py | Comparaison directe de marchés |
+| `/api/data` | data.py | Statut données, rechargement |
+| `/api/export` | export.py | Export Excel/PDF |
+| `/api/clients` | clients.py | Clients inactifs, pipeline |
+| `/api/retro` | retro.py | Rétrocession — affaires traitées |
+| `/api/fac-to-fac` | fac_to_fac.py | Module FAC-to-FAC partenaires |
+| `/api/target-share` | target_share.py | Cibles TTY (parts cibles) |
+| `/api/external-data` | external_data.py | Données marché africain |
+| `/api/public` | public_overview.py | Stats publiques (non authentifié) |
+| `/api/filter-parser` | filter_parser.py | Parsing avancé des filtres |
+
+### 3.6 Services métier
+
+| Service | Rôle |
+|---|---|
+| `data_service.py` (16 Ko) | Chargement/parsing Excel réassurance, application des filtres |
+| `cedante_matching_service.py` (68 Ko) | **Cœur** — matching fuzzy cédantes, KPIs cédante, saturation FAC |
+| `broker_matching_service.py` (17 Ko) | Matching brokers (RapidFuzz + Jellyfish + scikit-learn), KPIs broker |
+| `retro_service.py` (20 Ko) | Parsing Excel rétrocession, logique affaires traitées |
+| `fac_to_fac_service.py` (18 Ko) | Logique FAC-to-FAC partenaires (donneurs/preneurs) |
+| `kpi_cedante_service.py` (13 Ko) | Agrégations KPI par cédante |
+| `kpi_broker_service.py` (10 Ko) | Agrégations KPI par courtier |
+| `client_service.py` (11 Ko) | Clients inactifs, pipeline CRM |
+| `external_data_service.py` (11 Ko) | Lecture tables ext_*, agrégations africaines |
+| `export_service.py` (3.8 Ko) | Génération exports Excel/PDF (reportlab) |
+| `target_share_service.py` (8.9 Ko) | Calcul parts cibles TTY |
+| `scoring_service.py` (4 Ko) | Scoring multicritère pondéré |
+| `auth_service.py` (5.5 Ko) | Login, hash MDP, JWT, reset token |
+| `email_service.py` (7.7 Ko) | Envoi emails (SMTP Gmail) |
+| `classification_rules.py` | Règles de classification branches/types |
+
+### 3.7 Middlewares
+
+| Middleware | Rôle |
+|---|---|
+| `SecurityHeadersMiddleware` | En-têtes sécurité HTTP (CSP, X-Frame, HSTS…) |
+| `setup_cors` | CORS permissif en dev, restreint en prod |
+| `setup_rate_limiter` | SlowAPI — limitation débit IP |
+
+### 3.8 Schémas Pydantic principaux
+
+```python
+LoginRequest, Token, UserCreate, UserOut
+FilterOptions, FilterParams      # filtrage multi-axe
+KPISummary, KPIByCountry, KPIByBranch, KPIByBroker, KPIByYear
+PivotRequest, PivotResult
+ScoringRequest, ScoringResult, MarketScore
+ComparisonRequest, ComparisonResult
+ContractSummary, PaginatedContracts
+ExternalCountryMarket, RegionAggregate, CountryTimeSeries
+```
+
+### 3.9 Dépendances backend (requirements.txt)
+
+```
+fastapi==0.110.0 · uvicorn[standard]==0.29.0 · starlette==0.36.3
+pandas==2.3.3 · numpy==2.4.3 · openpyxl==3.1.2 · xlsxwriter==3.2.0
+rapidfuzz≥3.0.0 · jellyfish≥1.0.0 · scikit-learn≥1.3.0  # matching
+python-jose[cryptography]==3.3.0 · bcrypt==4.1.3 · passlib==1.7.4
+sqlalchemy==2.0.29 · pymysql==1.1.1
+pydantic==2.6.4 · email-validator==2.1.1
+slowapi==0.1.9 · python-dotenv==1.0.1 · reportlab==4.1.0
+```
+
+---
+
+## 4. Frontend — React 18 / TypeScript / Vite
+
+### 4.1 Stack & Configuration
+
+- **Framework :** Vite 5 + React 18 + TypeScript 5.2
+- **CSS :** TailwindCSS 3.4 + variables CSS custom (`index.css`)
+- **Routing :** React Router DOM v6 (lazy-loading + code splitting)
+- **Charts :** Recharts 2.12
+- **Maps :** react-simple-maps + topojson-client
+- **Tables :** @tanstack/react-table v8
+- **Formulaires :** react-select, react-slider
+- **Animations :** framer-motion
+- **Toasts :** react-hot-toast
+- **Icons :** lucide-react
+- **HTTP :** axios
+- **Virtualisation :** react-window
+
+### 4.2 Arborescence des pages (22 pages)
+
+```
+src/pages/
+├── Home.tsx               → Page d'entrée publique (Axe 1 / Axe 2)
+├── ModelisationHome.tsx   → Hub Axe 2 SCAR — carte africaine + KPIs
+├── Login.tsx              → Authentification
+├── ResetPassword.tsx      → Demande reset MDP
+├── ChangePassword.tsx     → Changement MDP (first login)
+├── Dashboard.tsx          → Tableau de bord global
 │
-└── frontend/         # React + TypeScript + Vite
-    └── src/
-        ├── App.tsx           # Routing principal
-        ├── context/          # AuthContext, DataContext (état global)
-        ├── pages/            # 14 pages de l'application
-        ├── components/       # Composants réutilisables (Layout, FilterPanel, Charts...)
-        ├── types/            # Types TypeScript
-        ├── constants/        # Routes API
-        ├── hooks/            # Hooks custom (useDebounce...)
-        └── utils/            # Axios instance (api.ts)
+│   ── Analyse ──
+├── Analysis.tsx           → Analyse Globale (KPIs pays/branche/année)
+├── CedanteAnalysis.tsx    → Analyse Cédante (drill URL /analyse-cedante/:cedante)
+├── BrokerAnalysis.tsx     → Analyse Courtiers (liste + filtres)
+├── BrokerDetail.tsx       → Détail courtier (/analyse-courtiers/:brokerName)
+├── ExpositionRisques.tsx  → Exposition & Risques
+│
+│   ── Comparaison ──
+├── Comparison.tsx         → Comparaison directe de marchés
+├── MarketSelection.tsx    → Scoring Marché
+│
+│   ── Pilotage ──
+├── TargetShare.tsx        → Cibles TTY
+├── FacSaturation.tsx      → Saturation FAC
+│
+│   ── Rétrocession ──
+├── AffairesTraites.tsx    → Affaires traitées (rétrocession)
+├── PanelSecurites.tsx     → Panel de Sécurités
+├── FacToFac.tsx           → FAC-to-FAC Partenaires
+│
+│   ── Autres ──
+├── Recommendations.tsx    → Recommandations
+├── InactiveClients.tsx    → Clients inactifs / Pipeline
+├── TopBrokers.tsx         → Top Brokers
+└── Admin.tsx              → Administration (admin only)
 ```
 
-### Flux de Données
+### 4.3 Routes (App.tsx)
+
+| Route | Page | Protection |
+|---|---|---|
+| `/` | Home | Public |
+| `/modelisation` | ModelisationHome | Public |
+| `/login` | Login | Public |
+| `/reset-password` | ResetPassword | Public |
+| `/change-password` | ChangePassword | Public |
+| `/dashboard` | Dashboard | Auth requis |
+| `/analyse` & `/analyse/:pays` | Analysis | Auth requis |
+| `/analyse-cedante` & `/analyse-cedante/:cedante` | CedanteAnalysis | Auth requis |
+| `/analyse-courtiers` | BrokerAnalysis | Auth requis |
+| `/analyse-courtiers/:brokerName` | BrokerDetail | Auth requis |
+| `/exposition` | ExpositionRisques | Auth requis |
+| `/comparaison` | Comparison | Auth requis |
+| `/scoring` | MarketSelection | Auth requis |
+| `/cibles-tty` | TargetShare | Auth requis |
+| `/fac-saturation` | FacSaturation | Auth requis |
+| `/retrocession/traites` | AffairesTraites | Auth requis |
+| `/retrocession/securites` | PanelSecurites | Auth requis |
+| `/retrocession/fac-to-fac` | FacToFac | Auth requis |
+| `/recommandations` | Recommendations | Auth requis |
+| `/admin` | Admin | Admin only |
+| `*` | → `/` | — |
+
+### 4.4 Navigation (Layout.tsx)
+
+Navbar glassmorphism dark navy avec dropdowns CSS hover :
 
 ```
-Fichier Excel (source de vérité)
-        ↓
-  data_service.py (chargement, nettoyage, cache mémoire en DataFrame pandas)
-        ↓
-  apply_filters() → apply_identity_filters() + apply_analysis_filters() + apply_financial_filters()
-        ↓
-  Routers FastAPI (/api/kpis, /api/comparison, /api/scoring...)
-        ↓
-  Frontend React (DataContext — filtres globaux, KPIs summary)
-        ↓
-  Pages / Composants (graphiques, tableaux, cartes)
+[AtlanticRe Logo] | Tableau de bord | Analyse ▼ | Comparaison ▼ | Pilotage ▼ | Rétrocession ▼ | Recommandations | [Administration*] | [Data chip] [Actualiser] [Avatar ▼]
 ```
 
----
-
-## 3. Sources de Données — Les Fichiers Excel
-
-La plateforme s'appuie désormais sur **plusieurs sources de données Excel** chargées au démarrage du serveur :
-
-1. **Fichier Principal (Contrats)** : Source de vérité unique pour les contrats de réassurance globaux.
-2. **Fichier Rétrocession** : Contient les données des affaires traitées et le panel de sécurités.
-3. **Fichier FAC-to-FAC (FCM Partenaires)** : Contient les données spécifiques à la réassurance facultative.
-
-### Chargement (Services)
-
-1. Lecture avec `pandas.read_excel()` — toutes les colonnes en `dtype=str`
-2. Conversion des colonnes numériques (`WRITTEN_PREMIUM`, `ULR`, `RESULTAT`, etc.)
-3. Conversion des colonnes dates (`INCEPTION_DATE`, `EXPIRY_DATE`, etc.)
-4. Parsing de la colonne `INT_SPC` en 3 champs dérivés :
-   - `INT_SPC_PERIMETRE` (ex. AE, AM)
-   - `INT_SPC_TYPE` (FAC, TTY, TTE)
-   - `INT_SPC_SPECIALITE` (spécialité métier)
-5. Dérivation automatique de `TYPE_CEDANTE` (si absente) via `classify_cedante()`
-6. Dérivation automatique de `VIE_NON_VIE` (si absente) via `classify_lob()`
-7. Stockage en cache mémoire global `_df` (DataFrame pandas singleton)
-
-> Le fichier peut être **rechargé à chaud** via l'interface admin sans redémarrage du serveur.
-
----
-
-## 4. Modèle de Données — Colonnes Clés
-
-| Colonne | Type | Description Métier |
-|---------|------|-------------------|
-| `POLICY_SEQUENCE_NUMBER` | str | Identifiant unique du contrat |
-| `CONTRACT_NUMBER` | str | Numéro de contrat lisible |
-| `INT_SPC` | str | Code spécialité complet (format : `PERIMETRE-TYPE-SPECIALITE`) |
-| `INT_SPC_PERIMETRE` | str | **Dérivé** — Zone géographique de souscription (AE, AM...) |
-| `INT_SPC_TYPE` | str | **Dérivé** — Type de contrat SPC (FAC, TTY, TTE) |
-| `INT_SPC_SPECIALITE` | str | **Dérivé** — Spécialité métier |
-| `INT_BRANCHE` | str | Branche d'activité (Incendie, Marine, Vie, RC...) |
-| `INT_SBRANCHE` | str | Sous-branche |
-| `INT_CEDANTE` | str | Nom de la cédante |
-| `CEDANT_CODE` | str | Code unique de la cédante |
-| `TYPE_CEDANTE` | str | **Dérivé** — REASSUREUR ou ASSUREUR DIRECT |
-| `INT_BROKER` | str | Nom du courtier |
-| `BROKER_CODE` | str | Code du courtier |
-| `PAYS_RISQUE` | str | Pays où se situe le risque (géographie du risque) |
-| `PAYS_CEDANTE` | str | Pays de la cédante |
-| `UNDERWRITING_YEAR` | int | Année de souscription |
-| `CONTRACT_STATUS` | str | Statut du contrat (CONFIRMED, CLOSED, CANCELLED...) |
-| `TYPE_OF_CONTRACT` | str | Type de contrat (FAC, Treaty...) |
-| `VIE_NON_VIE` | str | **Dérivé** — Classification VIE ou NON_VIE |
-| `WRITTEN_PREMIUM` | float | Prime écrite par Atlantic Re |
-| `SUBJECT_PREMIUM` | float | Prime totale du risque (base de calcul) |
-| `SHARE_SIGNED` | float | Part signée (%) |
-| `SHARE_WRITTEN` | float | Part écrite (%) |
-| `COMMI` | float | Taux de commission (%) |
-| `COMMISSION` | float | Montant de commission |
-| `BROKERAGE1` | float | Montant de courtage |
-| `BROKERAGE_RATE` | float | Taux de courtage (%) |
-| `PROFIT_COMM_RATE` | float | Taux de commission de bénéfice |
-| `ULR` | float | Ultimate Loss Ratio (%) |
-| `RESULTAT` | float | Résultat net du contrat |
-| `SUM_INSURED` | float | Somme assurée à 100% |
-| `SUM_INSURED_100` | float | Somme assurée complète |
-| `INCEPTION_DATE` | date | Date d'effet du contrat |
-| `EXPIRY_DATE` | date | Date d'expiration |
-| `DATE_SAISIE1` | date | Date de saisie dans le système |
-| `DATE_CONFIRMED` | date | Date de confirmation |
-| `DATE_CLOSED` | date | Date de clôture |
-| `DATE_CANCELLED` | date | Date d'annulation |
-
----
-
-## 5. Système de Filtres
-
-Le filtre est le **cœur de la plateforme**. Toutes les vues analytiques sont filtrées à la demande de l'utilisateur.
-
-### 3 Couches de Filtres (séparation métier fondamentale)
-
-#### Couche 1 — Filtres Identitaires (`apply_identity_filters`)
-Définissent **QUI** est dans le portefeuille analysé. Ne modifient pas la nature des contrats retenus.
-- Périmètre SPC (`INT_SPC_PERIMETRE`)
-- Cédante (`INT_CEDANTE`)
-- Courtier (`INT_BROKER`)
-- Années de souscription (`UNDERWRITING_YEAR`)
-- Statut contrat (`CONTRACT_STATUS`)
-- Type cédante (`TYPE_CEDANTE`)
-
-> **Règle critique** : Les attributs globaux d'une cédante (diversification, type, alertes FAC) sont toujours calculés sur les filtres identitaires **uniquement**, jamais sur les filtres d'analyse. Ceci évite qu'un filtre "branche = Vie" fausse le calcul de diversification.
-
-#### Couche 2 — Filtres d'Analyse (`apply_analysis_filters`)
-Affinent la vue analytique — définissent **QUOI** est analysé dans le portefeuille.
-- Branche (`INT_BRANCHE`)
-- Sous-branche (`INT_SBRANCHE`)
-- Pays risque (`PAYS_RISQUE`)
-- Pays cédante (`PAYS_CEDANTE`)
-- Type de contrat (`TYPE_OF_CONTRACT`)
-- Type SPC (`INT_SPC_TYPE`)
-- Spécialité (`INT_SPC_SPECIALITE`)
-- Recherche libre sur INT_SPC
-
-#### Couche 3 — Filtres Financiers (`apply_financial_filters`)
-Seuils numériques sur les indicateurs.
-- Prime min/max (`WRITTEN_PREMIUM`)
-- ULR min/max
-- Part souscrite min/max (`SHARE_WRITTEN`)
-- Commission min/max (`COMMI`)
-- Courtage min/max (`BROKERAGE_RATE`)
-
-### Gestion Côté Frontend (DataContext)
-
-- **État Draft** : Les modifications de l'utilisateur dans le panneau de filtres sont stockées dans `draftFilters`
-- **État Appliqué** : Après 300ms de debounce, `draftFilters` devient `appliedFilters`
-- **Réinitialisation** : `resetFilters()` revient aux valeurs par défaut ; `resetToDefaultYear()` remet l'année au plus récent
-- **Auto-initialisation** : Au chargement, l'année de filtre est automatiquement positionnée sur l'année la plus récente du dataset
-- **Paramètres URL** : `filtersToParams()` convertit l'état filtre en query string pour les appels API
-- **Exclusion ciblée** : `filtersToParamsExcluding()` permet à un graphe de s'afficher en "vue totale" en ignorant le filtre de sa propre dimension (ex : le graphe "par branche" ignore le filtre branche pour montrer toutes les branches)
-
----
-
-## 6. Backend — API FastAPI
-
-### Point d'Entrée (`main.py`)
-
-- **Titre** : `Atlantic Re — Plateforme Réassurance`
-- **Version** : `2.0.0`
-- **Lifespan** : au démarrage → `init_db()` + `load_excel()`
-- **Admin par défaut** : `admin / Admin@123` (créé automatiquement si absent, `must_change_password=True`)
-
-### Middlewares
-- **CORS** : configuration des origines autorisées
-- **Rate Limiting** : limitation des requêtes pour protéger l'API
-- **Security Headers** : headers HTTP de sécurité (CSP, HSTS, etc.)
-
-### Endpoints API
-
-| Préfixe | Module | Rôle |
-|---------|--------|------|
-| `/api/auth` | `auth.py` | Login, logout, reset password, change password |
-| `/api/admin` | `admin.py` | Gestion utilisateurs, logs activité, configuration |
-| `/api/kpis` | `kpis.py` | Tous les calculs KPI (summary, by-country, by-branch, by-year...) |
-| `/api/contracts` | `contracts.py` | Liste paginée des contrats individuels |
-| `/api/scoring` | `scoring.py` | Calcul du score d'attractivité des marchés |
-| `/api/comparison` | `comparison.py` | Comparaison de marchés et cédantes |
-| `/api/data` | `data.py` | Statut données, options de filtres, rechargement Excel |
-| `/api/export` | `export.py` | Export CSV, Excel, Pivot Excel, PDF |
-| `/api/clients` | `clients.py` | Analyse clients inactifs, analyse renouvellement |
-| `/api/retro` | `retro.py` | Analyse des traités de rétrocession et sécurité |
-| `/api/fac-to-fac` | `fac_to_fac.py`| Données du module FAC-to-FAC |
-| `/api/target-share`| `target_share.py`| Ciblage de part de marché TTY |
-
----
-
-## 7. Modules Métier Principaux
-
-### 7.1 — Calcul des KPIs (`kpis.py` + `data_service.py`)
-
-**Fonction centrale** : `compute_kpi_summary(df)` calcule sur un DataFrame filtré :
-- `total_written_premium` : Somme des primes écrites
-- `total_resultat` : Somme des résultats
-- `avg_ulr` : ULR **moyen pondéré par les primes** (méthode actuarielle correcte)
-- `total_sum_insured` : Somme assurée totale
-- `contract_count` : Nombre de contrats
-- `ratio_resultat_prime` : Résultat / Prime × 100 (%)
-
-**Endpoints clés** :
-- `GET /api/kpis/summary` — KPIs globaux (utilisé dans le header de la plateforme)
-- `GET /api/kpis/by-country` — Performance par pays (avec highlight de pays sélectionnés)
-- `GET /api/kpis/by-branch` — Performance par branche
-- `GET /api/kpis/by-cedante` — Performance par cédante (top N)
-- `GET /api/kpis/by-broker` — Performance par courtier
-- `GET /api/kpis/by-year` — Évolution temporelle
-- `GET /api/kpis/by-contract-type` — Répartition FAC vs Traités
-- `GET /api/kpis/by-specialite` — Prime FAC vs Traité
-- `GET /api/kpis/alerts` — Alertes ULR élevé (par défaut seuil à 80%)
-- `GET /api/kpis/financial-breakdown` — Décomposition financière (primes, commissions, courtage, résultat)
-- `GET /api/kpis/cedante/profile` — Profil complet d'une cédante
-- `GET /api/kpis/cedante/by-year` — Évolution historique d'une cédante (sans filtre année)
-- `GET /api/kpis/cedante/by-branch` — Performance par branche pour une cédante
-- `GET /api/kpis/exposition/by-country` — Exposition (risque brut) par pays
-- `GET /api/kpis/exposition/by-branch` — Exposition par branche
-- `GET /api/kpis/exposition/top-risks` — Top N risques les plus exposés
-- `GET /api/kpis/market/profile` — Profil d'un marché (pays × branche)
-- `POST /api/kpis/pivot` — Tableau croisé dynamique (ligne × colonne × valeur configurable)
-
-### 7.2 — Scoring d'Attractivité (`scoring_service.py`)
-
-Attribue un **score de 0 à 100** à chaque combinaison `(PAYS_RISQUE, INT_BRANCHE)`.
-
-**Critères par défaut (configurables par l'utilisateur)** :
-
-| Critère | Poids | Seuil | Direction |
-|---------|-------|-------|-----------|
-| ULR (Loss Ratio) | 40% | 70% | Plus bas = mieux |
-| Prime Écrite | 25% | 100 000 | Plus haut = mieux |
-| Résultat Net | 20% | 0 | Plus haut = mieux |
-| Commission | 10% | 35% | Plus bas = mieux |
-| Part Souscrite | 5% | 5% | Plus haut = mieux |
-
-**Normalisation** :
-- Direction `lower_is_better` : score = 100 × (1 - valeur / (seuil × 2))
-- Direction `higher_is_better` : score = 100 × (valeur / seuil), plafonné à 100
-
-**Badge assigné** :
-- Score ≥ 70 → `ATTRACTIF` 🟢
-- Score 40–69 → `NEUTRE` 🟡
-- Score < 40 → `A_EVITER` 🔴
-
-### 7.3 — Comparaison de Marchés (`comparison.py`)
-
-Permet de comparer **côte à côte** :
-- Deux marchés `(pays, branche)` — endpoint `GET /api/comparison`
-- Deux pays (toutes branches) — endpoint `GET /api/comparison/by-country`
-- Deux pays avec sélection de branches indépendante par pays — endpoint `GET /api/comparison/by-country-detail`
-- Deux cédantes — endpoint `GET /api/comparison/by-cedante`
-
-**Radar Chart** : normalisation relative entre les deux marchés sur 5 axes :
-- Prime Écrite, Résultat, Loss Ratio (inversé), Portefeuille, Somme Assurée
-
-**Règle métier** : Le **graphe d'évolution historique** (by-year) ignore le filtre d'année pour toujours afficher la courbe complète de l'historique.
-
-**Filtres locaux** vs **filtres globaux** : Dans la comparaison, les filtres locaux de la page (année, type contrat, type SPC) sont indépendants des filtres globaux de la plateforme. Le filtre branche global est ignoré — les branches sont gérées indépendamment pour chaque marché.
-
-### 7.4 — Détection des Cédantes Inactives (`client_service.py`)
-
-**Logique** : Une cédante est déclarée **inactive** si :
-1. Elle a souscrit au moins `min_contracts` contrats au total (par défaut : 3)
-2. Sa dernière année de souscription est ≤ `MAX(UNDERWRITING_YEAR) - years_threshold` (par défaut : 2 ans)
-
-**Données retournées par cédante** :
-- Nom, code, pays
-- Nombre total de contrats
-- Dernière année d'activité
-- Nombre d'années d'absence
-- Répartition par statut (CONFIRMED, CLOSED, etc.)
-
-**Usage commercial** : Liste de cédantes à relancer pour renouer la relation d'affaires.
-
-**Analyse de renouvellement** : Calcul du rate de rétention par année et par cédante en identifiant les contrats renouvelés (`RENEWALE_CONTRACT` non vide).
-
-### 7.5 — Alerte Saturation FAC
-
-Détectée sur le profil d'une cédante ou dans la page FacSaturation.
-
-**Déclenchement** (logique OR) : Une branche est en saturation FAC si :
-- Nombre de contrats FAC > 5 **ET** Primes FAC > 1 000 000
-
-La détection utilise `TYPE_OF_CONTRACT == "FAC"` OU `INT_SPC_TYPE == "FAC"` pour couvrir toutes les variantes de codage dans l'Excel.
-
-**Impact métier** : Trop de contrats FAC sur une branche peut indiquer qu'Atlantic Re devrait proposer un traité à la cédante plutôt que de souscrire risque par risque.
-
-**Interface UI** : La modale de détail affiche la liste complète des branches associées à une cédante. Un code couleur visuel intuitif a été intégré : indicateur VERT pour les branches en état de saturation et indicateur ROUGE pour les branches non saturées.
-
-### 7.6 — Classification Automatique (`classification_rules.py`)
-
-#### Classification TYPE_CEDANTE
-Réplique d'une formule Excel pour identifier si une cédante est un réassureur (rétrocession) ou un assureur direct :
-- Suffixes → `" re"`, `" ré"` en fin de nom
-- Mots-clés → `" reinsurance"`, `" reins"`, `" réassurance"`, `" reassurance"` dans le nom
-- Résultat → `"REASSUREUR"` ou `"ASSUREUR DIRECT"`
-
-#### Classification VIE_NON_VIE
-- Si le nom de branche contient `"vie"` mais pas `"non"` → `"VIE"`
-- Sinon → `"NON_VIE"`
-
-### 7.7 — Exposition et Risques
-
-**Formule** : `Exposition = SUM_INSURED_100 × SHARE_SIGNED / 100`
-
-Représente la **part réelle du risque** supportée par Atlantic Re (fraction de la somme assurée totale). C'est l'indicateur de concentration du risque.
-
----
-
-## 8. Frontend — Interface React
-
-### Architecture Frontend
-
-- **Framework** : React 18 + TypeScript + Vite
-- **Routing** : React Router v6
-- **Styling** : Tailwind CSS + CSS custom (`index.css`)
-- **HTTP Client** : Axios (instance `api.ts` avec intercepteur JWT)
-- **Graphiques** : Recharts (barres, lignes, radar, pie, carte)
-- **Notifications** : react-hot-toast
-
-### Contextes Globaux
-
-#### `AuthContext`
-- Stockage du JWT, rôle, nom, `must_change_password`
-- Fonctions : `login()`, `logout()`
-- Redirection automatique vers `/change-password` si `must_change_password = true`
-
-#### `DataContext`
-État partagé entre toutes les pages protégées :
-- `draftFilters` / `appliedFilters` : état double avec debounce 300ms
-- `filterOptions` : listes de valeurs disponibles pour les filtres (valeurs uniques du dataset)
-- `kpiSummary` : KPIs globaux (rechargés à chaque changement de filtres)
-- `scoringCriteria` : critères du scoring (modifiables par l'utilisateur)
-- `dataStatus` : infos sur le fichier Excel chargé
-- `refreshData()` : recharge le fichier Excel sans redémarrer le serveur
-
-### Composants Réutilisables
-
-| Composant | Rôle |
-|-----------|------|
-| `Layout.tsx` | Barre de navigation (menus déroulants) + Sidebar + contenu principal |
-| `FilterPanel.tsx` | Panneau de filtres global avec tous les critères |
-| `PageFilterPanel.tsx` | Panneau de filtres local pour certaines pages |
-| `KPICards.tsx` | Cartes de métriques clés (prime, résultat, ULR, contrats) |
-| `DataTable.tsx` | Tableau paginé générique avec tri |
-| `ExportButton.tsx` | Bouton d'export (CSV, Excel, PDF, Pivot) |
-| `DashboardAlerts.tsx` | Alertes ULR élevé et autres avertissements |
-| `ActiveFiltersBar.tsx` | Bandeau récapitulatif des filtres actifs |
-| `PipelineView.tsx` | Vue pipeline des contrats en cours |
-
----
-
-## 9. Pages de l'Application
-
-### 9.1 — Dashboard (`/`)
-Page d'accueil. Affiche :
-- KPIs synthétiques (prime totale, résultat, ULR, nb contrats)
-- Graphe d'évolution par année
-- Alertes ULR élevé (marchés à surveiller)
-- Répartition par branche
-- **Module des Cédantes inactives** intégré nativement pour une visibilité immédiate.
-- Top cédantes et top pays
-
-### 9.2 — Analyse Globale (`/analyse` ou `/analyse/:pays`)
-Vue analytique **centrée sur les pays**. Paramètres de filtrage mémorisés dans l'URL. Permet d'explorer :
-- Carte choroplèthe mondiale (pays colorés par prime ou ULR)
-- Top 15 pays par prime écrite
-- Décomposition financière, filtres locaux indépendants.
-
-### 9.3 — Analyse Cédante (`/analyse-cedante` ou `/analyse-cedante/:cedante`)
-Fiche analytique complète d'une **cédante sélectionnée** (mémorisée dans l'URL) :
-- KPIs globaux, type de cédante, diversification
-- Alertes de saturation FAC par branche
-- Évolution historique et performance par branche
-
-### 9.4 — Exposition et Risques (`/exposition`)
-Analyse de la **concentration des risques** :
-- Carte mondiale avec niveau d'exposition par pays
-- Graphe barres : exposition par branche et top risques
-
-### 9.5 — Scoring et Recommandations (`/scoring`, `/recommandations`)
-**Outil de sélection stratégique** : 
-- Scoring paramétrable (poids, directions)
-- Tableau de recommandations d'investissement
-- Export PDF
-
-### 9.6 — Comparaison (`/comparaison`)
-Module de comparaison côte à côte pour explorer les différences :
-- Marché vs Marché, Pays vs Pays, Cédante vs Cédante
-
-### 9.7 — Saturation FAC (`/fac-saturation`)
-Détecte les **branches surexposées en FAC** (logique OR > 5 contrats et > 1M primes). Indicateurs Vert/Rouge.
-
-### 9.8 — Modules Rétrocession (`/retrocession/*`)
-- **Affaires Traitées** (`/retrocession/traites`)
-- **Panel Sécurités** (`/retrocession/securites`)
-- **FAC-to-FAC** (`/retrocession/fac-to-fac`) : Suivi dédié aux partenaires facultatifs.
-
-### 9.9 — Cibles TTY (`/cibles-tty`)
-Module pour l'identification des cibles de parts cibles (Target Share).
-
-### 9.10 — Analyse Courtiers (`/analyse-courtiers` et `/analyse-courtiers/:brokerName`)
-**Analyse Unifiée des Courtiers** (consolidation des données directes et rétrocession) :
-- Classements par prime et ULR.
-- Vue détaillée d'un courtier sélectionné (paramètre d'URL persistant) avec KPIs individuels et distribution.
-- Graphes comparatifs.
-
-### 9.11 — Administration (`/admin`)
-Réservée au rôle `admin` :
-- Création, modification, désactivation des utilisateurs
-- Rôles : `admin`, `souscripteur`, `lecteur`
-- Journaux d'activité (logs horodatés de toutes les actions)
-- Configuration du chemin du fichier Excel
-- Rechargement des données
-
-### 9.12 — Authentification
-- `Login` (`/login`) : Authentification JWT avec gestion `must_change_password`
-- `ChangePassword` (`/change-password`) : Forcé au premier login
-- `ResetPassword` (`/reset-password`) : Via lien email tokenisé
-
----
-
-## 10. Authentification et Gestion des Utilisateurs
-
-### Système JWT
-- Token JWT avec expiration configurable
-- Stockage côté client (localStorage ou context)
-- Intercepteur Axios : ajoute automatiquement `Authorization: Bearer <token>`
-
-### Rôles
-| Rôle | Permissions |
-|------|-------------|
-| `admin` | Toutes les fonctionnalités + gestion utilisateurs + configuration |
-| `souscripteur` | Lecture + export (CSV, Excel, PDF) |
-| `lecteur` | Lecture seule — pas d'export |
-
-### Base de Données (MySQL)
-- Table `users` : `id`, `username`, `hashed_password`, `role`, `full_name`, `email`, `active`, `must_change_password`
-- Table `activity_logs` : `id`, `timestamp`, `username`, `action`, `detail`
-- Connexion via SQLAlchemy + MySQL (`core/database.py`)
-
-### Sécurité Mot de Passe
-- Hachage : bcrypt via `passlib`
-- Reset par email : token à usage unique + expiration
-- Premier login : forcé de changer le mot de passe
-
----
-
-## 11. Export et Rapports
-
-Accessible aux rôles `admin` et `souscripteur`.
-
-| Type | Endpoint | Description |
-|------|----------|-------------|
-| CSV | `POST /api/export/csv` | Export brut du dataset filtré (séparateur `;`, UTF-8 BOM) |
-| Excel | `POST /api/export/excel` | Export stylisé avec couleurs Atlantic Re, en-têtes gelées |
-| Pivot Excel | `POST /api/export/pivot` | Tableau croisé dynamique stylisé avec totaux par ligne et colonne |
-| PDF | `POST /api/export/pdf` | Rapport de recommandations (scoring) en format A4 paysage |
-| Excel Clients Inactifs | Via `/api/clients/inactive/export` | Liste cédantes inactives avec formatage conditionnel |
-
-**Palette de couleurs** (cohérente entre exports et frontend) :
-- Navy : `#2D3E50` (en-têtes)
-- Olive : `#4E6820` (colonnes pivot)
-- Blanc : `#FFFFFF` / Gris clair : `#EEF0F3` (lignes alternées)
-
----
-
-## 12. Règles Métier Spécifiques
-
-### Règle 1 — Immunisation des attributs globaux
-Les attributs qui caractérisent **globalement** une cédante (type assureur/réassureur, diversification par branches, alertes saturation FAC) sont **toujours** calculés sur la totalité du portefeuille de la cédante, en appliquant uniquement les **filtres identitaires**. Les filtres d'analyse (branche, pays) ne doivent jamais altérer ces indicateurs.
-
-### Règle 2 — Évolution historique sans filtre année
-Les graphes d'évolution dans le temps (`by-year`) ignorent toujours le **filtre d'année** afin de montrer la trajectoire complète du marché ou de la cédante. Un seul filtrage d'année cacherait des années et rendrait la courbe incompréhensible.
-
-### Règle 3 — ULR pondéré
-L'ULR moyen est calculé en **pondérant par les primes écrites**, pas comme une simple moyenne arithmétique. Les petits contrats n'ont donc qu'un faible impact sur l'ULR agrégé.
-
-### Règle 4 — Filtres locaux vs filtres globaux (Comparaison)
-Dans le module Comparaison, les filtres locaux de la page (année, type contrat, type SPC) s'appliquent aux deux marchés comparés, mais sont **indépendants des filtres globaux** de la plateforme. Le filtre branche global est ignoré ; chaque marché a sa propre sélection de branches.
-
-### Règle 5 — Saturation FAC (logique OR)
-La saturation FAC est détectée si le contrat est identifié comme FAC via `TYPE_OF_CONTRACT == "FAC"` **OU** `INT_SPC_TYPE == "FAC"`. Cette logique OU couvre les incohérences de saisie dans l'Excel source.
-
-### Règle 6 — Année par défaut
-Au chargement de l'interface, le filtre d'année est automatiquement positionné sur la **dernière année de souscription** disponible dans le dataset. Cette valeur est fournie par l'API (`uw_year_default`).
-
-### Règle 7 — Décomposition Financière
-La prime écrite sert de base 100% dont on déduit :
-- Commission cédante (%) → coût d'acquisition
-- Courtage courtier (%) → coût de distribution
-- Commission de bénéfice (%) → coût de bonne performance
-- Taxes (%) → charges fiscales
-- = **Résultat** (solde après sinistres et charges)
-
----
-
-## 13. Stack Technique
-
-### Backend
-| Composant | Technologie | Version |
-|-----------|-------------|---------|
-| Framework API | FastAPI | ~0.110 |
-| Serveur ASGI | Uvicorn | ~0.29 |
-| Analyse données | Pandas + NumPy | Pandas ~2.x |
-| ORM | SQLAlchemy | ~2.x |
-| Base de données | MySQL | 8.x |
-| Authentification | python-jose (JWT) + passlib (bcrypt) | — |
-| Email | smtplib / service SMTP | — |
-| Export Excel | xlsxwriter | — |
-| Export PDF | reportlab | — |
-| Validation | Pydantic v2 | — |
-| Rate Limiting | slowapi | — |
-
-### Frontend
-| Composant | Technologie | Version |
-|-----------|-------------|---------|
-| Framework UI | React | 18 |
-| Langage | TypeScript | — |
-| Build tool | Vite | — |
-| Routing | React Router | v6 |
-| Styling | Tailwind CSS | — |
-| HTTP Client | Axios | — |
-| Graphiques | Recharts | — |
-| Notifications | react-hot-toast | — |
-| Cartes | (composant choroplèthe interne) | — |
-
-### Variables d'Environnement (Backend)
-```
-DATABASE_URL=mysql+pymysql://user:pass@host/dbname
-SECRET_KEY=...           # clé JWT
-EXCEL_FILE_PATH=...      # chemin absolu vers le fichier Excel source
-EXCEL_SHEET_NAME=...     # nom de l'onglet Excel
-SMTP_HOST=...            # serveur email
-SMTP_PORT=...
-SMTP_USER=...
-SMTP_PASSWORD=...
+**Groupes de navigation :**
+- **Analyse** : Analyse Globale · Analyse Cédante · Analyse Courtiers · Exposition & Risques
+- **Comparaison** : Comparaison directe · Scoring Marché
+- **Pilotage** : Cibles TTY · Saturation FAC
+- **Rétrocession** : Affaires Traités · Panel de Sécurités · FAC-to-FAC
+
+*Le lien Administration n'apparaît que pour le rôle `admin`.
+
+### 4.5 Contextes React
+
+| Contexte | Rôle |
+|---|---|
+| `AuthContext` | Gère user, token JWT, login/logout, rôles (`can()`) |
+| `DataContext` | Gère le statut des données Excel, `refreshData()`, `dataStatus` |
+
+### 4.6 Composants partagés
+
+| Composant | Description |
+|---|---|
+| `Layout.tsx` | Navbar + main scrollable + status bar |
+| `FilterPanel.tsx` | Panel de filtres global multi-axes |
+| `LocalFilterPanel.tsx` | Panel de filtres local (page spécifique) |
+| `PageFilterPanel.tsx` | Filtres avec persistance URL |
+| `ActiveFiltersBar.tsx` | Barre de chips filtres actifs |
+| `DataTable.tsx` | Table virtualisée (@tanstack/react-table) |
+| `KPICards.tsx` | Cards KPI avec formatage compact |
+| `DashboardAlerts.tsx` | Alertes dashboard (ULR, volume, etc.) |
+| `ExportButton.tsx` | Bouton export (Excel / PDF) |
+| `PipelineView.tsx` | Vue pipeline clients |
+| `ErrorBoundary.tsx` | Gestion d'erreurs React |
+| `Charts/` | Composants Recharts (Bar, Line, Radar, Area…) |
+| `ui/` | Composants UI primitifs |
+
+### 4.7 Système de filtres (FilterParams)
+
+Tous les endpoints KPI acceptent un objet `FilterParams` optionnel :
+
+```typescript
+{
+  perimetre?: string[]          // AE, AM
+  type_contrat_spc?: string[]   // FAC, TTY, TTE
+  specialite?: string[]
+  branche?: string[]
+  sous_branche?: string[]
+  pays_risque?: string[]
+  pays_cedante?: string[]
+  courtier?: string[]
+  cedante?: string[]
+  underwriting_years?: number[]
+  uw_year_min?: number
+  uw_year_max?: number
+  statuts?: string[]
+  type_of_contract?: string[]
+  type_cedante?: string[]
+  prime_min?: float · prime_max?: float
+  ulr_min?: float · ulr_max?: float
+  share_min?: float · share_max?: float
+  commission_min?: float · commission_max?: float
+  courtage_min?: float · courtage_max?: float
+}
 ```
 
 ---
 
-*Document généré et actualisé en Avril 2026 — Analyse complète de l'architecture de la plateforme Atlantic Re v2.1.0*
+## 5. Module Axe 1 — Portefeuille Réassurance
+
+### 5.1 Source de données principale
+
+Fichier Excel : `AtlanticRe_Reassurance.xlsx`  
+Chargé **en mémoire** au démarrage via `data_service.load_excel()` (pandas DataFrame).  
+Rechargeable dynamiquement via `POST /api/data/reload` (admin uniquement).
+
+### 5.2 Colonnes clés du DataFrame
+
+| Colonne | Description |
+|---|---|
+| `POLICY_ID` | Identifiant unique de la police |
+| `INT_SPC` | Type contrat (FAC, TTY, TTE) |
+| `INT_BRANCHE` | Branche (Auto, RC, Corps, Incendie…) |
+| `INT_CEDANTE` | Nom de la cédante |
+| `INT_BROKER` | Nom du broker/courtier |
+| `PAYS_RISQUE` | Pays du risque |
+| `PAYS_CEDANTE` | Pays de la cédante |
+| `UNDERWRITING_YEAR` | Année de souscription |
+| `WRITTEN_PREMIUM` | Prime écrite |
+| `ULR` | Ultimate Loss Ratio |
+| `RESULTAT` | Résultat technique |
+| `SUM_INSURED` | Capitaux assurés |
+| `COMMISSION` | Taux de commission |
+| `SHARE_WRITTEN` | Part souscrite |
+
+### 5.3 Scoring Marché
+
+Algorithme de scoring personnalisable (POST `/api/scoring`) avec critères pondérés :
+
+| Critère | Poids défaut | Seuil | Direction |
+|---|---|---|---|
+| ULR | 40% | 70% | lower_is_better |
+| Prime écrite | 25% | 100 000 | higher_is_better |
+| Résultat | 20% | 0 | higher_is_better |
+| Commission | 10% | 35% | lower_is_better |
+| Share Written | 5% | 5% | higher_is_better |
+
+**Badge résultant :** `ATTRACTIF / NEUTRE / A_EVITER`
+
+### 5.4 Matching Intelligents (SmartMatcher)
+
+#### CedanteMatchingService
+Algorithme multi-étapes pour normaliser les noms de cédantes :
+1. Nettoyage & tokenisation
+2. Similarité exacte (hash)
+3. Fuzzy matching (RapidFuzz — Levenshtein)
+4. Phonétique (Jellyfish — Double Metaphone)
+5. TomTomScore ML (scikit-learn TF-IDF cosine)
+
+#### BrokerMatchingService
+Même pipeline appliqué aux noms de courtiers/brokers.
+
+---
+
+## 6. Module Axe 2 — Modélisation Afrique (SCAR / Reach 2030)
+
+### 6.1 Données externes (CSV → MySQL)
+
+| Fichier | Table cible | Contenu |
+|---|---|---|
+| `marche_assurance_non_vie_afrique_clean.csv` | `ext_marche_non_vie` | Primes non-vie, pénétration, S/P, densité |
+| `marche_assurance_vie_afrique_clean.csv` | `ext_marche_vie` | Primes vie, pénétration, densité |
+| `wgi_africa_wide_kaopen_clean.csv` | `ext_gouvernance` | FDI, stabilité politique, qualité réglementaire, KAOPEN |
+| `africa_eco_integration_clean.csv` | `ext_macroeconomie` | PIB, croissance, inflation, compte courant |
+
+**Sources :** Axco Navigator · Banque Mondiale WGI · ARCA · IPEC · DGAMP · Chinn & Ito (2006) · FANAF · BEAC
+
+### 6.2 Périmètre géographique
+
+**34 pays africains** couverts :
+
+| Région | Pays |
+|---|---|
+| Maghreb | Algérie, Égypte, Maroc, Mauritanie, Tunisie |
+| CIMA | Bénin, Burkina Faso, Cameroun, Congo, Côte d'Ivoire, Gabon, Mali, Niger, Sénégal, Tchad, Togo |
+| Afrique Est | Burundi, Éthiopie, Kenya, Madagascar, Malawi, Mozambique, Ouganda, RD Congo, Tanzanie, Zambie |
+| Afrique Australe | Afrique du Sud, Angola, Botswana, Namibie |
+| Afrique Ouest | Ghana, Nigéria |
+| Îles | Cap-Vert, Maurice |
+
+### 6.3 Page ModelisationHome
+
+Interface SCAR avec :
+- **Navbar verte SCAR** propre (thème olive, séparée du Layout principal)
+- **4 KPI Cards** détaillées (Économique · Assurance Vie · Assurance Non-Vie · Réglementaire)
+- **Carte Afrique interactive** (react-simple-maps + ZoomableGroup + tooltips)
+  - Pays périmètre : olive (#4E6820)
+  - Pays hors périmètre : gris foncé
+- **Modale détails** par critère avec sources de données
+- Fetch `GET /api/public/overview/stats` (endpoint non authentifié)
+
+### 6.4 Modules SCAR prévus (Soon)
+
+| Module | Route prévue |
+|---|---|
+| Scoring SCAR | `/modelisation/scoring` |
+| Critères & poids | `/modelisation/criteres` |
+| Carte d'attractivité | `/modelisation/carte` |
+| Vue régionale | `/modelisation/regions` |
+| Comparaison marchés | `/modelisation/comparaison` |
+| Projections ML | `/modelisation/projections` |
+| Recommandations | `/modelisation/recommandations` |
+
+---
+
+## 7. Module Rétrocession
+
+### 7.1 Affaires Traitées (`/retrocession/traites`)
+
+Source : `AtlanticRe_Retrocession_AffairesTraites.xlsx`  
+Chargé via `retro_service.load_retro_excel()`.  
+API : `GET /api/retro/*`
+
+Fonctionnalités :
+- Liste complète des affaires de rétrocession
+- Filtres par partenaire (Donneur d'ordre / Preneur d'ordre)
+- Filtres par rôle (Apporteur / Placeur)
+- KPIs agrégés (primes cédées, commissions, soldes)
+
+### 7.2 Panel de Sécurités (`/retrocession/securites`)
+
+Vue des traités de sécurités — protections, excédents de sinistres.
+
+### 7.3 FAC-to-FAC Partenaires (`/retrocession/fac-to-fac`)
+
+Source : `FCM_Partenaires_v2.xlsx`  
+API : `GET /api/fac-to-fac/*`
+
+Fonctionnalités :
+- Vue globale des partenaires FAC
+- Filtres Donneur/Preneur, Apporteur/Placeur
+- Saturation FAC par branche (indicateur couleur : vert = saturé, rouge = non saturé)
+- Modale de détail par branche (toutes branches, saturées et non saturées)
+
+---
+
+## 8. Module Pilotage
+
+### 8.1 Cibles TTY (`/cibles-tty`)
+
+Source : données réassurance filtrées sur TTY.  
+API : `GET /api/target-share/*`
+
+Fonctionnalités :
+- Définition des parts cibles par pays/branche
+- Comparaison réalisé vs cible
+- Alertes dépassement/sous-utilisation
+
+### 8.2 Saturation FAC (`/fac-saturation`)
+
+Analyse de la saturation du portefeuille FAC :
+- Branches saturées (vert) vs branches en alerte (rouge)
+- Seuils configurables
+- Modale de détail par branche
+
+---
+
+## 9. Module Administration (`/admin`)
+
+Accessible uniquement au rôle `admin`.
+
+| Fonctionnalité | Endpoint |
+|---|---|
+| Liste des utilisateurs | `GET /api/admin/users` |
+| Créer un utilisateur | `POST /api/admin/users` |
+| Modifier un utilisateur | `PUT /api/admin/users/{id}` |
+| Désactiver / activer | `PATCH /api/admin/users/{id}/toggle` |
+| Réinitialiser le MDP | `POST /api/admin/users/{id}/reset-password` |
+| Logs d'activité | `GET /api/admin/logs` |
+| Configurer les chemins Excel | `PUT /api/admin/config` |
+
+**Rôles utilisateurs :**
+- `admin` : accès total + administration
+- `souscripteur` : accès full lecture + export
+- `lecteur` : lecture seule, pas d'export
+
+---
+
+## 10. Sécurité
+
+| Couche | Mécanisme |
+|---|---|
+| Authentification | JWT HS256, 8h, blacklist via `token_version` |
+| MDP | bcrypt hash (passlib) |
+| Reset MDP | Token 128 chars, expiry 1h, envoi email SMTP |
+| First login | `must_change_password=True` → redirection forcée |
+| Rate limiting | SlowAPI (par IP, configurable) |
+| CORS | Origines whitelist en prod |
+| Headers HTTP | CSP, X-Frame-Options, HSTS, X-Content-Type |
+
+---
+
+## 11. Design System Frontend
+
+### Palette couleurs principale
+
+| Rôle | Valeur | Usage |
+|---|---|---|
+| Navy deep | `hsl(209,35%,12%)` | Fond header navbar |
+| Navy | `hsl(209,30%,18%)` | Fond sections |
+| Olive primary | `hsl(83,52%,36%)` | Accents, CTA, active states |
+| Olive light | `hsl(83,50%,55%)` | Icons actives, textes accentués |
+| Text white dim | `rgba(255,255,255,0.55)` | Nav items inactifs |
+
+### Thème Axe 2 (SCAR)
+
+| Rôle | Valeur |
+|---|---|
+| Fond header | `hsl(83,40%,10%)` → `hsl(100,36%,18%)` |
+| Accent | `hsl(83,60%,70%)` |
+| Logo badge | `SCAR` (vs `Re` pour Axe 1) |
+
+### Typographie
+
+`Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+
+### Animations
+
+- `orbFloat` / `orbFloat2` : flottement lent des orbes décoratifs
+- `fadeUp` : entrée des sections (opacity + translateY)
+- `shimmer` : effet glossy sur textes gradient
+- `spin` : spinner chargement
+- `animate-float` : logo badge
+
+---
+
+## 12. Données External — Sources & Couverture
+
+### CSV disponibles dans `data/external/`
+
+| Fichier | Taille | Couverture |
+|---|---|---|
+| `marche_assurance_non_vie_afrique_clean.csv` | 14 Ko | 34 pays · ~2010–2024 |
+| `marche_assurance_vie_afrique_clean.csv` | 12 Ko | 34 pays · ~2010–2024 |
+| `wgi_africa_wide_kaopen_clean.csv` | 29 Ko | 34 pays · WGI + KAOPEN |
+| `africa_eco_integration_clean.csv` | 33 Ko | 34 pays · PIB, inflation, FDI |
+
+**Seed automatique** au démarrage si les 5 tables (`ref_pays` + 4 `ext_*`) sont vides.
+
+---
+
+## 13. Démarrage local
+
+```bash
+# Backend
+cd backend
+python -m venv venv
+venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+# Copier .env.example → .env et renseigner les variables
+uvicorn main:app --reload --port 8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
+```
+
+**Admin par défaut créé automatiquement :**
+- Username : `admin`
+- Password : `Admin@123` *(à changer au 1er login)*
+
+---
+
+## 14. État du code & Points d'attention
+
+### ✅ Fonctionnel et stable
+
+- Auth complète (login, reset, first-login)
+- Analyse Globale, Cédante, Courtiers avec drill-down URL
+- Dashboard KPIs principal
+- FAC Saturation (couleurs, modale détail)
+- Affaires Traitées (filtres Donneur/Preneur/rôles)
+- FAC-to-FAC (filtres partenaires)
+- Cibles TTY
+- Export Excel/PDF
+- Admin panel
+
+### 🔄 En cours / À finaliser
+
+- Module SCAR complet (scoring multicritère, carte attractivité, ML)
+- Données externes : intégration régionale BAD manquante (`pending: true`)
+- Routes SCAR prévues désactivées (badge "Soon")
+
+### ⚠️ Points d'attention
+
+- Le DataFrame principal est **in-memory** (stateless) — un redémarrage du backend recharge le fichier Excel
+- `kpis_OLD_BACKUP.py` (54 Ko) — fichier legacy conservé, non utilisé en prod
+- `token_version` sur `User` permet d'invalider tous les tokens existants d'un utilisateur
+- Migrations SQL manuelles (pas d'Alembic) — scripts dans `backend/migrations/`
+
+---
+
+*Document généré automatiquement le 14 avril 2026 à partir du code source — commit `709e70d`.*

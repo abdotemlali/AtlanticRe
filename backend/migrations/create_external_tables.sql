@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS ext_macroeconomie (
     gdp_per_capita       FLOAT NULL,
     gdp_mn               FLOAT NULL,
     inflation_rate_pct   FLOAT NULL,
+    integration_regionale_rank SMALLINT NULL COMMENT 'Rang intégration régionale africaine (1=mieux intégré)',
     created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_ext_macro_pays_annee (pays, annee),
