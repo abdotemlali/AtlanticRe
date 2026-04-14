@@ -137,6 +137,36 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
             f"{before_unique} → {after_unique} courtiers distincts."
         )
 
+    # ── Normalisation des noms de cédantes (SmartCedanteMatcher) ──
+    # Même pattern que les courtiers : match des valeurs uniques, Exact only.
+    if "INT_CEDANTE" in raw.columns:
+        import time as _time_ced
+        from services.cedante_matching_service import get_cedante_matcher
+
+        ced_matcher = get_cedante_matcher()
+        t0_ced = _time_ced.perf_counter()
+
+        unique_cedantes = raw["INT_CEDANTE"].dropna().unique().tolist()
+        before_unique_ced = len(unique_cedantes)
+
+        ced_lookup: dict[str, str] = {}
+        for name in unique_cedantes:
+            if not name:
+                ced_lookup[name] = name
+                continue
+            result = ced_matcher.match(name)
+            if result["confidence"] == "Exact":
+                ced_lookup[name] = result["canonical"]
+            else:
+                ced_lookup[name] = name
+
+        raw["INT_CEDANTE"] = raw["INT_CEDANTE"].map(lambda v: ced_lookup.get(v, v))
+        after_unique_ced = raw["INT_CEDANTE"].nunique()
+        logger.info(
+            f"[CedanteMatching] Normalisation terminée en {_time_ced.perf_counter() - t0_ced:.2f}s — "
+            f"{before_unique_ced} → {after_unique_ced} cédantes distinctes."
+        )
+
     _df = raw
     _last_loaded = datetime.now()
     _row_count = len(_df)

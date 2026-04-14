@@ -236,3 +236,58 @@ class ConfigUpdate(BaseModel):
     excel_file_path: Optional[str] = None
     retro_excel_file_path: Optional[str] = None
     fcm_partenaires_file_path: Optional[str] = None
+
+
+# ── Données externes (marché africain) ───────────────────────────────────────
+class ExternalCountryMarket(BaseModel):
+    pays: str
+    code_iso3: Optional[str] = None
+    region: Optional[str] = None
+    annee: Optional[int] = None
+
+    # Non-vie
+    primes_non_vie_mn_usd: Optional[float] = None
+    croissance_primes_non_vie_pct: Optional[float] = None
+    taux_penetration_non_vie_pct: Optional[float] = None
+    ratio_sp_non_vie_pct: Optional[float] = None
+    densite_non_vie_usd: Optional[float] = None
+
+    # Vie
+    primes_vie_mn_usd: Optional[float] = None
+    croissance_primes_vie_pct: Optional[float] = None
+    taux_penetration_vie_pct: Optional[float] = None
+    densite_vie_usd: Optional[float] = None
+
+    # Gouvernance
+    fdi_inflows_pct_gdp: Optional[float] = None
+    political_stability: Optional[float] = None
+    regulatory_quality: Optional[float] = None
+    kaopen: Optional[float] = None
+
+    # Macroéconomie
+    gdp_growth_pct: Optional[float] = None
+    current_account_mn: Optional[float] = None
+    exchange_rate: Optional[float] = None
+    gdp_per_capita: Optional[float] = None
+    gdp_mn: Optional[float] = None
+    inflation_rate_pct: Optional[float] = None
+
+
+class RegionAggregate(BaseModel):
+    region: str
+    annee: int
+    nb_pays: int
+    avg_primes_non_vie_mn_usd: Optional[float] = None
+    avg_primes_vie_mn_usd: Optional[float] = None
+    avg_gdp_mn: Optional[float] = None
+    avg_gdp_growth_pct: Optional[float] = None
+    avg_political_stability: Optional[float] = None
+    avg_regulatory_quality: Optional[float] = None
+    avg_inflation_rate_pct: Optional[float] = None
+
+
+class CountryTimeSeries(BaseModel):
+    pays: str
+    code_iso3: Optional[str] = None
+    region: Optional[str] = None
+    series: List[ExternalCountryMarket]

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from core import database
 from core.security import get_password_hash
 from models import db_models
+from models import external_db_models  # noqa: F401 — register external tables on Base
 from middlewares.cors import setup_cors
 from middlewares.rate_limit import setup_rate_limiter
 from middlewares.security_headers import SecurityHeadersMiddleware
@@ -129,6 +130,29 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Impossible de charger le fichier FCM Partenaires au démarrage : {exc}")
 
+    # ── Seed des données externes (marché africain) ─────────────────────────
+    # Les tables sont créées par init_db() via create_all (idempotent).
+    # On ne seede que si ref_pays est vide — sinon on saute l'étape.
+    try:
+        db = database.SessionLocal()
+        try:
+            already_seeded = db.query(external_db_models.RefPays).first() is not None
+        finally:
+            db.close()
+
+        if already_seeded:
+            logger.info("Données externes déjà présentes — seed ignoré")
+        else:
+            logger.info("Seed des données externes (marché africain)…")
+            from scripts.seed_external_data import run_seed
+            rc = run_seed()
+            if rc == 0:
+                logger.info("Seed des données externes terminé avec succès")
+            else:
+                logger.warning(f"Seed des données externes terminé avec code {rc}")
+    except Exception as exc:
+        logger.warning(f"Impossible de seeder les données externes au démarrage : {exc}")
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -173,4 +197,7 @@ app.include_router(fac_to_fac_router, prefix="/api/fac-to-fac", tags=["FAC-to-FA
 
 from routers.target_share import router as target_share_router
 app.include_router(target_share_router, prefix="/api/target-share", tags=["target-share"])
+
+from routers.external_data import router as external_data_router
+app.include_router(external_data_router, prefix="/api", tags=["Market Context"])
 

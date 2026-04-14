@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import {
   Briefcase, TrendingUp, DollarSign, Shield,
-  ArrowRight, Users, Activity, ChevronUp, ChevronDown,
+  ArrowRight, Users, Activity, ChevronUp, ChevronDown, Download,
 } from 'lucide-react'
 import Select from 'react-select'
 import api from '../utils/api'
@@ -292,10 +292,42 @@ export default function BrokerAnalysis() {
 
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${C.grayLight}`, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.grayLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.grayLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, margin: 0 }}>
             Tous les Courtiers ({filtered.length})
           </h3>
+          <button
+            onClick={() => {
+              import('xlsx').then(XLSX => {
+                const rows = filtered.map((d: any, i: number) => ({
+                  '#': i + 1,
+                  Courtier: d.broker,
+                  Rôle: roleStyle(d.retro_role).label,
+                  'Primes (DH)': d.total_written_premium ?? 0,
+                  'PMD Rétro (DH)': d.pmd_placee ?? 0,
+                  'Résultat (DH)': d.total_resultat ?? 0,
+                  'ULR (%)': d.avg_ulr !== null && d.avg_ulr !== undefined ? Number(d.avg_ulr) : '',
+                  Contrats: d.contract_count ?? 0,
+                  'Solde Net (DH)': d.solde_net ?? 0,
+                }))
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Courtiers')
+                const date = new Date().toISOString().slice(0, 10)
+                XLSX.writeFile(wb, `courtiers_${date}.xlsx`)
+              })
+            }}
+            disabled={filtered.length === 0}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 700,
+              background: C.navy, color: 'white', border: 'none',
+              cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: filtered.length === 0 ? 0.4 : 1,
+            }}
+          >
+            <Download size={13} />
+            Exporter Excel
+          </button>
           <div style={{ display: 'flex', gap: 4 }}>
             {(['total_written_premium', 'total_resultat', 'avg_ulr'] as SortKey[]).map(k => (
               <button key={k} onClick={() => handleSort(k)} style={{

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useEffect, useState, useMemo } from "react"
 import { useLocation } from 'react-router-dom'
-import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown, Download } from 'lucide-react'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
@@ -327,9 +327,37 @@ export default function ExpositionRisques() {
       </div>
 
       <div className="glass-card overflow-hidden border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-[var(--color-navy)] mb-1">Top Risques Individuels</h3>
-          <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Les 20 contrats avec la plus forte exposition</p>
+        <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--color-navy)] mb-1">Top Risques Individuels</h3>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Les 20 contrats avec la plus forte exposition</p>
+          </div>
+          <button
+            onClick={() => {
+              import('xlsx').then(XLSX => {
+                const rows = sortedRisks.map((risk: any) => ({
+                  'N° Police': risk.policy_id,
+                  Cédante: risk.cedante,
+                  Branche: risk.branche,
+                  'Pays Risque': risk.pays_risque,
+                  'Somme Assurée 100% (DH)': risk.sum_insured_100 ?? 0,
+                  'Part (%)': risk.share_signed ?? 0,
+                  'Exposition AR (DH)': risk.exposition ?? 0,
+                  'Prime Écrite (DH)': risk.written_premium ?? 0,
+                  'ULR (%)': risk.ulr !== null && risk.ulr !== undefined ? Number(risk.ulr) : '',
+                }))
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Top Risques')
+                const date = new Date().toISOString().slice(0, 10)
+                XLSX.writeFile(wb, `top_risques_individuels_${date}.xlsx`)
+              })
+            }}
+            disabled={sortedRisks.length === 0}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-[var(--color-navy)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <Download size={13} />
+            Exporter Excel
+          </button>
         </div>
         
         <div className="overflow-x-auto">

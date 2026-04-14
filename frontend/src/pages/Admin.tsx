@@ -504,7 +504,7 @@ export default function Admin() {
                 placeholder="\\serveur\dossier\FCM_Partenaires_v2.xlsx"
               />
               <p className="text-xs mt-1" style={{ color: '#64748b' }}>
-                Feuille attendue : <span className="font-mono">FCM_2025</span> — contient les données FAC-to-FAC (partenaires, primes, engagements)
+                Première feuille du fichier — contient les données FAC-to-FAC (partenaires, primes, engagements)
               </p>
             </div>
             <div className="flex gap-2">

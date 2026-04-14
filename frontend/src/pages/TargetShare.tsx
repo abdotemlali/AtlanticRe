@@ -835,7 +835,7 @@ export default function TargetShare() {
                     ))}
                     <LabelList
                       dataKey="potentiel"
-                      position="right"
+                      position={pill === 'baisse' ? 'left' : 'right'}
                       formatter={(v: any) => formatCompact(Number(v))}
                       style={{ fontSize: 10, fill: 'var(--color-gray-600)' }}
                     />

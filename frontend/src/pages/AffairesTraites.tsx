@@ -99,6 +99,14 @@ export default function AffairesTraites() {
   const [loading, setLoading] = useState(true)
   const [pursApporteurOpen, setPursApporteurOpen] = useState(false)
   const [pursPlaceurOpen, setPursPlaceurOpen] = useState(false)
+  const [roleFilter, setRoleFilter] = useState<'all' | 'double' | 'apporteur' | 'placeur'>('all')
+
+  const filteredCourtiers = useMemo(() => {
+    if (roleFilter === 'all') return courtiersCroise
+    if (roleFilter === 'double') return courtiersCroise.filter(c => c.role_double)
+    if (roleFilter === 'apporteur') return courtiersCroise.filter(c => c.role_apporteur && !c.role_placeur)
+    return courtiersCroise.filter(c => c.role_placeur && !c.role_apporteur)
+  }, [courtiersCroise, roleFilter])
 
   // Load options on mount
   useEffect(() => {
@@ -212,24 +220,59 @@ export default function AffairesTraites() {
     placement.map(p => ({ ...p, label: multiYear ? `${p.traite} (${p.uy})` : p.traite }))
   , [placement, multiYear])
 
+  function exportTraites() {
+    import('xlsx').then(XLSX => {
+      const natureLabel = (n: string) => n === 'Proportionnel' ? 'Prop.' : 'Non Prop.'
+      const mainRows: any[] = []
+      const detailRows: any[] = []
+      traites.forEach(t => {
+        mainRows.push({
+          Traité: t.traite,
+          Nature: natureLabel(t.nature),
+          UY: t.uy,
+          'EPI (MAD)': t.epi ?? 0,
+          'PMD 100% (MAD)': t.pmd_100 ?? 0,
+          'PMD Totale (MAD)': t.pmd_totale ?? 0,
+          'Courtage (MAD)': t.courtage_total ?? 0,
+          'Taux de Placement (%)': t.taux_placement ?? 0,
+          'Nb Sécurités': t.nb_securites ?? 0,
+          'Rating > A (%)': t.rating_a_plus_pct ?? 0,
+        })
+        t.securites?.forEach(s => {
+          detailRows.push({
+            Traité: t.traite,
+            UY: t.uy,
+            Sécurité: s.securite,
+            'PMD par Sécurité (MAD)': s.pmd_par_securite ?? 0,
+            'Commission Courtage (MAD)': s.commission_courtage ?? 0,
+            'Part (%)': s.part_pct ?? 0,
+          })
+        })
+      })
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mainRows), 'Traités')
+      if (detailRows.length > 0) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Détail Sécurités')
+      }
+      const date = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `detail_traites_retrocession_${date}.xlsx`)
+    })
+  }
+
   function exportCourtiers() {
     import('xlsx').then(XLSX => {
-      const rows = courtiers.map(c => {
-        const croise = courtiersCroise.find(x => x.courtier === c.courtier)
-        const role = croise?.role_double ? ROLE_CONFIG.double.label
-          : croise?.role_placeur ? ROLE_CONFIG.placeur.label
-          : croise?.role_apporteur ? ROLE_CONFIG.apporteur.label
-          : c.est_direct ? 'Direct' : 'Placeur'
+      const rows = courtiersCroise.map(c => {
+        const role = c.role_double ? ROLE_CONFIG.double.label
+          : c.role_placeur ? ROLE_CONFIG.placeur.label
+          : c.role_apporteur ? ROLE_CONFIG.apporteur.label
+          : 'Inconnu'
         return {
           Courtier: c.courtier,
           Rôle: role,
-          Traités: c.nb_traites_places,
-          'EPI Géré (MAD)': c.epi_gere,
+          'Primes Apportées (MAD)': c.primes_apportees,
           'PMD Placée (MAD)': c.pmd_placee,
-          'Courtage (MAD)': c.courtage_percu,
-          'Taux Moy. (%)': c.taux_courtage_moyen,
-          Sécurités: c.securites_utilisees.join(', '),
-          'Rating>A (%)': c.rating_a_plus_moyen,
+          'Courtage Rétro (MAD)': c.courtage_retro,
+          'Volume Total (MAD)': c.volume_total,
         }
       })
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -330,7 +373,23 @@ export default function AffairesTraites() {
 
           {/* Traité Table */}
           <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${COLORS.borderCard}`, overflowX: 'auto' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, marginBottom: 16 }}>Détail par Traité</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, margin: 0 }}>Détail par Traité</h3>
+              <button
+                onClick={exportTraites}
+                disabled={traites.length === 0}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 700,
+                  background: COLORS.navy, color: 'white', border: 'none',
+                  cursor: traites.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: traites.length === 0 ? 0.4 : 1,
+                }}
+              >
+                <Download size={13} />
+                Exporter Excel
+              </button>
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${COLORS.borderCard}` }}>
@@ -624,41 +683,57 @@ export default function AffairesTraites() {
               <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.navy, margin: 0 }}>Tableau des Courtiers</h3>
               <button
                 onClick={exportCourtiers}
-                disabled={courtiers.length === 0}
+                disabled={courtiersCroise.length === 0}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--color-navy)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Download size={14} />
                 Exporter Excel
               </button>
             </div>
+            {/* Role filter buttons */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {([
+                { key: 'all' as const, label: 'Tous', color: COLORS.navy, bg: '#E8EDF1' },
+                { key: 'double' as const, label: ROLE_CONFIG.double.label, color: ROLE_CONFIG.double.color, bg: ROLE_CONFIG.double.bg },
+                { key: 'apporteur' as const, label: ROLE_CONFIG.apporteur.label, color: ROLE_CONFIG.apporteur.color, bg: ROLE_CONFIG.apporteur.bg },
+                { key: 'placeur' as const, label: ROLE_CONFIG.placeur.label, color: ROLE_CONFIG.placeur.color, bg: ROLE_CONFIG.placeur.bg },
+              ]).map(f => (
+                <button key={f.key} onClick={() => setRoleFilter(f.key)} style={{
+                  padding: '5px 14px', borderRadius: 8, fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer',
+                  border: `1.5px solid ${roleFilter === f.key ? f.color : COLORS.borderCard}`,
+                  background: roleFilter === f.key ? f.bg : 'transparent',
+                  color: roleFilter === f.key ? f.color : COLORS.gray,
+                  transition: 'all 0.15s ease',
+                }}>
+                  {f.label}
+                  {f.key !== 'all' && <span style={{ marginLeft: 5, opacity: 0.7 }}>({f.key === 'double' ? courtiersCroise.filter(c => c.role_double).length : f.key === 'apporteur' ? courtiersCroise.filter(c => c.role_apporteur && !c.role_placeur).length : courtiersCroise.filter(c => c.role_placeur && !c.role_apporteur).length})</span>}
+                </button>
+              ))}
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${COLORS.borderCard}` }}>
-                  {['Courtier', 'Rôle', 'Traités', 'EPI Géré', 'PMD Placée', 'Courtage', 'Taux Moy.', 'Sécurités', 'Rating>A'].map(h => (
+                  {['Courtier', 'Rôle', 'Primes Apportées', 'PMD Placée', 'Courtage Rétro', 'Volume Total'].map(h => (
                     <th key={h} style={{ padding: '10px 8px', textAlign: 'left', fontWeight: 700, color: COLORS.gray, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {courtiers.map(c => {
-                  const croise = courtiersCroise.find(x => x.courtier === c.courtier)
-                  const role = croise?.role_double ? ROLE_CONFIG.double
-                    : croise?.role_placeur ? ROLE_CONFIG.placeur
-                    : croise?.role_apporteur ? ROLE_CONFIG.apporteur
-                    : { label: c.est_direct ? 'Direct' : 'Placeur', color: COLORS.gray, bg: '#f4f6f7' }
+                {filteredCourtiers.map(c => {
+                  const role = c.role_double ? ROLE_CONFIG.double
+                    : c.role_placeur ? ROLE_CONFIG.placeur
+                    : c.role_apporteur ? ROLE_CONFIG.apporteur
+                    : { label: 'Inconnu', color: COLORS.gray, bg: '#f4f6f7' }
                   return (
                     <tr key={c.courtier} style={{ borderBottom: `1px solid ${COLORS.borderCard}` }}>
                       <td style={{ padding: '10px 8px', fontWeight: 600, color: COLORS.navy }}>{c.courtier}</td>
                       <td style={{ padding: '10px 8px' }}>
                         <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: role.bg, color: role.color }}>{role.label}</span>
                       </td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>{c.nb_traites_places}</td>
-                      <td style={{ padding: '10px 8px' }}>{fmtMAD(c.epi_gere)}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{fmtMAD(c.pmd_placee)}</td>
-                      <td style={{ padding: '10px 8px' }}>{fmtMAD(c.courtage_percu)}</td>
-                      <td style={{ padding: '10px 8px' }}>{c.taux_courtage_moyen}%</td>
-                      <td style={{ padding: '10px 8px', fontSize: '0.72rem' }}>{c.securites_utilisees.slice(0, 3).join(', ')}{c.securites_utilisees.length > 3 ? '...' : ''}</td>
-                      <td style={{ padding: '10px 8px' }}>{c.rating_a_plus_moyen}%</td>
+                      <td style={{ padding: '10px 8px', fontWeight: c.primes_apportees > 0 ? 600 : 400, color: c.primes_apportees > 0 ? COLORS.navy : COLORS.gray }}>{c.primes_apportees > 0 ? fmtMAD(c.primes_apportees) : '—'}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: c.pmd_placee > 0 ? 600 : 400, color: c.pmd_placee > 0 ? COLORS.navy : COLORS.gray }}>{c.pmd_placee > 0 ? fmtMAD(c.pmd_placee) : '—'}</td>
+                      <td style={{ padding: '10px 8px' }}>{c.courtage_retro > 0 ? fmtMAD(c.courtage_retro) : '—'}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: COLORS.olive }}>{fmtMAD(c.volume_total)}</td>
                     </tr>
                   )
                 })}

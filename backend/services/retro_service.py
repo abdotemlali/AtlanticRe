@@ -431,7 +431,7 @@ def compute_placement_status(df: pd.DataFrame) -> List[Dict[str, Any]]:
     return sorted(result, key=lambda x: x["taux_placement"])
 
 
-def compute_courtier_croise(df_retro: pd.DataFrame, df_contrats: pd.DataFrame, uy: Optional[List[int]] = None) -> List[Dict[str, Any]]:
+def compute_courtier_croise(df_retro: pd.DataFrame, df_contrats: pd.DataFrame) -> List[Dict[str, Any]]:
     """Croise courtiers rétrocession × courtiers contrats pour identifier les double-rôles."""
     # Courtiers dans la rétrocession (placeurs)
     retro_courtiers = df_retro[df_retro["EST_DIRECT"] == False].groupby("DIRECT_COURTIER").agg(
@@ -441,11 +441,15 @@ def compute_courtier_croise(df_retro: pd.DataFrame, df_contrats: pd.DataFrame, u
     ).reset_index()
     retro_courtiers.columns = ["courtier", "pmd_placee", "courtage_retro", "nb_traites"]
 
-    # Filtrer les contrats par année si UY spécifié
+    # Filtrer les contrats sur les années présentes dans df_retro (déjà filtré par le router).
+    # Garantit que le matching courtiers se fait sur le même périmètre d'années que l'Excel traités.
     df_c = df_contrats.copy() if not df_contrats.empty else df_contrats
-    if uy and not df_c.empty and "UNDERWRITING_YEAR" in df_c.columns:
+    retro_years: List[int] = []
+    if not df_retro.empty and "UY" in df_retro.columns:
+        retro_years = [int(y) for y in df_retro["UY"].dropna().unique().tolist()]
+    if retro_years and not df_c.empty and "UNDERWRITING_YEAR" in df_c.columns:
         df_c["UNDERWRITING_YEAR"] = pd.to_numeric(df_c["UNDERWRITING_YEAR"], errors="coerce")
-        df_c = df_c[df_c["UNDERWRITING_YEAR"].isin(uy)]
+        df_c = df_c[df_c["UNDERWRITING_YEAR"].isin(retro_years)]
 
     # Courtiers dans les contrats (apporteurs)
     if not df_c.empty and "INT_BROKER" in df_c.columns:

@@ -379,6 +379,9 @@ export default function Comparison() {
   useEffect(() => {
     if (mode !== 'country') return
     const params = buildBaseParams()
+    // Exclure pays_risque (circulaire) et passer top=1000 pour avoir tous les pays disponibles
+    delete params['pays_risque']
+    params['top'] = '1000'
     api.get('/kpis/by-country', { params }).then(res => {
       if (res.data) {
         const pays = res.data.map((c: any) => c.pays as string).filter(Boolean)

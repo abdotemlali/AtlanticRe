@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useParams } from 'react-router-dom'
-import { BarChart2, TrendingUp, AlertTriangle, CheckCircle, PieChart, Table, GitCompare, FileText, Globe, RotateCcw, SlidersHorizontal, Users, Trophy, ChevronDown, ChevronUp } from 'lucide-react'
+import { BarChart2, TrendingUp, AlertTriangle, CheckCircle, PieChart, Table, GitCompare, FileText, Globe, RotateCcw, SlidersHorizontal, Users, Trophy, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import api from '../utils/api'
@@ -322,6 +322,24 @@ export default function Analysis() {
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
     else { setSortCol(col); setSortDir('desc') }
+  }
+
+  const exportBranchExcel = () => {
+    import('xlsx').then(XLSX => {
+      const rows = sortedBranchData.map((b: any) => ({
+        Branche: b.branche,
+        'Prime Écrite (DH)': b.total_written_premium ?? 0,
+        'ULR (%)': b.avg_ulr !== null && b.avg_ulr !== undefined ? Number(b.avg_ulr) : '',
+        'Commission (%)': Number((b.avg_commission ?? 0).toFixed(2)),
+        'Courtage (%)': Number((b.avg_brokerage_rate ?? 0).toFixed(2)),
+        'Comm. Bénéfices (%)': Number((b.avg_profit_comm_rate ?? 0).toFixed(2)),
+      }))
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Branches')
+      const date = new Date().toISOString().slice(0, 10)
+      const paysSlug = (selectedPays ?? 'pays').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      XLSX.writeFile(wb, `commissions_taux_branches_${paysSlug}_${date}.xlsx`)
+    })
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -940,10 +958,18 @@ export default function Analysis() {
                 <Table size={18} className="text-[var(--color-navy)]" />
                 <h3 className="text-sm font-bold text-[var(--color-navy)]">Commissions et Taux par Branche</h3>
                 {localBranches.length > 0 && (
-                  <span className="ml-auto text-[11px] font-bold text-[var(--color-gray-500)]">
+                  <span className="text-[11px] font-bold text-[var(--color-gray-500)]">
                     Lignes surlignées = branches sélectionnées
                   </span>
                 )}
+                <button
+                  onClick={exportBranchExcel}
+                  disabled={sortedBranchData.length === 0}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-[var(--color-navy)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download size={13} />
+                  Exporter Excel
+                </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">

@@ -51,7 +51,7 @@ def load_fcm_excel(file_path: str = None) -> Dict[str, Any]:
         raise FileNotFoundError(f"Fichier FCM Partenaires introuvable : {path}")
 
     logger.info(f"Chargement FCM Partenaires : {path}")
-    df = pd.read_excel(path, sheet_name="FCM_2025", dtype=str)
+    df = pd.read_excel(path, sheet_name=0, dtype=str)
 
     # Strip whitespace from all column names (tolerancetypographique)
     df.columns = [c.strip() for c in df.columns]
@@ -75,6 +75,37 @@ def load_fcm_excel(file_path: str = None) -> Dict[str, Any]:
     for col in TEXT_COLS:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str).str.strip()
+
+    # ── Normalisation des noms de cédantes (SmartCedanteMatcher) ──
+    # Normalise INT_CEDANTE et SECURITY_NAME pour améliorer le croisement donneur/preneur.
+    from services.cedante_matching_service import get_cedante_matcher
+    import time as _time_ced
+
+    ced_matcher = get_cedante_matcher()
+    for col_name in ["INT_CEDANTE", "SECURITY_NAME"]:
+        if col_name not in df.columns:
+            continue
+        t0_ced = _time_ced.perf_counter()
+        unique_names = df[col_name].dropna().unique().tolist()
+        before_unique = len(unique_names)
+
+        ced_lookup: dict[str, str] = {}
+        for name in unique_names:
+            if not name:
+                ced_lookup[name] = name
+                continue
+            result = ced_matcher.match(name)
+            if result["confidence"] == "Exact":
+                ced_lookup[name] = result["canonical"]
+            else:
+                ced_lookup[name] = name
+
+        df[col_name] = df[col_name].map(lambda v: ced_lookup.get(v, v))
+        after_unique = df[col_name].nunique()
+        logger.info(
+            f"[CedanteMatching] {col_name} normalisé en {_time_ced.perf_counter() - t0_ced:.2f}s — "
+            f"{before_unique} → {after_unique} valeurs distinctes."
+        )
 
     _fcm_df = df
     _fcm_last_loaded = datetime.now()
@@ -283,53 +314,67 @@ def get_taux_part_moyen(df: pd.DataFrame, top_n: int = 15) -> List[Dict[str, Any
 
 
 def get_tableau_partenaires(df: pd.DataFrame, df_contrats: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Tableau complet par partenaire avec rôle donneur (dual-role).
+    """Tableau complet par partenaire — OUTER JOIN preneurs (FCM) × donneurs (Template).
 
-    Groupe par SECURITY_CODE / SECURITY_NAME (les sécurités co-souscripteurs)
-    car ce sont eux qui jouent le double rôle donneur/preneur — ils apparaissent
-    comme INT_CEDANTE dans Template_data FAC et comme SECURITY_NAME dans FCM.
+    Preneur  = SECURITY_NAME dans FCM_PARTENAIRES_FILE_PATH (reçoit des parts d'Atlantic Re)
+    Donneur  = INT_CEDANTE dans EXCEL_FILE_PATH (cède des risques à Atlantic Re)
+    Double   = présent dans les deux fichiers
     """
-    if df.empty:
+    # ── Preneurs : FCM groupé par SECURITY_NAME ───────────────────────────
+    preneur_agg = pd.DataFrame(columns=["company", "nb_contrats", "prime_partenaire", "engagement_partenaire", "part_partenaire_moy"])
+    if not df.empty and "SECURITY_NAME" in df.columns:
+        df_sec = df[df["SECURITY_NAME"].str.strip() != ""]
+        if not df_sec.empty:
+            preneur_agg = df_sec.groupby("SECURITY_NAME").agg(
+                nb_contrats=("SECURITY_NAME", "count"),
+                prime_partenaire=("PRIME_PARTENAIRE", "sum"),
+                engagement_partenaire=("ENGAGEMENT_PARTENAIRE", "sum"),
+                part_partenaire_moy=("PART_PARTENAIRE", "mean"),
+            ).reset_index().rename(columns={"SECURITY_NAME": "company"})
+
+    # ── Donneurs : tous les INT_CEDANTE du Template (EXCEL_FILE_PATH) ─────
+    donneur_agg = pd.DataFrame(columns=["company", "prime_donnee", "nb_contrats_donnes"])
+    if not df_contrats.empty and "INT_CEDANTE" in df_contrats.columns:
+        ced_df = df_contrats[df_contrats["INT_CEDANTE"].fillna("").str.strip() != ""]
+        if not ced_df.empty:
+            agg_kwargs = {"nb_contrats_donnes": ("INT_CEDANTE", "count")}
+            if "WRITTEN_PREMIUM" in ced_df.columns:
+                agg_kwargs["prime_donnee"] = ("WRITTEN_PREMIUM", "sum")
+            donneur_agg = ced_df.groupby("INT_CEDANTE").agg(**agg_kwargs).reset_index().rename(columns={"INT_CEDANTE": "company"})
+            if "prime_donnee" not in donneur_agg.columns:
+                donneur_agg["prime_donnee"] = 0.0
+
+    # ── OUTER JOIN ────────────────────────────────────────────────────────
+    if preneur_agg.empty and donneur_agg.empty:
         return []
 
-    # Aggregate FCM by SECURITY_CODE + SECURITY_NAME
-    df_sec = df[df["SECURITY_NAME"].str.strip() != ""]
-    agg = df_sec.groupby(["SECURITY_CODE", "SECURITY_NAME"]).agg(
-        nb_contrats=("SECURITY_NAME", "count"),
-        prime_partenaire=("PRIME_PARTENAIRE", "sum"),
-        engagement_partenaire=("ENGAGEMENT_PARTENAIRE", "sum"),
-        part_partenaire_moy=("PART_PARTENAIRE", "mean"),
-    ).reset_index()
-
-    # Build donneur lookup: INT_CEDANTE → SUM(WRITTEN_PREMIUM) for FAC contracts
-    donneur_data: Dict[str, float] = {}
-    if not df_contrats.empty and "INT_SPC" in df_contrats.columns and "INT_CEDANTE" in df_contrats.columns:
-        fac_df = df_contrats[
-            df_contrats["INT_SPC"].fillna("").str.contains("FAC", case=False, na=False)
-        ]
-        if not fac_df.empty:
-            donneur_agg = fac_df.groupby("INT_CEDANTE")["WRITTEN_PREMIUM"].sum().reset_index()
-            donneur_data = dict(zip(donneur_agg["INT_CEDANTE"], donneur_agg["WRITTEN_PREMIUM"]))
+    merged = pd.merge(preneur_agg, donneur_agg, on="company", how="outer").fillna(0)
 
     result = []
-    for _, row in agg.iterrows():
-        name = str(row["SECURITY_NAME"])
-        code = str(row["SECURITY_CODE"])
-        prime_donnee = donneur_data.get(name, 0.0)
-        role_donneur = prime_donnee > 0
+    for _, row in merged.iterrows():
+        name = str(row["company"])
+        if not name.strip():
+            continue
+
+        is_preneur = float(row["nb_contrats"]) > 0
+        is_donneur = float(row["nb_contrats_donnes"]) > 0
+        if not is_preneur and not is_donneur:
+            continue
+        role = "double" if is_preneur and is_donneur else "donneur" if is_donneur else "preneur"
 
         result.append({
-            "security_code": code,
             "security_name": name,
             "nb_contrats": int(row["nb_contrats"]),
             "prime_partenaire": round(_sanitize(float(row["prime_partenaire"])), 2),
             "engagement_partenaire": round(_sanitize(float(row["engagement_partenaire"])), 2),
             "part_partenaire_moy": round(_sanitize(float(row["part_partenaire_moy"])), 2),
-            "role_donneur": role_donneur,
-            "prime_donnee": round(_sanitize(float(prime_donnee)), 2) if role_donneur else None,
+            "role": role,
+            "role_donneur": is_donneur,
+            "prime_donnee": round(_sanitize(float(row["prime_donnee"])), 2) if is_donneur else None,
+            "nb_contrats_donnes": int(row["nb_contrats_donnes"]) if is_donneur else 0,
         })
 
-    return sorted(result, key=lambda x: x["prime_partenaire"], reverse=True)
+    return sorted(result, key=lambda x: x["prime_partenaire"] + (x["prime_donnee"] or 0), reverse=True)
 
 
 def get_crossing_donneur_preneur(df_fcm: pd.DataFrame, df_contrats: pd.DataFrame) -> List[Dict[str, Any]]:

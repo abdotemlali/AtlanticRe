@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useParams } from 'react-router-dom'
-import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Building2, TrendingUp, AlertTriangle, CheckCircle, PieChart, BarChart2, Table, GitCompare, FileText, Settings, SlidersHorizontal, Trophy, RotateCcw, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import { API_ROUTES } from '../constants/api'
@@ -884,6 +884,30 @@ export default function CedanteAnalysis() {
              <div className="p-4 border-b border-[var(--color-gray-100)] flex items-center gap-2 bg-[var(--color-off-white)]">
                 <Table size={18} className="text-[var(--color-navy)]" />
                 <h3 className="text-sm font-bold text-[var(--color-navy)]">Commissions et Taux par Branche</h3>
+                <button
+                  onClick={() => {
+                    import('xlsx').then(XLSX => {
+                      const rows = sortedBranchData.map((b: any) => ({
+                        Branche: b.branche,
+                        'Prime Écrite (DH)': b.total_written_premium ?? 0,
+                        'ULR (%)': b.avg_ulr !== null && b.avg_ulr !== undefined ? Number(b.avg_ulr) : '',
+                        'Commission (%)': Number((b.avg_commission ?? 0).toFixed(2)),
+                        'Courtage (%)': Number((b.avg_brokerage_rate ?? 0).toFixed(2)),
+                        'Comm. Bénéfices (%)': Number((b.avg_profit_comm_rate ?? 0).toFixed(2)),
+                      }))
+                      const wb = XLSX.utils.book_new()
+                      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Branches')
+                      const date = new Date().toISOString().slice(0, 10)
+                      const slug = (selectedCedante ?? 'cedante').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+                      XLSX.writeFile(wb, `commissions_taux_branches_${slug}_${date}.xlsx`)
+                    })
+                  }}
+                  disabled={sortedBranchData.length === 0}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-[var(--color-navy)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download size={13} />
+                  Exporter Excel
+                </button>
              </div>
              <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">

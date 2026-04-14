@@ -103,7 +103,7 @@ interface DetailBranche  { branche: string; nb_contrats: number; written_premium
 interface TopPrime       { participant_name: string; prime_partenaire: number }
 interface TopEngagement  { participant_name: string; engagement_partenaire: number }
 interface TauxPartItem   { participant_name: string; part_moy: number; nb_contrats: number }
-interface Partenaire     { security_code: string; security_name: string; nb_contrats: number; prime_partenaire: number; engagement_partenaire: number; part_partenaire_moy: number; role_donneur: boolean; prime_donnee: number | null }
+interface Partenaire     { security_name: string; nb_contrats: number; prime_partenaire: number; engagement_partenaire: number; part_partenaire_moy: number; role: string; role_donneur: boolean; prime_donnee: number | null; nb_contrats_donnes: number }
 interface CrossingItem   { company_name: string; prime_donnee: number; prime_recue: number; nb_contrats_donnes: number; nb_contrats_recus: number; engagement_total: number }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -254,6 +254,14 @@ export default function FacToFac() {
     })
   }, [partenaires, sortByPart, sortDescPart])
 
+  // ── Role filter — Tableau des Partenaires ─────────────────────────────────
+  const [partRoleFilter, setPartRoleFilter] = useState<'all' | 'double' | 'donneur' | 'preneur'>('all')
+
+  const filteredSortedPartenaires = useMemo(() => {
+    if (partRoleFilter === 'all') return sortedPartenaires
+    return sortedPartenaires.filter(p => p.role === partRoleFilter)
+  }, [sortedPartenaires, partRoleFilter])
+
   // ── Branch highlight set (for bar chart + table) ─────────────────────────
   const highlightedBranches = useMemo((): Set<string> => {
     if (filters.branche) return new Set([filters.branche])
@@ -279,7 +287,6 @@ export default function FacToFac() {
 
   const exportPartenairesExcel = () => {
     const wsData = sortedPartenaires.map(p => ({
-      'SECURITY_CODE': p.security_code,
       'SECURITY_NAME': p.security_name,
       'Nb Contrats': p.nb_contrats,
       'Prime Partenaire': p.prime_partenaire,
@@ -670,17 +677,36 @@ export default function FacToFac() {
                 Exporter Excel
               </button>
             </div>
+            {/* Role filter buttons */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {([
+                { key: 'all' as const, label: 'Tous', color: C.navy, bg: '#E8EDF1' },
+                { key: 'double' as const, label: 'Double Rôle', color: C.olive, bg: `${C.olive}18` },
+                { key: 'donneur' as const, label: 'Donneur', color: C.amber, bg: `${C.amber}18` },
+                { key: 'preneur' as const, label: 'Preneur', color: C.blue, bg: `${C.blue}18` },
+              ]).map(f => (
+                <button key={f.key} onClick={() => setPartRoleFilter(f.key)} style={{
+                  padding: '5px 14px', borderRadius: 8, fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer',
+                  border: `1.5px solid ${partRoleFilter === f.key ? f.color : C.border}`,
+                  background: partRoleFilter === f.key ? f.bg : 'transparent',
+                  color: partRoleFilter === f.key ? f.color : C.gray,
+                  transition: 'all 0.15s ease',
+                }}>
+                  {f.label}
+                  <span style={{ marginLeft: 5, opacity: 0.7 }}>({f.key === 'all' ? sortedPartenaires.length : sortedPartenaires.filter(p => p.role === f.key).length})</span>
+                </button>
+              ))}
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.77rem' }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${C.border}` }}>
                   {([
-                    ['security_code',        'Code',                        'left'],
                     ['security_name',        'Partenaire',                  'left'],
                     ['nb_contrats',          'Contrats',                    'center'],
                     ['prime_partenaire',     'Prime Partenaire',            'left'],
                     ['engagement_partenaire','Engagement Part.',            'left'],
                     ['part_partenaire_moy',  'Part Moy (%)',                'left'],
-                    ['role_donneur',         'Rôle Donneur',                'left'],
+                    ['role',                 'Rôle',                        'left'],
                     ['prime_donnee',         'Prime Donnée à Atlantic Re',  'left'],
                   ] as [PartSortKey, string, string][]).map(([col, label, align]) => (
                     <th key={col} onClick={() => handleSortPart(col)}
@@ -693,19 +719,20 @@ export default function FacToFac() {
                 </tr>
               </thead>
               <tbody>
-                {sortedPartenaires.map((p, i) => (
-                  <tr key={p.security_code + p.security_name} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? 'transparent' : '#fafbfc' }}>
-                    <td style={{ padding: '9px 8px', fontFamily: 'monospace', fontSize: '0.72rem', color: C.gray }}>{p.security_code}</td>
+                {filteredSortedPartenaires.map((p, i) => (
+                  <tr key={p.security_name} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? 'transparent' : '#fafbfc' }}>
                     <td style={{ padding: '9px 8px', fontWeight: 600, color: C.navy, maxWidth: 200 }}>{p.security_name}</td>
                     <td style={{ padding: '9px 8px', textAlign: 'center' }}>{p.nb_contrats}</td>
                     <td style={{ padding: '9px 8px', fontWeight: 600 }}>{fmtMAD(p.prime_partenaire)}</td>
                     <td style={{ padding: '9px 8px' }}>{fmtMAD(p.engagement_partenaire)}</td>
                     <td style={{ padding: '9px 8px' }}>{p.part_partenaire_moy.toFixed(2)}%</td>
                     <td style={{ padding: '9px 8px' }}>
-                      {p.role_donneur ? (
-                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.amber}22`, color: C.amber }}>Oui</span>
+                      {p.role === 'double' ? (
+                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.olive}18`, color: C.olive }}>Double Rôle</span>
+                      ) : p.role === 'donneur' ? (
+                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.amber}22`, color: C.amber }}>Donneur</span>
                       ) : (
-                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: '#f1f5f9', color: C.gray }}>Non</span>
+                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: `${C.blue}18`, color: C.blue }}>Preneur</span>
                       )}
                     </td>
                     <td style={{ padding: '9px 8px' }}>
@@ -716,8 +743,8 @@ export default function FacToFac() {
                     </td>
                   </tr>
                 ))}
-                {sortedPartenaires.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: C.gray }}>Aucun partenaire trouvé</td></tr>
+                {filteredSortedPartenaires.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: C.gray }}>Aucun partenaire trouvé</td></tr>
                 )}
               </tbody>
             </table>

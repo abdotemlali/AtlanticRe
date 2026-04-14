@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
-from typing import Optional, List
+from typing import Optional
 from routers.auth import require_role, get_current_user
 from routers.admin import _app_config
 from services.retro_service import (
@@ -144,4 +144,4 @@ def retro_courtier_croise(
     uy_list = [int(y) for y in uy.split(",")] if uy else None
     df_retro = apply_retro_filters(df_retro, uy=uy_list)
     df_contrats = get_df()
-    return compute_courtier_croise(df_retro, df_contrats, uy=uy_list)
+    return compute_courtier_croise(df_retro, df_contrats)
