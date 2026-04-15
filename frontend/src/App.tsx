@@ -27,6 +27,11 @@ const BrokerDetail = lazy(() => import('./pages/BrokerDetail'))
 const AffairesTraites = lazy(() => import('./pages/AffairesTraites'))
 const PanelSecurites = lazy(() => import('./pages/PanelSecurites'))
 const FacToFac = lazy(() => import('./pages/FacToFac'))
+const ScarLayout = lazy(() => import('./components/cartographie/ScarLayout'))
+const CartographieNonVie = lazy(() => import('./pages/CartographieNonVie'))
+const CartographieVie = lazy(() => import('./pages/CartographieVie'))
+const CartographieMacro = lazy(() => import('./pages/CartographieMacro'))
+const CartographieGouvernance = lazy(() => import('./pages/CartographieGouvernance'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -70,6 +75,14 @@ function AppRoutes() {
         {/* ── Public landing routes (Axe 1 / Axe 2 entry) ── */}
         <Route path="/" element={<Home />} />
         <Route path="/modelisation" element={<ModelisationHome />} />
+
+        {/* ── Cartographie SCAR (Axe 2) — public, olive navbar ── */}
+        <Route element={<ScarLayout />}>
+          <Route path="/modelisation/cartographie/non-vie" element={<ErrorBoundary><CartographieNonVie /></ErrorBoundary>} />
+          <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />
+          <Route path="/modelisation/cartographie/macroeconomie" element={<ErrorBoundary><CartographieMacro /></ErrorBoundary>} />
+          <Route path="/modelisation/cartographie/gouvernance" element={<ErrorBoundary><CartographieGouvernance /></ErrorBoundary>} />
+        </Route>
 
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />

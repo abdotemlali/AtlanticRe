@@ -154,3 +154,108 @@ def get_overview_stats():
 
     finally:
         db.close()
+
+
+# ── Raw datasets for Cartographie pages ──────────────────────────────────────
+# Each endpoint returns the full time series for the 34 African countries,
+# joined with ref_pays to expose nom_pays, code_iso3 and region.
+
+def _ref_map(db):
+    return {r.nom_pays: r for r in db.query(RefPays).all()}
+
+
+@router.get("/cartographie/non-vie")
+def cartographie_non_vie():
+    """Toutes les lignes ext_marche_non_vie avec région + ISO3."""
+    db = SessionLocal()
+    try:
+        refs = _ref_map(db)
+        rows = db.query(ExtMarcheNonVie).all()
+        return [
+            {
+                "pays": r.pays,
+                "code_iso3": refs[r.pays].code_iso3 if r.pays in refs else None,
+                "region": refs[r.pays].region if r.pays in refs else None,
+                "annee": r.annee,
+                "primes_emises_mn_usd": r.primes_emises_mn_usd,
+                "croissance_primes_pct": r.croissance_primes_pct,
+                "taux_penetration_pct": r.taux_penetration_pct,
+                "ratio_sp_pct": r.ratio_sp_pct,
+                "densite_assurance_usd": r.densite_assurance_usd,
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/cartographie/vie")
+def cartographie_vie():
+    db = SessionLocal()
+    try:
+        refs = _ref_map(db)
+        rows = db.query(ExtMarcheVie).all()
+        return [
+            {
+                "pays": r.pays,
+                "code_iso3": refs[r.pays].code_iso3 if r.pays in refs else None,
+                "region": refs[r.pays].region if r.pays in refs else None,
+                "annee": r.annee,
+                "primes_emises_mn_usd": r.primes_emises_mn_usd,
+                "croissance_primes_pct": r.croissance_primes_pct,
+                "taux_penetration_pct": r.taux_penetration_pct,
+                "densite_assurance_usd": r.densite_assurance_usd,
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/cartographie/macroeconomie")
+def cartographie_macro():
+    db = SessionLocal()
+    try:
+        refs = _ref_map(db)
+        rows = db.query(ExtMacroeconomie).all()
+        return [
+            {
+                "pays": r.pays,
+                "code_iso3": refs[r.pays].code_iso3 if r.pays in refs else None,
+                "region": refs[r.pays].region if r.pays in refs else None,
+                "annee": r.annee,
+                "gdp_growth_pct": r.gdp_growth_pct,
+                "current_account_mn": r.current_account_mn,
+                "exchange_rate": r.exchange_rate,
+                "gdp_per_capita": r.gdp_per_capita,
+                "gdp_mn": r.gdp_mn,
+                "inflation_rate_pct": r.inflation_rate_pct,
+                "integration_regionale_score": r.integration_regionale_score,
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/cartographie/gouvernance")
+def cartographie_gouvernance():
+    db = SessionLocal()
+    try:
+        refs = _ref_map(db)
+        rows = db.query(ExtGouvernance).all()
+        return [
+            {
+                "pays": r.pays,
+                "code_iso3": refs[r.pays].code_iso3 if r.pays in refs else None,
+                "region": refs[r.pays].region if r.pays in refs else None,
+                "annee": r.annee,
+                "fdi_inflows_pct_gdp": r.fdi_inflows_pct_gdp,
+                "political_stability": r.political_stability,
+                "regulatory_quality": r.regulatory_quality,
+                "kaopen": r.kaopen,
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()

@@ -16,6 +16,7 @@ import {
   Heart,
   Building2,
   Scale,
+  Landmark,
 } from 'lucide-react'
 import {
   ComposableMap,
@@ -42,8 +43,10 @@ const navItems: NavItem[] = [
   {
     label: 'Cartographie', icon: Map,
     children: [
-      { to: '/modelisation/carte',     label: "Carte d'attractivité", icon: Globe2  },
-      { to: '/modelisation/regions',   label: 'Vue régionale',         icon: Compass },
+      { to: '/modelisation/cartographie/non-vie',       label: 'Assurance Non-Vie', icon: Building2 },
+      { to: '/modelisation/cartographie/vie',            label: 'Assurance Vie',     icon: Heart     },
+      { to: '/modelisation/cartographie/macroeconomie',  label: 'Macroéconomie',     icon: TrendingUp },
+      { to: '/modelisation/cartographie/gouvernance',    label: 'Gouvernance',       icon: Landmark  },
     ],
   },
   {
@@ -58,6 +61,7 @@ const navItems: NavItem[] = [
 
 // ─── NavDropdown ──────────────────────────────────────────────────────────────
 function NavDropdown({ label, icon: Icon, children }: NavGroup) {
+  const navigate = useNavigate()
   const { pathname } = useLocation()
   const isGroupActive = children.some(c => pathname === c.to || pathname.startsWith(c.to + '/'))
 
@@ -90,22 +94,28 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
           top: 'calc(100% + 8px)', zIndex: 200,
           background: 'hsla(83,30%,12%,0.96)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid hsla(83,52%,50%,0.25)', boxShadow: '0 16px 48px hsla(83,40%,8%,0.55)',
-          borderRadius: 12, minWidth: 220, padding: 6,
+          borderRadius: 12, minWidth: 240, padding: 6,
         }}
       >
-        {children.map(({ label: childLabel, icon: ChildIcon }) => (
-          <div key={childLabel}
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap text-white/55 select-none"
-            style={{ cursor: 'not-allowed' }}
-          >
-            <ChildIcon size={13} className="flex-shrink-0" style={{ opacity: 0.5 }} />
-            <span>{childLabel}</span>
-            <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider"
-              style={{ background: 'hsla(83,52%,50%,0.15)', color: 'hsl(83,60%,70%)', border: '1px solid hsla(83,52%,50%,0.25)' }}>
-              Soon
-            </span>
-          </div>
-        ))}
+        {children.map(({ to, label: childLabel, icon: ChildIcon }) => {
+          const isActive = pathname === to || pathname.startsWith(to + '/')
+          return (
+            <button
+              key={to}
+              onClick={() => navigate(to)}
+              className={[
+                'w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200',
+                isActive ? 'text-white' : 'text-white/70 hover:text-white',
+              ].join(' ')}
+              style={isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = isActive ? 'hsla(83,52%,50%,0.22)' : '' }}
+            >
+              <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
+              <span>{childLabel}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
