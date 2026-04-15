@@ -278,6 +278,95 @@ export function computeScatterInsights(
     ]
   }
 
+  // Motion 5 : Pénétration vs S/P
+  if ((xKey === 'penetration' && yKey === 'sp') || (xKey === 'sp' && yKey === 'penetration')) {
+    const withPSp = noSA.filter(s => s.penetration != null && s.sp != null)
+    const medPen = median(withPSp.map(s => s.penetration as number))
+    
+    // 1. Sous-Pénétrés & Rentables
+    const cibles = withPSp.filter(s => (s.penetration ?? 0) < medPen && (s.sp ?? 100) < 50)
+    
+    // 2. Déficit de mutualisation (Anti-sélection)
+    const deficit = withPSp.filter(s => (s.penetration ?? 0) < medPen && (s.sp ?? 0) > 65)
+    
+    // 3. Prime à la maturité
+    const highPen = withPSp.filter(s => (s.penetration ?? 0) >= medPen)
+    const lowPen = withPSp.filter(s => (s.penetration ?? 0) < medPen)
+    const avgSpHighPen = avg(highPen.map(s => s.sp as number))
+    const avgSpLowPen = avg(lowPen.map(s => s.sp as number))
+    const diff = avgSpLowPen - avgSpHighPen
+    
+    return [
+      {
+        tone: 'green', icon: '💎', label: 'CIBLES HAUTE VALEUR',
+        value: `${cibles.length} pays`,
+        body: cibles.length 
+          ? `${cibles.map(s => s.pays).join(', ')} : marchés sous-pénétrés (< ${fmtPct(medPen)}) mais très rentables (S/P < 50%). Fort potentiel d'expansion technique.` 
+          : 'Aucun marché sous-pénétré ne maintient un S/P inférieur à 50%.',
+        countryTags: cibles.map(s => s.pays),
+        badge: { text: '✓ Expansion prioritaire', kind: 'ok' },
+      },
+      {
+        tone: 'amber', icon: '⚖️', label: 'DÉFICIT DE MUTUALISATION',
+        value: `${deficit.length} pays`,
+        body: deficit.length 
+          ? `${deficit.length} marchés allient faible pénétration et sinistralité dégradée (S/P > 65%), suggérant un possible phénomène d'anti-sélection ou un manque de mutualisation des risques.` 
+          : 'Aucun marché sous-pénétré ne souffre de sinistralité critique.',
+        countryTags: deficit.map(s => s.pays),
+      },
+      {
+        tone: 'navy', icon: '🏛️', label: 'EFFET DE MATURITÉ (S/P)',
+        value: diff > 0 ? `-${diff.toFixed(1)} pts` : `+${Math.abs(diff).toFixed(1)} pts`,
+        body: `Les marchés les plus pénétrés (≥ ${fmtPct(medPen)}) ont un S/P moyen de ${fmtPct(avgSpHighPen)}. Les marchés moins pénétrés affichent ${fmtPct(avgSpLowPen)} en moyenne, illustrant l'impact du volume sur le lissage technique.`,
+      },
+    ]
+  }
+
+  // Motion 6 : Densité vs S/P
+  if ((xKey === 'densite' && yKey === 'sp') || (xKey === 'sp' && yKey === 'densite')) {
+    const withDSp = noSA.filter(s => s.densite != null && s.sp != null)
+    const medDens = median(withDSp.map(s => s.densite as number))
+    
+    // 1. Haute densité, Haute rentabilité
+    const hdhr = withDSp.filter(s => (s.densite ?? 0) >= medDens && (s.sp ?? 100) < 55)
+    
+    // 2. Volatilité des micro-marchés
+    const p25Dens = withDSp.map(s => s.densite as number).sort((a,b)=>a-b)[Math.floor(withDSp.length * 0.25)] ?? 0
+    const microVolatiles = withDSp.filter(s => (s.densite ?? 0) <= p25Dens && (s.sp ?? 0) >= 60)
+    
+    // 3. Leader Technique (Parmi le top 5 densité)
+    const top5Dens = [...withDSp].sort((a,b)=>(b.densite ?? 0) - (a.densite ?? 0)).slice(0, 5)
+    const leaderTech = [...top5Dens].sort((a,b)=>(a.sp ?? 100) - (b.sp ?? 100))[0]
+    
+    return [
+      {
+        tone: 'green', icon: '💰', label: 'VALEUR & RENTABILITÉ',
+        value: `${hdhr.length} pays`,
+        body: hdhr.length
+          ? `${hdhr.map(s => s.pays).join(', ')} : marchés combinant une densité d'assurance supérieure à la moyenne et une solide rentabilité (S/P < 55%).`
+          : 'Aucun marché ne combine haute densité et très faible S/P.',
+        countryTags: hdhr.map(s => s.pays),
+        badge: { text: '✓ Profil Premium', kind: 'ok' },
+      },
+      {
+        tone: 'red', icon: '⚠️', label: 'FRAGILITÉ DES MICRO-MARCHÉS',
+        value: `${microVolatiles.length} pays`,
+        body: microVolatiles.length
+          ? `${microVolatiles.length} pays parmi le quartile le plus faible en densité (≤ ${Math.round(p25Dens)}$/hab) subissent un S/P > 60%. L'étroitesse du marché accentue la volatilité technique.`
+          : 'Les micro-marchés résistent bien à la volatilité technique.',
+        countryTags: microVolatiles.map(s => s.pays),
+      },
+      {
+        tone: 'navy', icon: '🥇', label: 'CHAMPION TECHNIQUE',
+        value: leaderTech?.pays ?? '—',
+        body: leaderTech
+          ? `Parmi les 5 marchés les plus denses d'Afrique (hors SA), ${leaderTech.pays} maîtrise le mieux sa rentabilité avec un S/P de seulement ${fmtPct(leaderTech.sp ?? 0)}.`
+          : 'Données insuffisantes pour déterminer un leader technique.',
+        countryTags: leaderTech ? [leaderTech.pays] : [],
+      },
+    ]
+  }
+
   // Insight générique pour autres combinaisons
   const vals = noSA.filter(s => s[xKey as keyof CountryStat] != null && s[yKey as keyof CountryStat] != null)
   const xVals = vals.map(s => s[xKey as keyof CountryStat] as number)

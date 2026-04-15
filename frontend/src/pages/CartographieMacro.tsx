@@ -137,6 +137,7 @@ export default function CartographieMacro() {
     { key: 'growth', label: 'Croissance PIB (%)', format: fmtPct, ref: 0 },
     { key: 'gdpCap', label: 'PIB/hab (USD)', format: fmtUsd },
     { key: 'currentAcc', label: 'Compte courant (Mn USD)', format: fmtBn, ref: 0 },
+    { key: 'gdp', label: 'PIB (Mn USD)', format: fmtBn },
   ], [])
 
   const scatterAllByYear = useMemo(() => {
@@ -147,6 +148,7 @@ export default function CartographieMacro() {
         pays: r.pays,
         region: r.region ?? 'Autre',
         primes: r.gdp_mn,
+        gdp: r.gdp_mn,
         inflation: r.inflation_rate_pct,
         growth: r.gdp_growth_pct,
         gdpCap: r.gdp_per_capita,
@@ -392,7 +394,14 @@ export default function CartographieMacro() {
           icon={
             scatterXKey === 'inflation' && scatterYKey === 'growth' ? '🌡️' :
             scatterXKey === 'gdpCap' && scatterYKey === 'growth' ? '💰' :
-            scatterXKey === 'currentAcc' && scatterYKey === 'growth' ? '⚖️' : '📊'
+            scatterXKey === 'currentAcc' && scatterYKey === 'growth' ? '⚖️' : 
+            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') ? '💱' :
+            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '🏢' :
+            (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '🏦' : 
+            (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') ? '💎' :
+            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') ? '💸' :
+            (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '👑' :
+            '📊'
           }
           title={
             (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'growth' || scatterYKey === 'growth')
@@ -401,6 +410,18 @@ export default function CartographieMacro() {
               ? 'PIB/HAB VS CROISSANCE PIB'
               : (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'growth' || scatterYKey === 'growth')
               ? 'COMPTE COURANT VS CROISSANCE PIB'
+              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc')
+              ? 'INFLATION VS COMPTE COURANT'
+              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
+              ? 'INFLATION VS PIB'
+              : (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
+              ? 'COMPTE COURANT VS PIB'
+              : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc')
+              ? 'PIB/HAB VS COMPTE COURANT'
+              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap')
+              ? 'INFLATION VS PIB/HAB'
+              : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
+              ? 'PIB/HAB VS PIB'
               : 'ANALYSE MULTI-AXES MACRO'
           }
           subtitle="Se recalcule automatiquement selon les axes sélectionnés"

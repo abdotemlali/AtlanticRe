@@ -323,6 +323,193 @@ export function computeMacroScatterInsights(
     ]
   }
 
+  // Motion 4 : Inflation vs Compte courant
+  if ((xKey === 'inflation' && yKey === 'currentAcc') || (xKey === 'currentAcc' && yKey === 'inflation')) {
+    const withIC = noSA.filter(s => s.inflation != null && s.currentAcc != null)
+    const vulnerable = withIC.filter(s => (s.inflation ?? 0) > 10 && (s.currentAcc ?? 0) < -1000)
+    const resilient = withIC.filter(s => (s.inflation ?? 100) <= 5 && (s.currentAcc ?? -1) > 0)
+    const surveillance = withIC.filter(s => (s.currentAcc ?? 0) < -3000 && (s.inflation ?? 0) > 5)
+    return [
+      {
+        tone: 'red', icon: '🚨', label: 'VULNÉRABILITÉ EXTERNE SÉVÈRE', value: `${vulnerable.length} pays`,
+        body: vulnerable.length ? `${vulnerable.map(s => s.pays).join(', ')} cumulent une inflation > 10% et un déficit courant très profond (< -$1 Mrd). Ce cocktail engendre un risque de dépréciation monétaire particulièrement élevé.`
+        : 'Aucun pays ne présente de vulnérabilité externe sévère combinant forte inflation et déficit critique.',
+        badge: { text: vulnerable.length ? '⚠ Haut risque de change' : '✓ Rassurant', kind: vulnerable.length ? 'alert' : 'ok' },
+        countryTags: vulnerable.map(s => s.pays)
+      },
+      {
+        tone: 'green', icon: '🛡️', label: 'RÉSILIENTS MONÉTAIRES', value: `${resilient.length} pays`,
+        body: resilient.length ? `${resilient.map(s => s.pays).join(', ')} maintiennent une inflation contenue (≤ 5%) tout en dégageant des excédents courants. Une solidité macroéconomique offrant la meilleure garantie contre les chocs de devises.`
+        : 'Aucun pays ne combine stricte stabilité des prix et excédent courant moyen.',
+        badge: { text: resilient.length ? '✓ Solide' : '—', kind: resilient.length ? 'ok' : 'info' },
+        countryTags: resilient.map(s => s.pays)
+      },
+      {
+        tone: 'amber', icon: '👀', label: 'SOUS SURVEILLANCE DEVISES', value: `${surveillance.length} pays`,
+        body: surveillance.length ? `${surveillance.map(s => s.pays).join(', ')} creusent un déficit externe majeur (< -$3 Mrd) avec des tensions manifestes sur les prix. La pression à la baisse sur la monnaie locale est substantielle.`
+        : 'Aucun marché majeur n\'est sous très forte tension externe.',
+        countryTags: surveillance.map(s => s.pays)
+      }
+    ]
+  }
+
+  // Motion 5 : Inflation vs PIB
+  if ((xKey === 'inflation' && yKey === 'gdp') || (xKey === 'gdp' && yKey === 'inflation')) {
+    const withIGdp = noSA.filter(s => s.inflation != null && s.gdp != null)
+    const medGdp = median(withIGdp.map(s => s.gdp))
+    const giants = withIGdp.filter(s => s.gdp > medGdp && (s.inflation ?? 0) > 10)
+    const anchors = withIGdp.filter(s => s.gdp > medGdp && (s.inflation ?? 100) <= 5)
+    const smallVulnerable = withIGdp.filter(s => s.gdp < medGdp && (s.inflation ?? 0) > 15)
+    return [
+      {
+        tone: 'amber', icon: '🐘', label: 'GÉANTS EN SURCHAUFFE', value: `${giants.length} pays`,
+        body: giants.length ? `${giants.map(s => s.pays).join(', ')} font partie des marchés dont la taille dépasse la médiane, mais souffrent d'une inflation à deux chiffres. Le risque systémique pour la valorisation du marché est majeur.`
+        : 'Les grandes économies continentales maintiennent leur inflation sous les 10%.',
+        badge: { text: giants.length ? '⚠ Risque systémique' : '✓ Maîtrise des prix', kind: giants.length ? 'warn' : 'ok' },
+        countryTags: giants.map(s => s.pays)
+      },
+      {
+        tone: 'green', icon: '⚓', label: 'ANCRES MACROÉCONOMIQUES', value: `${anchors.length} pays`,
+        body: anchors.length ? `${anchors.map(s => s.pays).join(', ')} stabilisent le continent. Ces grandes économies (> médiane) parviennent à contenir fermement leur inflation (≤ 5%), offrant un environnement très sain.`
+        : 'Aucune grande économie ne parvient à maintenir une inflation ≤ 5% sur la période.',
+        badge: { text: anchors.length ? '✓ Piliers de stabilité' : '—', kind: anchors.length ? 'ok' : 'info' },
+        countryTags: anchors.map(s => s.pays)
+      },
+      {
+        tone: 'red', icon: '🌪️', label: 'PETITS MARCHÉS VOLATILS', value: `${smallVulnerable.length} pays`,
+        body: smallVulnerable.length ? `${smallVulnerable.map(s => s.pays).join(', ')} (PIB < médiane) importent excessivement l'inflation et la subissent de plein fouet (> 15%). Ces marchés sont fragiles et très exposés aux chocs externes.`
+        : 'Pas de petits marchés subissant une volatilité des prix extrême (> 15%).',
+        countryTags: smallVulnerable.map(s => s.pays)
+      }
+    ]
+  }
+
+  // Motion 6 : Compte courant vs PIB
+  if ((xKey === 'currentAcc' && yKey === 'gdp') || (xKey === 'gdp' && yKey === 'currentAcc')) {
+    const withCGdp = noSA.filter(s => s.currentAcc != null && s.gdp != null)
+    const medGdp = median(withCGdp.map(s => s.gdp))
+    const bigDeficits = withCGdp.filter(s => s.gdp > medGdp && (s.currentAcc ?? 0) < -3000)
+    const surplusEngines = withCGdp.filter(s => s.gdp > medGdp && (s.currentAcc ?? -1) > 0)
+    const balancedSmall = withCGdp.filter(s => s.gdp <= medGdp && (s.currentAcc ?? -1) >= 0)
+    return [
+      {
+        tone: 'red', icon: '🕳️', label: 'DÉFICITS STRUCTURELS MAJEURS', value: `${bigDeficits.length} pays`,
+        body: bigDeficits.length ? `${bigDeficits.map(s => s.pays).join(', ')} opèrent avec les plus lourds déficits courants (< -$3 Mrd). De vastes économies qui demeurent structurellement dépendantes des investissements étrangers.`
+        : 'Aucune grande économie ne creuse un déficit courant moyen très lourd.',
+        badge: { text: bigDeficits.length ? '⚠ Dépendance externe' : '✓ Rassurant', kind: bigDeficits.length ? 'alert' : 'ok' },
+        countryTags: bigDeficits.map(s => s.pays)
+      },
+      {
+        tone: 'green', icon: '🔋', label: 'MOTEURS D\'EXCÉDENT', value: `${surplusEngines.length} pays`,
+        body: surplusEngines.length ? `${surplusEngines.map(s => s.pays).join(', ')} pèsent lourd sur le PIB tout en générant un surplus extérieur net. Ce sont les véritables créanciers commerciaux du continent.`
+        : 'Les grandes économies continentales sont systémiquement en déficit courant.',
+        badge: { text: surplusEngines.length ? '✓ Excédent net majeur' : '⚠ Aucun excédent', kind: surplusEngines.length ? 'ok' : 'warn' },
+        countryTags: surplusEngines.map(s => s.pays)
+      },
+      {
+        tone: 'navy', icon: '⚖️', label: 'PETITS MAIS ÉQUILIBRÉS', value: `${balancedSmall.length} pays`,
+        body: balancedSmall.length ? `${balancedSmall.map(s => s.pays).join(', ')} : économies de taille modeste (PIB < médiane) naviguant avec succès à l'équilibre ou en léger surplus compte courant.`
+        : 'Les économies de taille modeste ont toutes un déficit courant.',
+        countryTags: balancedSmall.map(s => s.pays)
+      }
+    ]
+  }
+
+  // Motion 7 : PIB/hab vs Compte courant
+  if ((xKey === 'gdpCap' && yKey === 'currentAcc') || (xKey === 'currentAcc' && yKey === 'gdpCap')) {
+    const withCCap = noSA.filter(s => s.gdpCap != null && s.currentAcc != null)
+    const medCap = median(withCCap.map(s => s.gdpCap as number))
+    const richSurplus = withCCap.filter(s => (s.gdpCap ?? 0) > medCap && (s.currentAcc ?? -1) > 0)
+    const richDeficit = withCCap.filter(s => (s.gdpCap ?? 0) > medCap && (s.currentAcc ?? 0) <= -1000)
+    const poorDeficit = withCCap.filter(s => (s.gdpCap ?? 0) < medCap && (s.currentAcc ?? 0) <= -1000)
+    return [
+      {
+        tone: 'green', icon: '💎', label: 'HAUTS REVENUS EXCÉDENTAIRES', value: `${richSurplus.length} pays`,
+        body: richSurplus.length ? `${richSurplus.map(s => s.pays).join(', ')} génèrent à la fois une richesse par habitant > médiane et des excédents extérieurs nets. Bassin de capitaux domestiques de haute qualité.`
+        : 'Aucune économie à revenu supérieur ne dégage d\'excédent courant.',
+        badge: { text: richSurplus.length ? '✓ Épargne nationale forte' : '—', kind: richSurplus.length ? 'ok' : 'info' },
+        countryTags: richSurplus.map(s => s.pays)
+      },
+      {
+        tone: 'navy', icon: '💸', label: 'HAUTS REVENUS DÉFICITAIRES', value: `${richDeficit.length} pays`,
+        body: richDeficit.length ? `${richDeficit.map(s => s.pays).join(', ')} ont un niveau de vie > médiane soutenu par un lourd endettement externe (< -$1 Mrd courant). Modèle économique à forte consommation importée.`
+        : 'Pas de grand déficit parmi les économies à revenu supérieur.',
+        countryTags: richDeficit.map(s => s.pays)
+      },
+      {
+        tone: 'red', icon: '🧱', label: 'PAUVRETÉ ET DÉSÉQUILIBRE', value: `${poorDeficit.length} pays`,
+        body: poorDeficit.length ? `${poorDeficit.map(s => s.pays).join(', ')} souffrent d'une double vulnérabilité : PIB/hab < médiane ET énorme déficit courant (< -$1 Mrd). Forts besoins en capitaux extérieurs.`
+        : 'Pas de combinaison pauvreté & déséquilibre externe majeur détectée.',
+        badge: { text: poorDeficit.length ? '⚠ Vulnérabilité aigüe' : '✓ Rassurant', kind: poorDeficit.length ? 'alert' : 'ok' },
+        countryTags: poorDeficit.map(s => s.pays)
+      }
+    ]
+  }
+
+  // Motion 8 : Inflation vs PIB/hab
+  if ((xKey === 'inflation' && yKey === 'gdpCap') || (xKey === 'gdpCap' && yKey === 'inflation')) {
+    const withICap = noSA.filter(s => s.inflation != null && s.gdpCap != null)
+    const medCap = median(withICap.map(s => s.gdpCap as number))
+    const richStable = withICap.filter(s => (s.gdpCap ?? 0) > medCap && (s.inflation ?? 100) <= 5)
+    const richEroded = withICap.filter(s => (s.gdpCap ?? 0) > medCap && (s.inflation ?? 0) > 10)
+    const poorHyper = withICap.filter(s => (s.gdpCap ?? 0) <= medCap && (s.inflation ?? 0) > 15)
+    return [
+      {
+        tone: 'green', icon: '🛡️', label: 'PUISSANCES STABLES', value: `${richStable.length} pays`,
+        body: richStable.length ? `${richStable.map(s => s.pays).join(', ')} : PIB/hab > médiane et inflation contenue (≤ 5%). C'est le cluster macroéconomique le plus mûr pour développer l'assurance.`
+        : 'Aucun pays à haut revenu ne maîtrise l\'inflation sous les 5%.',
+        badge: { text: richStable.length ? '✓ Idéal croissance' : '—', kind: richStable.length ? 'ok' : 'info' },
+        countryTags: richStable.map(s => s.pays)
+      },
+      {
+        tone: 'amber', icon: '🧨', label: 'RICHESSE ÉRODÉE', value: `${richEroded.length} pays`,
+        body: richEroded.length ? `${richEroded.map(s => s.pays).join(', ')} voient leur pouvoir d'achat supérieur (PIB/hab > médiane) attaqué par une forte inflation (> 10%). Risque direct de contraction des primes.`
+        : 'Les économies à haut revenu ne subissent pas d\'inflation forte.',
+        countryTags: richEroded.map(s => s.pays)
+      },
+      {
+        tone: 'red', icon: '📉', label: 'DOUBLE PEINE MACRO', value: `${poorHyper.length} pays`,
+        body: poorHyper.length ? `${poorHyper.map(s => s.pays).join(', ')} affrontent un PIB/hab < médiane couplé à une flambée des prix extrême (> 15%). L'accessibilité aux produits d'assurance y est quasi nulle à court terme.`
+        : 'Aucun marché faible ne subit une hyperinflation extrême.',
+        badge: { text: poorHyper.length ? '⚠ Hors scope court terme' : '✓ Rassurant', kind: poorHyper.length ? 'alert' : 'ok' },
+        countryTags: poorHyper.map(s => s.pays)
+      }
+    ]
+  }
+
+  // Motion 9 : PIB/hab vs PIB
+  if ((xKey === 'gdpCap' && yKey === 'gdp') || (xKey === 'gdp' && yKey === 'gdpCap')) {
+    const withGdpCap = noSA.filter(s => s.gdpCap != null && s.gdp != null)
+    const medGdp = median(withGdpCap.map(s => s.gdp))
+    const medCap = median(withGdpCap.map(s => s.gdpCap as number))
+    
+    const broadPremium = withGdpCap.filter(s => s.gdp > medGdp && (s.gdpCap ?? 0) > medCap)
+    const demoEngines = withGdpCap.filter(s => s.gdp > medGdp && (s.gdpCap ?? 0) <= medCap)
+    const nichePremium = withGdpCap.filter(s => s.gdp <= medGdp && (s.gdpCap ?? 0) > medCap)
+    return [
+      {
+        tone: 'green', icon: '👑', label: 'MARCHÉS PREMIUM', value: `${broadPremium.length} pays`,
+        body: broadPremium.length ? `${broadPremium.map(s => s.pays).join(', ')} pèsent lourd sur le continent (PIB > médiane) tout en distribuant des revenus élevés à leur population. Bassins principaux pour l'assurance retail.`
+        : 'Aucun pays ne combine très grand marché et population très riche.',
+        badge: { text: broadPremium.length ? '✓ Cœur de cible' : '—', kind: broadPremium.length ? 'ok' : 'info' },
+        countryTags: broadPremium.map(s => s.pays)
+      },
+      {
+        tone: 'navy', icon: '🏭', label: 'MOTEURS DÉMOGRAPHIQUES', value: `${demoEngines.length} pays`,
+        body: demoEngines.length ? `${demoEngines.map(s => s.pays).join(', ')} figurent parmi les plus grandes économies continentales mais leur PIB/hab reste sous la médiane. Leur volume repose strictement sur la démographie.`
+        : 'Les grandes économies continentales sont toutes au-dessus de la médiane de richesse.',
+        countryTags: demoEngines.map(s => s.pays)
+      },
+      {
+        tone: 'amber', icon: '💎', label: 'NICHES À HAUTE VALEUR', value: `${nichePremium.length} pays`,
+        body: nichePremium.length ? `${nichePremium.map(s => s.pays).join(', ')} ont un marché domestique restreint (PIB < médiane) mais un niveau de richesse individuelle confortable.`
+        : 'Aucune économie de taille modeste n\'a un PIB/hab élevé.',
+        badge: { text: nichePremium.length ? '📌 Segments qualitatifs' : '—', kind: 'info' },
+        countryTags: nichePremium.map(s => s.pays)
+      }
+    ]
+  }
+
   // Fallback générique
   const vals = noSA.filter(s => s[xKey as keyof CountryStat] != null && s[yKey as keyof CountryStat] != null)
   const topX = [...vals].sort((a, b) => (b[xKey as keyof CountryStat] as number) - (a[xKey as keyof CountryStat] as number)).slice(0, 3)

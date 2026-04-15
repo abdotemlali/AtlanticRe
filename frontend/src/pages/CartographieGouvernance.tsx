@@ -24,6 +24,7 @@ import {
   useGouvKaopenDistribInsights,
   useGouvRankingInsights,
   useGouvHeatmapRegInsights,
+  useGouvHeatmapStabInsights,
 } from '../hooks/useGouvInsights'
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -275,6 +276,7 @@ export default function CartographieGouvernance() {
 
   const kaopenInsights        = useGouvKaopenDistribInsights(gouvData)
   const heatmapRegInsights    = useGouvHeatmapRegInsights(gouvData)
+  const heatmapStabInsights   = useGouvHeatmapStabInsights(gouvData)
 
   // ── Tableau classement — indicateurs bruts (comme CartographieMacro) ───────
   const [tableYear, setTableYear] = useState<YearSel>(maxYear)
@@ -471,6 +473,12 @@ export default function CartographieGouvernance() {
           matrix={buildHeatMatrix(gouvData, 'political_stability')}
           years={years} countries={countries} regions={heatRegions}
           scale="wgi" format={fmtWgi}
+        />
+        <InsightPanel
+          icon="⚡"
+          title="Analyse des anomalies temporelles — Stabilité Politique"
+          subtitle="Chocs géopolitiques · Résilience historique · Recovery institutionnelle"
+          cards={heatmapStabInsights}
         />
       </section>
 

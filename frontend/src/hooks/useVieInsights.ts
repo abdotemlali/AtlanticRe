@@ -450,15 +450,20 @@ export function useVieStructureInsights(
     const top2Pct = totHorsSA > 0 ? sum(top2.map(([, v]) => v)) / totHorsSA * 100 : 0
     const rest = 100 - top2Pct
 
+    const minorRegions = sortedReg.filter(([, v]) => (v / totHorsSA) * 100 <= 10)
+    const minorPct = totHorsSA > 0 ? sum(minorRegions.map(([, v]) => v)) / totHorsSA * 100 : 0
+
     return [
       {
-        tone: 'red',
-        icon: '🇿🇦',
-        value: `${saPct.toFixed(1)}%`,
-        label: 'POIDS AFRIQUE DU SUD',
-        body: `L'Afrique du Sud représente ${saPct.toFixed(1)}% du marché vie continental (${fmtMn(totSA / n)}). Le graphique affiche la répartition des ${(100 - saPct).toFixed(1)}% restants entre les autres régions.`,
-        badge: { text: '⚠ Ultra-dominance', kind: 'alert' },
-        countryTags: ['Afrique du Sud'],
+        tone: 'amber',
+        icon: '🧩',
+        value: `${minorRegions.length} régions`,
+        label: 'FRAGILITÉ DE LA LONGUE TRAÎNE VIE',
+        body: minorRegions.length 
+          ? `${minorRegions.map(([name]) => name).join(', ')} peinent à faire décoller leur branche Vie (moins de 10% de part de marché hors SA chacune). Elles ne cumulent que ${minorPct.toFixed(1)}% du volume, reflétant une culture de l'assurance vie encore très naissante dans ces zones.`
+          : 'Aucune région n\'est sous la barre des 10% de part de marché.',
+        badge: { text: 'Culture vie naissante', kind: 'warn' },
+        countryTags: minorRegions.map(([name]) => name),
       },
       {
         tone: 'navy',

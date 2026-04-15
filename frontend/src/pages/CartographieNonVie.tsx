@@ -134,10 +134,13 @@ export default function CartographieNonVie() {
     { key: 'sp', label: 'Ratio S/P (%)', format: fmtPct, ref: 70 },
   ], [])
 
+  const [scatterExcludeSA, setScatterExcludeSA] = useState(false)
+
   const scatterAllByYear = useMemo(() => {
     const out: Record<number, ConfigurableScatterPoint[]> = {}
     for (const r of data) {
       if (r.primes_emises_mn_usd == null || r.primes_emises_mn_usd <= 0) continue
+      if (scatterExcludeSA && r.pays === 'Afrique du Sud') continue
       ;(out[r.annee] ??= []).push({
         pays: r.pays,
         region: r.region ?? 'Autre',
@@ -149,14 +152,14 @@ export default function CartographieNonVie() {
       })
     }
     return out
-  }, [data])
+  }, [data, scatterExcludeSA])
 
   // Suivre les axes du scatter pour les insights dynamiques
   const [scatterXKey, setScatterXKey] = useState('penetration')
   const [scatterYKey, setScatterYKey] = useState('croissance')
   const scatterInsights = useMemo(
-    () => computeScatterInsights(scatterXKey, scatterYKey, data),
-    [scatterXKey, scatterYKey, data]
+    () => computeScatterInsights(scatterXKey, scatterYKey, scatterExcludeSA ? data.filter(d => d.pays !== 'Afrique du Sud') : data),
+    [scatterXKey, scatterYKey, data, scatterExcludeSA]
   )
 
   // ── Insights Évolution régionale ──
@@ -360,7 +363,21 @@ export default function CartographieNonVie() {
 
       {/* Section 2 — Scatter multi-axes */}
       <section id="scatter" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Scatter multi-axes — composez votre vue</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-700">Scatter multi-axes — composez votre vue</h2>
+            <p className="text-xs text-gray-500 mt-1">Note : La taille des bulles représente les primes émises.</p>
+          </div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 bg-white px-3 py-1.5 rounded-full border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors shadow-sm ml-auto">
+            <input 
+              type="checkbox" 
+              checked={scatterExcludeSA} 
+              onChange={e => setScatterExcludeSA(e.target.checked)} 
+              className="accent-[#1B3F6B] w-4 h-4 rounded cursor-pointer"
+            />
+            Exclure l'Afrique du Sud
+          </label>
+        </div>
         <ConfigurableScatterBubble
           title="Scatter multi-axes"
           metrics={scatterMetrics}
@@ -375,10 +392,14 @@ export default function CartographieNonVie() {
         />
         {/* Insights Scatter — recalculés à chaque changement d'axes */}
         <InsightPanel
-          icon={scatterXKey === 'penetration' && scatterYKey === 'densite' ? '📈' :
-                scatterXKey === 'croissance' && scatterYKey === 'sp' ? '💰' :
-                scatterXKey === 'densite' && scatterYKey === 'croissance' ? '📉' :
-                scatterXKey === 'penetration' && scatterYKey === 'croissance' ? '🌎' : '📊'}
+          icon={
+            ((scatterXKey === 'penetration' && scatterYKey === 'densite') || (scatterXKey === 'densite' && scatterYKey === 'penetration')) ? '📈' :
+            ((scatterXKey === 'croissance' && scatterYKey === 'sp') || (scatterXKey === 'sp' && scatterYKey === 'croissance')) ? '💰' :
+            ((scatterXKey === 'densite' && scatterYKey === 'croissance') || (scatterXKey === 'croissance' && scatterYKey === 'densite')) ? '📉' :
+            ((scatterXKey === 'penetration' && scatterYKey === 'croissance') || (scatterXKey === 'croissance' && scatterYKey === 'penetration')) ? '🌎' :
+            ((scatterXKey === 'penetration' && scatterYKey === 'sp') || (scatterXKey === 'sp' && scatterYKey === 'penetration')) ? '💎' :
+            ((scatterXKey === 'densite' && scatterYKey === 'sp') || (scatterXKey === 'sp' && scatterYKey === 'densite')) ? '🛡️' : '📊'
+          }
           title={
             (scatterXKey === 'penetration' && scatterYKey === 'densite') ||
             (scatterXKey === 'densite' && scatterYKey === 'penetration')
@@ -392,6 +413,12 @@ export default function CartographieNonVie() {
               : (scatterXKey === 'penetration' && scatterYKey === 'croissance') ||
                 (scatterXKey === 'croissance' && scatterYKey === 'penetration')
               ? 'PÉNÉTRATION VS CROISSANCE'
+              : (scatterXKey === 'penetration' && scatterYKey === 'sp') ||
+                (scatterXKey === 'sp' && scatterYKey === 'penetration')
+              ? 'PÉNÉTRATION VS RENTABILITÉ'
+              : (scatterXKey === 'densite' && scatterYKey === 'sp') ||
+                (scatterXKey === 'sp' && scatterYKey === 'densite')
+              ? 'DENSITÉ VS RENTABILITÉ'
               : 'ANALYSE MULTI-AXES'
           }
           subtitle="Se recalcule automatiquement selon les axes sélectionnés"

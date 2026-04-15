@@ -751,3 +751,85 @@ export function useGouvHeatmapRegInsights(data: GouvRow[]): InsightCardProps[] {
   }, [data])
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Heatmap Stabilité Politique — 3 insights sur les anomalies temporelles
+// ══════════════════════════════════════════════════════════════════════════════
+export function useGouvHeatmapStabInsights(data: GouvRow[]): InsightCardProps[] {
+  return useMemo(() => {
+    const allYears = [...new Set(data.map(r => r.annee))].sort((a, b) => a - b)
+    if (allYears.length < 2) return []
+
+    // Grouper par pays
+    const byPays: Record<string, { annee: number; stab: number }[]> = {}
+    for (const r of data) {
+      if (r.political_stability == null) continue
+      ;(byPays[r.pays] ??= []).push({ annee: r.annee, stab: r.political_stability })
+    }
+
+    // 1. Chocs soudains (Décrochages brutaux)
+    const chocPays: string[] = []
+    for (const [pays, vals] of Object.entries(byPays)) {
+      const sorted = vals.sort((a, b) => a.annee - b.annee)
+      let hasChoc = false
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i - 1].stab - sorted[i].stab >= 0.4) {
+          hasChoc = true; break;
+        }
+      }
+      if (hasChoc) chocPays.push(pays)
+    }
+
+    // 2. Résilients imperturbables (Stabilité toujours > 0 sur > 5 ans)
+    const resilients: string[] = []
+    for (const [pays, vals] of Object.entries(byPays)) {
+      if (vals.length < 5) continue
+      if (vals.every(v => v.stab > 0)) resilients.push(pays)
+    }
+
+    // 3. Recovery institutionnelle (Rebonds durables)
+    const recoveries: string[] = []
+    for (const [pays, vals] of Object.entries(byPays)) {
+      const sorted = vals.sort((a, b) => a.annee - b.annee)
+      if (sorted.length < 3) continue
+      const v0 = sorted[0].stab
+      const v1 = sorted[sorted.length - 1].stab
+      if (v0 < -0.4 && v1 - v0 >= 0.4) {
+         if (sorted[sorted.length - 2].stab <= v1 + 0.2) {
+           recoveries.push(pays)
+         }
+      }
+    }
+
+    const card1: InsightCardProps = {
+      tone: chocPays.length ? 'red' : 'green',
+      icon: '⚡',
+      label: 'CHOCS GÉOPOLITIQUES SOUDAINS',
+      value: chocPays.length ? `${chocPays.length} pays` : 'Aucun',
+      body: chocPays.length ? `${chocPays.join(', ')} ont subi au moins un effondrement brutal de leur stabilité (chute > 0.4 pts en un an) au cours de la décennie. Une volatilité de court terme qui exige des clauses d'annulation spécifiques dans les traités.` : 'Aucun décrochage brutal de stabilité (> 0.4 pts) détecté sur la période.',
+      badge: chocPays.length ? { text: '⚠ Volatilité extrême', kind: 'alert' } : undefined,
+      countryTags: chocPays
+    }
+
+    const card2: InsightCardProps = {
+      tone: 'green',
+      icon: '🛡️',
+      label: 'RÉSILIENCE INÉBRANLABLE',
+      value: resilients.length ? `${resilients.length} pays` : '—',
+      body: resilients.length ? `${resilients.join(', ')} affichent un score WGI systématiquement positif (> 0) année après année sur la décennie analysée. Ce sont les véritables valeurs refuges pour les portefeuilles longs de l'assurance continentale.` : 'Aucun marché n\'a maintenu une stabilité positive sur l\'intégralité de la décennie.',
+      badge: { text: '✓ Piliers de stabilité', kind: 'ok' },
+      countryTags: resilients
+    }
+
+    const card3: InsightCardProps = {
+      tone: 'amber',
+      icon: '🌱',
+      label: 'RECOVERY INSTITUTIONNELLE',
+      value: recoveries.length ? `${recoveries.length} pays` : '—',
+      body: recoveries.length ? `${recoveries.join(', ')} partaient d'un contexte dégradé (< -0.4) mais ont su sécuriser un rebond significatif de la paix sociale et politique (+0.4 pts sur la décennie). Des marchés en reconstruction offrant des primes de développement intéressantes.` : 'Aucun marché en fort rebond politique constant détecté sur les 10 dernières années.',
+      badge: recoveries.length ? { text: '↗ En cours de stabilisation', kind: 'info' } : undefined,
+      countryTags: recoveries
+    }
+
+    return [card1, card2, card3]
+  }, [data])
+}
