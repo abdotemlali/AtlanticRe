@@ -14,10 +14,11 @@ interface Props<T extends { pays: string; region: string }> {
   columns: TableColumn<T>[]
   initialSort?: keyof T & string
   showRank?: boolean
+  onRowClick?: (row: T) => void
 }
 
 export default function CountryTable<T extends { pays: string; region: string }>({
-  rows, columns, initialSort, showRank = false,
+  rows, columns, initialSort, showRank = false, onRowClick,
 }: Props<T>) {
   const [search, setSearch] = useState('')
   const [regionFilter, setRegionFilter] = useState<string>('all')
@@ -104,7 +105,11 @@ export default function CountryTable<T extends { pays: string; region: string }>
           </thead>
           <tbody>
             {pageRows.map((r, i) => (
-              <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+              <tr
+                key={i}
+                className={`border-b border-gray-100 hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={() => onRowClick?.(r)}
+              >
                 {showRank && (
                   <td className="py-2 px-2 text-center tabular-nums text-gray-400 font-semibold text-[11px]">
                     {page * pageSize + i + 1}

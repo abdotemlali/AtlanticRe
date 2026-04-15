@@ -3,7 +3,7 @@
 import React from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, ChevronDown, Compass, Database, LayoutDashboard, Map,
+  ArrowLeft, BarChart2, ChevronDown, Compass, Database, LayoutDashboard, Map,
   Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark,
 } from 'lucide-react'
 
@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
   {
     label: 'Analyse', icon: Network,
     children: [
+      { to: '/modelisation/analyse', label: 'Analyse par Pays', icon: BarChart2, enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Network },
       { to: '/modelisation/projections', label: 'Projections ML', icon: TrendingUp },
     ],
@@ -210,7 +211,7 @@ export default function ScarLayout() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto w-full relative" style={{ scrollbarWidth: 'thin' }}>
+      <main id="scar-main-scroll" className="flex-1 overflow-y-auto w-full relative" style={{ scrollbarWidth: 'thin' }}>
         <Outlet />
       </main>
 

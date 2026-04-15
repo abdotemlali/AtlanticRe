@@ -22,11 +22,22 @@ export default function CartographieLayout({ title, subtitle, dataSource, navIte
   return (
     <div className="px-8 py-8 max-w-[1400px] mx-auto space-y-10">
       {/* Header */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+      <section>
+        <div
+          className="bg-white rounded-xl px-7 py-5 flex items-start justify-between gap-4 flex-wrap"
+          style={{
+            border: '1px solid hsl(0,0%,92%)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+          }}
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+            </div>
+            <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">{subtitle}</p>
+          </div>
           <span
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 self-start mt-1"
             style={{
               background: 'hsla(83,52%,42%,0.12)',
               color: 'hsl(83,52%,30%)',
@@ -36,7 +47,6 @@ export default function CartographieLayout({ title, subtitle, dataSource, navIte
             {dataSource}
           </span>
         </div>
-        <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">{subtitle}</p>
       </section>
 
       {/* Nav sticky */}

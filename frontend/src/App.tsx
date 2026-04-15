@@ -1,5 +1,14 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+
+// ── Scroll to top on every route change ──────────────────────────────────────
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [pathname])
+  return null
+}
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
@@ -32,6 +41,8 @@ const CartographieNonVie = lazy(() => import('./pages/CartographieNonVie'))
 const CartographieVie = lazy(() => import('./pages/CartographieVie'))
 const CartographieMacro = lazy(() => import('./pages/CartographieMacro'))
 const CartographieGouvernance = lazy(() => import('./pages/CartographieGouvernance'))
+const AnalyseGlobale = lazy(() => import('./pages/AnalyseGlobale'))
+const AnalysePays    = lazy(() => import('./pages/AnalysePays'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -82,6 +93,8 @@ function AppRoutes() {
           <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/macroeconomie" element={<ErrorBoundary><CartographieMacro /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/gouvernance" element={<ErrorBoundary><CartographieGouvernance /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse"       element={<ErrorBoundary><AnalyseGlobale /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse/:pays" element={<ErrorBoundary><AnalysePays /></ErrorBoundary>} />
         </Route>
 
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
@@ -132,6 +145,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <AppRoutes />
         <Toaster

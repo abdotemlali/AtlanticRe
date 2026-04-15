@@ -183,7 +183,12 @@ export function computeScatterInsights(
       (sum(year2024.map(r => r.primes_emises_mn_usd ?? 0)) || 1)
       : null
     const spDelta = spWgt2024 != null && spWgt2015 != null ? spWgt2024 - spWgt2015 : null
-    const spColor: InsightCardProps['tone'] = (spWgt2024 ?? 100) < 60 ? 'green' : (spWgt2024 ?? 100) < 80 ? 'amber' : 'red'
+    
+    // Les 3 pays ayant la plus forte croissance
+    const validCS = noSA.filter(s => s.croissance != null && s.sp != null)
+    const topGrow = [...validCS].sort((a,b) => (b.croissance as number) - (a.croissance as number)).slice(0, 3)
+    const avgSpTopGrow = avg(topGrow.map(s => s.sp as number))
+
     return [
       {
         tone: 'green', icon: '✅', label: 'ZONE IDÉALE',
@@ -201,11 +206,13 @@ export function computeScatterInsights(
         badge: { text: spDelta != null && spDelta < 0 ? '↓ Amélioration' : '↑ Détérioration', kind: spDelta != null && spDelta < 0 ? 'ok' : 'warn' },
       },
       {
-        tone: spColor, icon: '📉', label: 'TENDANCE S/P',
-        value: spWgt2024 ? fmtPct(spWgt2024) : '—',
-        body: spWgt2015 != null && spWgt2024 != null
-          ? `S/P moyen hors SA : ${fmtPct(spWgt2015)} → ${fmtPct(spWgt2024)} sur 2015–2024.`
-          : 'Données insuffisantes pour calculer la tendance du S/P.',
+        tone: 'navy', icon: '🏆', label: 'CHAMPIONS DE LA CROISSANCE',
+        value: topGrow.length ? topGrow.map(s => s.pays).slice(0, 2).join(' · ') : '—',
+        body: topGrow.length
+          ? `Les ${topGrow.length} pays à la croissance la plus rapide (${topGrow.map(s => fmtPct(s.croissance as number)).join(', ')}) maintiennent un S/P moyen de ${fmtPct(avgSpTopGrow)}. Le dynamisme n'y dégrade pas la rentabilité globale.`
+          : 'Données insuffisantes.',
+        countryTags: topGrow.map(s => s.pays),
+        badge: { text: '✓ Leaders volume', kind: 'info' },
       },
     ]
   }
