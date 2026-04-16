@@ -16,6 +16,7 @@ import {
   Heart,
   Building2,
   Scale,
+  Landmark,
 } from 'lucide-react'
 import {
   ComposableMap,
@@ -25,7 +26,7 @@ import {
 } from 'react-simple-maps'
 
 // ─── Nav types ───────────────────────────────────────────────────────────────
-type NavChild  = { to: string; label: string; icon: React.ElementType }
+type NavChild  = { to: string; label: string; icon: React.ElementType; enabled?: boolean }
 type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
 type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
 type NavItem   = NavDirect | NavGroup
@@ -35,22 +36,25 @@ const navItems: NavItem[] = [
   {
     label: 'Modélisation', icon: Target,
     children: [
-      { to: '/modelisation/scoring',  label: 'Scoring SCAR',     icon: Target  },
+      { to: '/modelisation/scoring',  label: 'Scoring SCAR',     icon: Target   },
       { to: '/modelisation/criteres', label: 'Critères & poids', icon: Sparkles },
     ],
   },
   {
     label: 'Cartographie', icon: Map,
     children: [
-      { to: '/modelisation/carte',     label: "Carte d'attractivité", icon: Globe2  },
-      { to: '/modelisation/regions',   label: 'Vue régionale',         icon: Compass },
+      { to: '/modelisation/cartographie/non-vie',      label: 'Assurance Non-Vie', icon: Building2, enabled: true },
+      { to: '/modelisation/cartographie/vie',          label: 'Assurance Vie',     icon: Heart,     enabled: true },
+      { to: '/modelisation/cartographie/macroeconomie', label: 'Macroéconomie',   icon: TrendingUp, enabled: true },
+      { to: '/modelisation/cartographie/gouvernance',  label: 'Gouvernance',       icon: Landmark,  enabled: true },
     ],
   },
   {
     label: 'Analyse', icon: Network,
     children: [
-      { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Network    },
-      { to: '/modelisation/projections', label: 'Projections ML',      icon: TrendingUp },
+      { to: '/modelisation/analyse',     label: 'Analyse par Pays',    icon: Network,    enabled: true },
+      { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: TrendingUp },
+      { to: '/modelisation/projections', label: 'Projections ML',      icon: Sparkles   },
     ],
   },
   { to: '/modelisation/recommandations', label: 'Recommandations', icon: Sparkles },
@@ -58,8 +62,11 @@ const navItems: NavItem[] = [
 
 // ─── NavDropdown ──────────────────────────────────────────────────────────────
 function NavDropdown({ label, icon: Icon, children }: NavGroup) {
+  const navigate = useNavigate()
   const { pathname } = useLocation()
-  const isGroupActive = children.some(c => pathname === c.to || pathname.startsWith(c.to + '/'))
+  const isGroupActive = children.some(
+    c => c.enabled && (pathname === c.to || pathname.startsWith(c.to + '/'))
+  )
 
   return (
     <div className="relative group flex-shrink-0" style={{ isolation: 'auto' }}>
@@ -90,22 +97,45 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
           top: 'calc(100% + 8px)', zIndex: 200,
           background: 'hsla(83,30%,12%,0.96)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid hsla(83,52%,50%,0.25)', boxShadow: '0 16px 48px hsla(83,40%,8%,0.55)',
-          borderRadius: 12, minWidth: 220, padding: 6,
+          borderRadius: 12, minWidth: 240, padding: 6,
         }}
       >
-        {children.map(({ label: childLabel, icon: ChildIcon }) => (
-          <div key={childLabel}
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap text-white/55 select-none"
-            style={{ cursor: 'not-allowed' }}
-          >
-            <ChildIcon size={13} className="flex-shrink-0" style={{ opacity: 0.5 }} />
-            <span>{childLabel}</span>
-            <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider"
-              style={{ background: 'hsla(83,52%,50%,0.15)', color: 'hsl(83,60%,70%)', border: '1px solid hsla(83,52%,50%,0.25)' }}>
-              Soon
-            </span>
-          </div>
-        ))}
+        {children.map(child => {
+          const ChildIcon = child.icon
+          if (child.enabled) {
+            const isActive = pathname === child.to || pathname.startsWith(child.to + '/')
+            return (
+              <button
+                key={child.to}
+                onClick={() => navigate(child.to)}
+                className={[
+                  'w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200',
+                  isActive ? 'text-white' : 'text-white/70 hover:text-white',
+                ].join(' ')}
+                style={isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = isActive ? 'hsla(83,52%,50%,0.22)' : '' }}
+              >
+                <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
+                <span>{child.label}</span>
+              </button>
+            )
+          }
+          // Item non implémenté — badge Soon, non cliquable
+          return (
+            <div key={child.label}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap text-white/45 select-none"
+              style={{ cursor: 'not-allowed' }}
+            >
+              <ChildIcon size={13} className="flex-shrink-0" style={{ opacity: 0.5 }} />
+              <span>{child.label}</span>
+              <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider"
+                style={{ background: 'hsla(83,52%,50%,0.15)', color: 'hsl(83,60%,70%)', border: '1px solid hsla(83,52%,50%,0.25)' }}>
+                Soon
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -757,21 +787,21 @@ export default function ModelisationHome() {
           {navItems.map(item =>
             item.children ? (
               <NavDropdown key={item.label} {...item} />
-            ) : (
+            ) : item.to === '/modelisation' ? (
+              // Item "Vue d'ensemble" — cliquable, actif
               <button
                 key={item.to}
                 title={item.label}
-                disabled={item.to !== '/modelisation'}
-                onClick={() => item.to === '/modelisation' && navigate(item.to)}
+                onClick={() => navigate(item.to)}
                 className={[
                   'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
                   'transition-all duration-250 border',
                   pathname === item.to
                     ? 'text-white -translate-y-px'
-                    : 'text-white/55 hover:text-white/95 border-transparent disabled:cursor-not-allowed',
+                    : 'text-white/55 hover:text-white/95 border-transparent',
                 ].join(' ')}
                 style={pathname === item.to ? { background: 'hsla(83,50%,55%,0.18)', borderColor: 'hsla(83,50%,55%,0.40)' } : undefined}
-                onMouseEnter={e => { if (pathname !== item.to && item.to === '/modelisation') e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
+                onMouseEnter={e => { if (pathname !== item.to) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
                 onMouseLeave={e => { if (pathname !== item.to) e.currentTarget.style.background = '' }}
               >
                 <item.icon size={14} className="flex-shrink-0 transition-all duration-250"
@@ -782,6 +812,21 @@ export default function ModelisationHome() {
                     style={{ background: 'hsl(83,60%,70%)' }} />
                 )}
               </button>
+            ) : (
+              // Item non implémenté — badge Soon, non cliquable
+              <div
+                key={item.to}
+                title={item.label}
+                className="group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative text-white/45 select-none"
+                style={{ cursor: 'not-allowed' }}
+              >
+                <item.icon size={14} className="flex-shrink-0" style={{ opacity: 0.4 }} />
+                <span>{item.label}</span>
+                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider"
+                  style={{ background: 'hsla(83,52%,50%,0.15)', color: 'hsl(83,60%,70%)', border: '1px solid hsla(83,52%,50%,0.25)' }}>
+                  Soon
+                </span>
+              </div>
             )
           )}
         </nav>
@@ -816,6 +861,35 @@ export default function ModelisationHome() {
       {/* ── MAIN ── */}
       <main className="flex-1 overflow-y-auto w-full relative" style={{ scrollbarWidth: 'thin' }}>
         <div className="px-8 py-10 max-w-7xl mx-auto space-y-14">
+
+          {/* ── Section 0 : Vue d'ensemble — Titre ── */}
+          <section>
+            <div
+              className="bg-white rounded-xl px-7 py-5 flex items-start justify-between gap-4 flex-wrap"
+              style={{
+                border: '1px solid hsl(0,0%,92%)',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+              }}
+            >
+              <div className="space-y-1.5">
+                <h1 className="text-2xl font-bold text-gray-800">Vue d'ensemble</h1>
+                <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">
+                  Panorama consolidé des 34 marchés africains analysés par Atlantic Re — indicateurs macroéconomiques,
+                  performance assurantielle, cadre réglementaire et cartographie stratégique Reach 2030.
+                </p>
+              </div>
+              <span
+                className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 self-start mt-1"
+                style={{
+                  background: 'hsla(83,52%,42%,0.12)',
+                  color: 'hsl(83,52%,30%)',
+                  border: '1px solid hsla(83,52%,42%,0.30)',
+                }}
+              >
+                Modélisation · Axe II
+              </span>
+            </div>
+          </section>
 
           {/* ── Section 1 : Bandeau + KPI Cards ── */}
           <section>
