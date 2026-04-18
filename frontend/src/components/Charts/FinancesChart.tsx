@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { DollarSign, BarChart2 } from 'lucide-react'
+import { Banknote, BarChart2 } from 'lucide-react'
 import api from '../../utils/api'
 import { API_ROUTES } from '../../constants/api'
 import { useData, filtersToParams } from '../../context/DataContext'
-import { formatCompact } from '../../utils/formatters'
+import { formatCompact, formatMAD } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
 
 interface FinancialBreakdown {
@@ -90,7 +90,7 @@ export default function FinancesChart() {
           <p className="font-bold mb-1 opacity-90">{data.name}</p>
           <div className="flex items-center justify-between gap-4 mt-2">
             <span className="opacity-70">Montant:</span>
-            <span className="font-mono font-bold" style={{ color: data.color }}>{formatCompact(Math.abs(data.value))}</span>
+            <span className="font-mono font-bold" style={{ color: data.color }}>{formatMAD(Math.abs(data.value))}</span>
           </div>
           <div className="flex items-center justify-between gap-4 mt-1">
             <span className="opacity-70">% Prime:</span>
@@ -114,7 +114,7 @@ export default function FinancesChart() {
           </div>
           <div className="flex items-center justify-between gap-4 mt-1">
             <span className="opacity-70">Montant:</span>
-            <span className="font-mono font-bold">{formatCompact(data.profit_commission)}</span>
+            <span className="font-mono font-bold">{formatMAD(data.profit_commission)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 mt-1">
             <span className="opacity-70">Contrats:</span>
@@ -132,7 +132,7 @@ export default function FinancesChart() {
         {/* Waterfall Chart */}
         <div className="bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] p-5">
           <div className="flex items-center gap-2 mb-6">
-            <DollarSign size={18} className="text-[var(--color-navy)]" />
+            <Banknote size={18} className="text-[var(--color-navy)]" />
             <h3 className="text-sm font-bold text-[var(--color-navy)]">Décomposition de la Prime (Waterfall)</h3>
           </div>
           <div className="h-72">

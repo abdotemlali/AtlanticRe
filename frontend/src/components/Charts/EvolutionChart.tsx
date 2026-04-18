@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { useData, filtersToParamsNoYear } from '../../context/DataContext'
 import api from '../../utils/api'
-import { formatCompact } from '../../utils/formatters'
+import { formatCompact, formatMAD } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
 
 interface YearData {
@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div key={p.dataKey} className="flex justify-between gap-4" style={{ marginBottom: 3 }}>
           <span style={{ color: 'hsla(0,0%,100%,0.65)', fontSize: '0.75rem' }}>{p.name}</span>
           <span style={{ color: p.stroke, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-            {p.dataKey === 'avg_ulr' ? `${p.value?.toFixed(1)}%` : formatCompact(p.value)}
+            {p.dataKey === 'avg_ulr' ? `${p.value?.toFixed(1)}%` : formatMAD(p.value)}
           </span>
         </div>
       ))}

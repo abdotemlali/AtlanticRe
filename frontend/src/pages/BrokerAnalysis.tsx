@@ -5,7 +5,7 @@ import {
   PieChart, Pie,
 } from 'recharts'
 import {
-  Briefcase, TrendingUp, DollarSign, Shield,
+  Briefcase, TrendingUp, Banknote, Shield,
   ArrowRight, Users, Activity, ChevronUp, ChevronDown, Download,
 } from 'lucide-react'
 import Select from 'react-select'
@@ -201,7 +201,7 @@ export default function BrokerAnalysis() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
         {[
           { label: 'Courtiers', value: String(agg.count), icon: Users, color: C.blue },
-          { label: 'Volume Total', value: `${fmtMAD(agg.total_wp)} MAD`, icon: DollarSign, color: C.navy },
+          { label: 'Volume Total', value: `${fmtMAD(agg.total_wp)} MAD`, icon: Banknote, color: C.navy },
           { label: 'Résultat Total', value: `${fmtMAD(agg.total_res)} MAD`, icon: TrendingUp, color: agg.total_res >= 0 ? C.green : C.red },
           { label: 'PMD Rétro', value: `${fmtMAD(agg.total_pmd)} MAD`, icon: Shield, color: C.orange },
           { label: 'ULR Moyen', value: formatPercent(agg.avgUlr), icon: Activity, color: ulrColorDecimal(agg.avgUlr) },
@@ -303,12 +303,12 @@ export default function BrokerAnalysis() {
                   '#': i + 1,
                   Courtier: d.broker,
                   Rôle: roleStyle(d.retro_role).label,
-                  'Primes (DH)': d.total_written_premium ?? 0,
-                  'PMD Rétro (DH)': d.pmd_placee ?? 0,
-                  'Résultat (DH)': d.total_resultat ?? 0,
+                  'Primes (MAD)': d.total_written_premium ?? 0,
+                  'PMD Rétro (MAD)': d.pmd_placee ?? 0,
+                  'Résultat (MAD)': d.total_resultat ?? 0,
                   'ULR (%)': d.avg_ulr !== null && d.avg_ulr !== undefined ? Number(d.avg_ulr) : '',
                   Contrats: d.contract_count ?? 0,
-                  'Solde Net (DH)': d.solde_net ?? 0,
+                  'Solde Net (MAD)': d.solde_net ?? 0,
                 }))
                 const wb = XLSX.utils.book_new()
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Courtiers')

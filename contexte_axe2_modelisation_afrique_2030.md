@@ -1201,7 +1201,9 @@ function getCountryAvg<T>(data, pays, field): number | null
 
 ### 14.1 Description
 
-`AnalysePays.tsx` (1 277 lignes) — **Fiche pays complète** sur les 4 dimensions. Page la plus exhaustive de l'Axe 2 : agrège les données Non-Vie, Vie, Macro et Gouvernance en une fiche unifiée pour un pays sélectionné via l'URL (`:pays` encodé en URI).
+`AnalysePays.tsx` — **Fiche pays complète** sur les 4 dimensions. Page la plus exhaustive de l'Axe 2 : agrège les données Non-Vie, Vie, Macro et Gouvernance en une fiche unifiée pour un pays sélectionné via l'URL (`:pays` encodé en URI).
+
+**Architecture** : Système de 9 **tabs horizontaux** — chaque tab est une sous-page indépendante affichant uniquement son contenu. Toutes les données sont chargées une seule fois au niveau du composant parent.
 
 **Source de données** : Axco Navigator · World Bank · IMF · WGI · Chinn-Ito
 
@@ -1209,41 +1211,52 @@ function getCountryAvg<T>(data, pays, field): number | null
 
 - **Depuis** : `AnalyseGlobale` (clic sur un pays dans les classements ou le tableau)
 - **URL** : `/modelisation/analyse/:pays` (pays encodé en URI : `encodeURIComponent(pays)`)
-- **Changement de pays** : Dropdown `react-select` dans le header → `navigate('/modelisation/analyse/${encodeURIComponent(v.value)}')`
+- **Changement de pays** : Dropdown `react-select` dans le tab Identité → `navigate('/modelisation/analyse/${encodeURIComponent(v.value)}')`
 - **Retour** : Bouton "← Retour à l'analyse globale" → `/modelisation/analyse`
 - **Pays introuvable** : Garde `notFound` → page d'erreur avec bouton retour
+- **Reset automatique** : Changement de pays → retour automatique à l'onglet `identite`
 
-### 14.3 Navigation interne (NAV_ITEMS)
+### 14.3 Système de tabs (TABS)
 
 ```typescript
-const NAV_ITEMS = [
-  { id: 'header',         label: 'Identité' },
-  { id: 'scorecard',      label: 'KPIs' },
-  { id: 'evolution',      label: 'Évolution' },
-  { id: 'radar',          label: 'Radar' },
-  { id: 'non-vie',        label: 'Non-Vie' },
-  { id: 'vie',            label: 'Vie' },
-  { id: 'macro',          label: 'Macroéconomie' },
-  { id: 'gouvernance',    label: 'Gouvernance' },
-  { id: 'positionnement', label: 'Positionnement' },
+type TabId =
+  | 'identite' | 'kpis' | 'evolution' | 'radar'
+  | 'non-vie' | 'vie' | 'macro' | 'gouvernance' | 'positionnement'
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'identite',       label: 'Identité',      icon: '🌍' },
+  { id: 'kpis',           label: 'KPIs',           icon: '📊' },
+  { id: 'evolution',      label: 'Évolution',      icon: '📈' },
+  { id: 'radar',          label: 'Radar',          icon: '🎯' },
+  { id: 'non-vie',        label: 'Non-Vie',        icon: '🔵' },
+  { id: 'vie',            label: 'Vie',            icon: '🟢' },
+  { id: 'macro',          label: 'Macroéconomie', icon: '💹' },
+  { id: 'gouvernance',    label: 'Gouvernance',    icon: '🏛' },
+  { id: 'positionnement', label: 'Positionnement',icon: '🏆' },
 ]
 ```
 
-### 14.4 Sélecteur de période (commun à toutes les sections)
+**Composants de navigation** :
+- **`TabNav`** : Barre de tabs horizontale scrollable avec strip identité pays (couleur région), onglets avec icônes, état actif en olive.
+- **`TabProgress`** : Barre de progression horizontale (9 segments) — segment actif = olive, précédents = olive clair, suivants = gris.
+- **Boutons Précédent / Suivant** : En bas de chaque tab, navigation entre onglets avec label du tab cible.
+- **Compteur** : `X / 9` centré entre les boutons Préc/Suiv.
 
-`YearOrAvgNav` — état `selectedYear: number | 'avg'` (défaut : `'avg'`)
+### 14.4 Sélecteur de période
 
-Le sélecteur est affiché dans le header pays. **L'évolution globale (section 3) est indépendante** du sélecteur — elle affiche toujours la série complète 2015-2024.
+`YearOrAvgNav` — état `selectedYear: number | 'avg'` (défaut : `'avg'`). Affiché dans chaque tab qui nécessite un filtre d'année (KPIs, Radar, Macroéconomie, Gouvernance, Positionnement). **L'onglet Évolution** affiche toujours la série complète 2015–2024 (indépendante du sélecteur).
 
-### 14.5 Section 1 : Header Pays (`id="header"`)
+### 14.5 Tab : Identité (`id='identite'`)
 
-- Nom du pays en `h1`
-- Badge région coloriée (couleur = `REGION_COLORS[region]`)
-- Dropdown `react-select` pour changer de pays
-- Bouton retour vers l'Analyse Globale
-- `YearOrAvgNav` (sélecteur de période)
+- **Nom du pays** en `h1` avec badge région colorié
+- **Icône pays** (carré couleur région)
+- **Dropdown `react-select`** pour changer de pays
+- **Bouton retour** vers l'Analyse Globale
+- **`YearOrAvgNav`** (sélecteur de période global)
+- **4 cartes Overview** : Dimensions (4) · Période (2015–2024) · Périmètre (34 pays) · Sources (5+)
+- **Grille de raccourcis** : boutons cliquables vers chaque onglet thématique
 
-### 14.6 Section 2 : Scorecard 8 KPIs (`id="scorecard"`)
+### 14.6 Tab : KPIs (`id='kpis'`)
 
 `CartographieKPIGrid` — 8 cartes en grille :
 
@@ -1260,9 +1273,9 @@ Le sélecteur est affiché dans le header pays. **L'évolution globale (section 
 
 Le KPI "Stabilité politique" affiche un sublabel dynamique : `'✓ Stable'` (WGI ≥ 0.5) / `'~ Modéré'` (-0.5 à 0.5) / `'⚠ Instable'` (< -0.5).
 
-### 14.7 Section 3 : Évolution globale 2015–2024 (`id="evolution"`)
+### 14.7 Tab : Évolution (`id='evolution'`)
 
-**ComposedChart dual-axis** — série complète, ignore le sélecteur d'année :
+**ComposedChart dual-axis** — série complète 2015–2024, ignore le sélecteur d'année :
 
 ```
 Axe gauche (Mn USD) : Bar primes_nv (olive 0.7) + Bar primes_vie (vert 0.5)
@@ -1271,7 +1284,7 @@ Axe droit (%) :       Line gdp_growth (navy) + Line inflation (amber, pointillé
 
 Donnée construite par `evoData` : union des années présentes dans nvRows ET macRows.
 
-### 14.8 Section 4 : Radar 6D (`id="radar"`)
+### 14.8 Tab : Radar (`id='radar'`)
 
 `RadarChart` Recharts — **profil multidimensionnel** du pays vs la médiane continentale :
 
@@ -1288,7 +1301,7 @@ Donnée construite par `evoData` : union des années présentes dans nvRows ET m
 - Série **Médiane continentale** : `#1B3F6B` — navy, pointillés, opacity 0.1
 - Dépend de `selectedYear` — recalcule toutes les normalisations
 
-### 14.9 Section 5 : Non-Vie (`id="non-vie"`)
+### 14.9 Tab : Non-Vie (`id='non-vie'`)
 
 **5a — Évolution NV** (série complète) :
 ```
@@ -1315,7 +1328,7 @@ Badge coloré sur Croissance : Vert ≥ 0%, Rouge < 0%.
 // nvInsights = useCountryInsights(nvData, paysDecoded)  [alias de useNonVieInsights]
 ```
 
-### 14.10 Section 6 : Vie (`id="vie"`)
+### 14.10 Tab : Vie (`id='vie'`)
 
 **6a — Évolution Vie** (série complète) :
 ```
@@ -1337,7 +1350,7 @@ Tableau série historique :
 // vieInsights = useVieCountryInsights(vieData, paysDecoded)
 ```
 
-### 14.11 Section 7 : Macroéconomie (`id="macro"`)
+### 14.11 Tab : Macroéconomie (`id='macro'`)
 
 **7a — Évolution macro** (série complète) :
 ```
@@ -1371,7 +1384,7 @@ Tableau série historique avec badges colorés :
 // macInsights = useMacroCountryInsights(macroData, paysDecoded)
 ```
 
-### 14.12 Section 8 : Gouvernance (`id="gouvernance"`)
+### 14.12 Tab : Gouvernance (`id='gouvernance'`)
 
 **8a — Évolution WGI** (série complète, dual-axis) :
 ```
@@ -1418,7 +1431,7 @@ Avec badges `StabBadge` et `KaopenBadge` et `FdiBadge` inline.
 // gouvInsights = useGouvCountryInsights(gouvData, paysDecoded)
 ```
 
-### 14.13 Section 9 : Positionnement Continental (`id="positionnement"`)
+### 14.13 Tab : Positionnement (`id='positionnement'`)
 
 **Grille `1×3` (desktop `3×1`)** — 3 blocs de comparaison :
 

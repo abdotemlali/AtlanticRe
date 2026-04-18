@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Trophy, TrendingUp, DollarSign } from 'lucide-react'
+import { Trophy, TrendingUp, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
@@ -142,7 +142,7 @@ export default function TopBrokers() {
         <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-[var(--color-gray-100)] overflow-hidden">
            <div className="p-4 border-b border-[var(--color-gray-100)] flex items-center justify-between bg-[var(--color-off-white)]">
               <h3 className="text-sm font-bold text-[var(--color-navy)] flex items-center gap-2">
-                <DollarSign size={16} /> Détails des performances ({data.length} courtiers)
+                <BarChart2 size={16} /> Détails des performances ({data.length} courtiers)
               </h3>
               <select 
                 title="Top limit selection"

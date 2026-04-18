@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   Line, Legend, ComposedChart, ReferenceLine, RadarChart, Radar,
@@ -67,48 +67,86 @@ function buildScatter(
     const { x, y, z } = extractor(r)
     if (x == null || y == null || z == null) continue
     ;(out[r.annee] ??= []).push({ pays: r.pays, region: r.region ?? 'Autre', x, y, z })
-
     ;(byPays[r.pays] ??= { region: r.region ?? 'Autre', xs: [], ys: [], zs: [] })
     byPays[r.pays].xs.push(x)
     byPays[r.pays].ys.push(y)
     byPays[r.pays].zs.push(z)
   }
-  
   out['avg'] = []
   for (const [pays, d] of Object.entries(byPays)) {
     if (d.xs.length > 0) {
       out['avg'].push({ pays, region: d.region, x: avgArr(d.xs), y: avgArr(d.ys), z: avgArr(d.zs) })
     }
   }
-
   return out
 }
 
-// ─── Navigation ──────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { id: 'kpis',       label: 'KPIs' },
-  { id: 'carte',      label: 'Carte' },
-  { id: 'scatter1',   label: 'Stab / Régl.' },
-  { id: 'scatter2',   label: 'KAOPEN / IDE' },
-  { id: 'evolution',  label: 'Évolution' },
-  { id: 'pays',       label: 'Détail pays' },
-  { id: 'kaopen',     label: 'KAOPEN' },
-  { id: 'classement', label: 'Classement' },
-]
-
+// ─── Tab definitions ──────────────────────────────────────────────────────────
+type TabId = 'kpis' | 'carte' | 'scatter1' | 'scatter2' | 'evolution' | 'detail' | 'kaopen' | 'classement'
 type YearSel = number | 'avg'
 
-function YearOrAvgNav({ years, value, onChange }: { years: number[]; value: YearSel; onChange: (v: YearSel) => void }) {
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'kpis',       label: 'KPIs',               icon: '📊' },
+  { id: 'carte',      label: 'Carte',               icon: '🗺️' },
+  { id: 'scatter1',   label: 'Stab. / Régl.',       icon: '🏛️' },
+  { id: 'scatter2',   label: 'KAOPEN / IDE',         icon: '🌐' },
+  { id: 'evolution',  label: 'Évolution',            icon: '📈' },
+  { id: 'detail',     label: 'Détail Pays',          icon: '🔍' },
+  { id: 'kaopen',     label: 'KAOPEN',               icon: '💹' },
+  { id: 'classement', label: 'Classement',           icon: '📋' },
+]
+
+// ── Tab Navigation Bar ──────────────────────────────────────────────────────
+function TabNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
   return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {years.map(y => (
-        <button key={y} onClick={() => onChange(y)}
-          className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${value === y ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-        >{y}</button>
+    <div className="bg-white rounded-xl overflow-hidden mb-1"
+      style={{ border: '1px solid hsl(0,0%,90%)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      <div className="flex overflow-x-auto scrollbar-hide">
+        {TABS.map((tab, i) => {
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all relative flex-shrink-0"
+              style={active ? {
+                color: 'hsl(213,60%,27%)',
+                background: 'hsla(213,60%,27%,0.08)',
+                borderBottom: '2px solid hsl(213,60%,27%)',
+              } : {
+                color: '#6b7280',
+                borderBottom: '2px solid transparent',
+              }}
+              id={`tab-gouv-${tab.id}`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {i < TABS.length - 1 && !active && (
+                <span className="absolute right-0 top-1/4 bottom-1/4 w-px" style={{ background: 'hsl(0,0%,90%)' }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Progress Indicator ──────────────────────────────────────────────────
+function TabProgress({ activeTab }: { activeTab: TabId }) {
+  const currentIndex = TABS.findIndex(t => t.id === activeTab)
+  return (
+    <div className="flex items-center gap-1.5 mb-4">
+      {TABS.map((tab, i) => (
+        <div key={tab.id} className="h-1 rounded-full transition-all" style={{
+          flex: 1,
+          background: i === currentIndex
+            ? 'hsl(213,60%,27%)'
+            : i < currentIndex
+            ? 'hsla(213,60%,27%,0.35)'
+            : 'hsl(0,0%,90%)',
+        }} />
       ))}
-      <button onClick={() => onChange('avg')}
-        className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${value === 'avg' ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-      >Moy. {years[0]}–{years[years.length - 1]}</button>
     </div>
   )
 }
@@ -156,7 +194,18 @@ export default function CartographieGouvernance() {
   const { data, years, countries, loading, error } = useCartographieData('gouvernance')
   const maxYear = years.length ? years[years.length - 1] : 2024
 
-  // SA → Afrique Australe (pays normal en gouvernance)
+  const [activeTab, setActiveTab] = useState<TabId>('kpis')
+
+  useEffect(() => {
+    const container = document.getElementById('scar-main-scroll')
+    if (container) container.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [activeTab])
+
+  const currentTabIdx = TABS.findIndex(t => t.id === activeTab)
+  const goPrev = () => { if (currentTabIdx > 0) setActiveTab(TABS[currentTabIdx - 1].id) }
+  const goNext = () => { if (currentTabIdx < TABS.length - 1) setActiveTab(TABS[currentTabIdx + 1].id) }
+
+  // SA → Afrique Australe
   const gouvData = useMemo(
     () => data.map(r =>
       r.pays === 'Afrique du Sud' && (r.region === 'Afrique du Sud' || r.region == null)
@@ -168,17 +217,15 @@ export default function CartographieGouvernance() {
 
   const latestRows = useMemo(() => gouvData.filter(r => r.annee === maxYear), [gouvData, maxYear])
 
-  // ── KPIs — basés sur les indicateurs bruts uniquement ─────────────────────
+  // ── KPIs ──────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     if (!latestRows.length) return []
     const stabVals = latestRows.map(r => r.political_stability).filter((v): v is number => v != null)
     const regVals  = latestRows.map(r => r.regulatory_quality).filter((v): v is number => v != null)
     const fdiVals  = latestRows.map(r => r.fdi_inflows_pct_gdp).filter((v): v is number => v != null)
     const kaVals   = latestRows.map(r => r.kaopen).filter((v): v is number => v != null)
-
     const bestStab = [...latestRows].filter(r => r.political_stability != null).sort((a, b) => (b.political_stability ?? 0) - (a.political_stability ?? 0))[0]
     const openMkts = kaVals.filter(v => v > 1).length
-
     return [
       { label: 'Stabilité politique moyenne', value: fmtWgi(avgArr(stabVals)), sublabel: `Médiane : ${fmtWgi(median(stabVals))} · ${stabVals.length} pays · ${maxYear}`, accent: 'navy'  as const },
       { label: 'Meilleur environnement politique', value: bestStab?.pays ?? '—', sublabel: `Stabilité ${fmtWgi(bestStab?.political_stability ?? 0)} · ${bestStab?.region ?? '—'}`, accent: 'green' as const },
@@ -204,7 +251,7 @@ export default function CartographieGouvernance() {
 
   const choroplethInsights = useGouvChoroplethInsights(gouvData)
 
-  // ── Scatter 1 : Stabilité vs Réglementation ────────────────────────────────
+  // ── Scatters ───────────────────────────────────────────────────────────────
   const scatter1 = useMemo(() => buildScatter(gouvData, r => ({
     x: r.political_stability,
     y: r.regulatory_quality,
@@ -212,7 +259,6 @@ export default function CartographieGouvernance() {
   })), [gouvData])
   const scatter1Insights = useGouvScatterStabRegInsights(gouvData)
 
-  // ── Scatter 2 : KAOPEN vs FDI ──────────────────────────────────────────────
   const scatter2 = useMemo(() => buildScatter(gouvData, r => ({
     x: r.kaopen,
     y: r.fdi_inflows_pct_gdp,
@@ -222,7 +268,7 @@ export default function CartographieGouvernance() {
   })), [gouvData])
   const scatter2Insights = useGouvScatterKaopenFdiInsights(gouvData)
 
-  // ── Évolution régionale : Stabilité politique moyenne par région ───────────
+  // ── Évolution ──────────────────────────────────────────────────────────────
   const evoData = useMemo(() => {
     const byYearReg: Record<number, Record<string, number[]>> = {}
     for (const r of gouvData) {
@@ -241,7 +287,7 @@ export default function CartographieGouvernance() {
 
   const evolutionInsights = useGouvEvolutionInsights(gouvData)
 
-  // ── Profil pays ──────────────────────────────────────────────────────────
+  // ── Profil pays ────────────────────────────────────────────────────────────
   const sortedCountries = useMemo(() => [...countries].sort(), [countries])
   const [selectedCountry, setSelectedCountry] = useState<string>('')
   const effectiveCountry = selectedCountry || sortedCountries[0] || ''
@@ -266,19 +312,19 @@ export default function CartographieGouvernance() {
   const countryRegion   = countryLastRow?.region ?? '—'
   const countryCoverage = `${years[0]}–${maxYear}`
 
-  // ── Distribution KAOPEN par région ────────────────────────────────────────
-  const kaopenBox  = useMemo(() => kaopenBoxByRegion(gouvData), [gouvData])
+  // ── Distribution KAOPEN ────────────────────────────────────────────────────
+  const kaopenBox   = useMemo(() => kaopenBoxByRegion(gouvData), [gouvData])
   const heatRegions = useMemo(() => {
     const m: Record<string, string> = {}
     for (const r of gouvData) m[r.pays] = r.region ?? 'Autre'
     return m
   }, [gouvData])
 
-  const kaopenInsights        = useGouvKaopenDistribInsights(gouvData)
-  const heatmapRegInsights    = useGouvHeatmapRegInsights(gouvData)
-  const heatmapStabInsights   = useGouvHeatmapStabInsights(gouvData)
+  const kaopenInsights      = useGouvKaopenDistribInsights(gouvData)
+  const heatmapRegInsights  = useGouvHeatmapRegInsights(gouvData)
+  const heatmapStabInsights = useGouvHeatmapStabInsights(gouvData)
 
-  // ── Tableau classement — indicateurs bruts (comme CartographieMacro) ───────
+  // ── Tableau classement ─────────────────────────────────────────────────────
   const [tableYear, setTableYear] = useState<YearSel>(maxYear)
 
   const tableRows = useMemo(() => {
@@ -364,266 +410,327 @@ export default function CartographieGouvernance() {
       title="Cartographie — Gouvernance & Risque Politique"
       subtitle="Stabilité politique (WGI), qualité réglementaire (WGI), ouverture financière (KAOPEN Chinn-Ito) et flux IDE sur 34 pays africains (2015–2024)."
       dataSource="World Bank WGI · Chinn-Ito Index · UNCTAD FDI"
-      navItems={NAV_ITEMS}
+      navItems={[]}
     >
-      <RegionLegend />
+      {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabProgress activeTab={activeTab} />
 
-      {/* ── Section 0 : KPIs ─────────────────────────────────────────────── */}
-      <section id="kpis" className="scroll-mt-20">
-        <CartographieKPIGrid kpis={kpis} />
-      </section>
+      {/* ── Tab Content ────────────────────────────────────────────────── */}
+      <div className="space-y-5">
 
-      {/* ── Section 1 : Carte choroplèthe ────────────────────────────────── */}
-      <section id="carte" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Carte choroplèthe — Afrique Gouvernance</h2>
-        <AfricaMap
-          indicators={mapIndicators}
-          rowsByCountryYear={allMapMatrices}
-          years={years}
-          defaultYear={maxYear}
-          showZafBorder={false}
-        />
-        <InsightPanel
-          icon="🗺️"
-          title="Lecture de la carte gouvernance"
-          subtitle="Stabilité politique · Qualité réglementaire · KAOPEN · IDE — Afrique du Sud incluse dans Afrique Australe"
-          cards={choroplethInsights}
-        />
-      </section>
-
-      {/* ── Section 2 : Scatter Stabilité vs Réglementation ─────────────── */}
-      <section id="scatter1" className="scroll-mt-20 space-y-4">
-        <ScatterBubble
-          title="Stabilité politique vs Qualité réglementaire — Positionnement WGI"
-          xLabel="Stabilité politique (WGI)" yLabel="Qualité réglementaire (WGI)" zLabel="IDE (% PIB)"
-          xFormat={fmtWgi} yFormat={fmtWgi} zFormat={fmtPct}
-          pointsByYear={scatter1} years={years} defaultYear={maxYear}
-          xRef={0} yRef={0}
-          showAvgButton
-          quadrantLabels={{
-            tl: 'Instable mais bien régulé',
-            tr: '✓ Leaders : stable + régulé',
-            bl: '⚠ Double risque institutionnel',
-            br: 'Stable mais sous-régulé',
-          }}
-        />
-        <InsightPanel
-          icon="🏛️"
-          title="Stabilité politique & Qualité réglementaire — Analyse"
-          subtitle="4 quadrants — axe X: Stabilité WGI · axe Y: Qualité réglementaire WGI · Taille bulle: IDE % PIB"
-          cards={scatter1Insights}
-        />
-      </section>
-
-      {/* ── Section 3 : Scatter KAOPEN vs FDI ───────────────────────────── */}
-      <section id="scatter2" className="scroll-mt-20 space-y-4">
-        <ScatterBubble
-          title="Ouverture financière (KAOPEN) vs IDE — Attractivité des capitaux"
-          xLabel="KAOPEN (index Chinn-Ito)" yLabel="IDE (% PIB)" zLabel="Score Stabilité+Réglementation"
-          xFormat={fmtWgi} yFormat={fmtPct} zFormat={fmtWgi}
-          pointsByYear={scatter2} years={years} defaultYear={maxYear}
-          xRef={0} yRef={3}
-          showAvgButton
-          quadrantLabels={{
-            tl: 'Fermé mais attractif (ressources)',
-            tr: '✓ Ouvert + attractif',
-            bl: '⚠ Fermé & peu attractif',
-            br: 'Ouvert mais peu de capitaux',
-          }}
-        />
-        <InsightPanel
-          icon="🌐"
-          title="Ouverture financière & Attractivité IDE — Analyse"
-          subtitle="KAOPEN : index Chinn-Ito [-2.5, +2.5] · Valeurs positives = liberté du compte de capital"
-          cards={scatter2Insights}
-        />
-      </section>
-
-      {/* ── Section 4 : Évolution régionale Stabilité politique ─────────── */}
-      <section id="evolution" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Évolution de la stabilité politique par région — {years[0]}–{maxYear}</h2>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart data={evoData as any[]} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis domain={[-2.5, 1.5]} tickFormatter={fmtWgi} tick={{ fontSize: 11, fill: '#64748b' }}
-                label={{ value: 'WGI Stabilité', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#94a3b8' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} formatter={(v: number) => fmtWgi(v)} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: 'Neutre (0)', fontSize: 9, fill: '#64748b', position: 'right' }} />
-              {ALL_REGIONS.map(reg => (
-                <Line key={reg} type="monotone" dataKey={reg}
-                  stroke={REGION_COLORS[reg]} strokeWidth={2}
-                  dot={{ r: 3, fill: REGION_COLORS[reg] }} connectNulls />
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        <InsightPanel
-          icon="📈"
-          title="Dynamiques de stabilité politique par région"
-          subtitle="Stabilité politique WGI moyenne par région 2015–2024 — Afrique du Sud incluse dans Afrique Australe"
-          cards={evolutionInsights}
-        />
-
-        {/* Heatmap Stabilité politique */}
-        <h3 className="text-sm font-bold text-gray-700 mt-4">Heatmap — Stabilité politique par pays & année</h3>
-        <HeatmapChart
-          matrix={buildHeatMatrix(gouvData, 'political_stability')}
-          years={years} countries={countries} regions={heatRegions}
-          scale="wgi" format={fmtWgi}
-        />
-        <InsightPanel
-          icon="⚡"
-          title="Analyse des anomalies temporelles — Stabilité Politique"
-          subtitle="Chocs géopolitiques · Résilience historique · Recovery institutionnelle"
-          cards={heatmapStabInsights}
-        />
-      </section>
-
-      {/* ── Section 5 : Profil pays ──────────────────────────────────────── */}
-      <section id="pays" className="scroll-mt-20 space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-sm font-bold text-gray-700">Profil gouvernance par pays</h2>
-          <select
-            aria-label="Sélection du pays"
-            value={effectiveCountry}
-            onChange={e => setSelectedCountry(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-300"
-          >
-            {sortedCountries.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
-        {/* Radar + Scorecard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-2 bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-            <p className="text-[11px] text-gray-500 mb-3 uppercase tracking-wide">Profil radar WGI — {effectiveCountry} ({maxYear})</p>
-            <ResponsiveContainer width="100%" height={320}>
-              <RadarChart data={radarData} outerRadius="72%">
-                <PolarGrid stroke="#e5e7eb" />
-                <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: '#374151' }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#9ca3af' }} />
-                <Radar dataKey="value"
-                  stroke={REGION_COLORS[countryLastRow?.region ?? 'Autre'] ?? '#1B3F6B'}
-                  fill={REGION_COLORS[countryLastRow?.region ?? 'Autre'] ?? '#1B3F6B'}
-                  fillOpacity={0.28} strokeWidth={2} />
-                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}/100`, 'Score normalisé']} />
-              </RadarChart>
-            </ResponsiveContainer>
+        {/* ── KPIs ─────────────────────────────────────────────────────── */}
+        {activeTab === 'kpis' && (
+          <div className="space-y-5 animate-fade-in">
+            <RegionLegend />
+            <CartographieKPIGrid kpis={kpis} />
           </div>
-          <div className="bg-white rounded-xl p-5 flex flex-col justify-between" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-            <div>
-              <h4 className="text-sm font-bold text-gray-800 mb-0.5">{effectiveCountry}</h4>
-              <p className="text-[11px] text-gray-500 mb-4">{countryRegion} · {maxYear}</p>
-              <div className="space-y-2.5">
-                <KpiRow label="Stabilité pol. (WGI)" value={countryLastRow?.political_stability != null ? fmtWgiSgn(countryLastRow.political_stability) : '—'} />
-                <KpiRow label="Qualité régl. (WGI)"  value={countryLastRow?.regulatory_quality  != null ? fmtWgiSgn(countryLastRow.regulatory_quality)  : '—'} />
-                <KpiRow label="KAOPEN"                value={countryLastRow?.kaopen              != null ? fmtWgi(countryLastRow.kaopen)                 : '—'} />
-                <KpiRow label="IDE % PIB"             value={countryLastRow?.fdi_inflows_pct_gdp != null ? fmtPct(countryLastRow.fdi_inflows_pct_gdp)    : '—'} />
+        )}
+
+        {/* ── Carte ────────────────────────────────────────────────────── */}
+        {activeTab === 'carte' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Carte choroplèthe — Afrique Gouvernance</h2>
+            <AfricaMap
+              indicators={mapIndicators}
+              rowsByCountryYear={allMapMatrices}
+              years={years}
+              defaultYear={maxYear}
+              showZafBorder={false}
+            />
+            <InsightPanel
+              icon="🗺️"
+              title="Lecture de la carte gouvernance"
+              subtitle="Stabilité politique · Qualité réglementaire · KAOPEN · IDE — Afrique du Sud incluse dans Afrique Australe"
+              cards={choroplethInsights}
+            />
+          </div>
+        )}
+
+        {/* ── Scatter 1 : Stabilité vs Réglementation ──────────────────── */}
+        {activeTab === 'scatter1' && (
+          <div className="space-y-5 animate-fade-in">
+            <ScatterBubble
+              title="Stabilité politique vs Qualité réglementaire — Positionnement WGI"
+              xLabel="Stabilité politique (WGI)" yLabel="Qualité réglementaire (WGI)" zLabel="IDE (% PIB)"
+              xFormat={fmtWgi} yFormat={fmtWgi} zFormat={fmtPct}
+              pointsByYear={scatter1} years={years} defaultYear={maxYear}
+              xRef={0} yRef={0}
+              showAvgButton
+              quadrantLabels={{
+                tl: 'Instable mais bien régulé',
+                tr: '✓ Leaders : stable + régulé',
+                bl: '⚠ Double risque institutionnel',
+                br: 'Stable mais sous-régulé',
+              }}
+            />
+            <InsightPanel
+              icon="🏛️"
+              title="Stabilité politique & Qualité réglementaire — Analyse"
+              subtitle="4 quadrants — axe X: Stabilité WGI · axe Y: Qualité réglementaire WGI · Taille bulle: IDE % PIB"
+              cards={scatter1Insights}
+            />
+          </div>
+        )}
+
+        {/* ── Scatter 2 : KAOPEN vs FDI ────────────────────────────────── */}
+        {activeTab === 'scatter2' && (
+          <div className="space-y-5 animate-fade-in">
+            <ScatterBubble
+              title="Ouverture financière (KAOPEN) vs IDE — Attractivité des capitaux"
+              xLabel="KAOPEN (index Chinn-Ito)" yLabel="IDE (% PIB)" zLabel="Score Stabilité+Réglementation"
+              xFormat={fmtWgi} yFormat={fmtPct} zFormat={fmtWgi}
+              pointsByYear={scatter2} years={years} defaultYear={maxYear}
+              xRef={0} yRef={3}
+              showAvgButton
+              quadrantLabels={{
+                tl: 'Fermé mais attractif (ressources)',
+                tr: '✓ Ouvert + attractif',
+                bl: '⚠ Fermé & peu attractif',
+                br: 'Ouvert mais peu de capitaux',
+              }}
+            />
+            <InsightPanel
+              icon="🌐"
+              title="Ouverture financière & Attractivité IDE — Analyse"
+              subtitle="KAOPEN : index Chinn-Ito [-2.5, +2.5] · Valeurs positives = liberté du compte de capital"
+              cards={scatter2Insights}
+            />
+          </div>
+        )}
+
+        {/* ── Évolution ────────────────────────────────────────────────── */}
+        {activeTab === 'evolution' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Évolution de la stabilité politique par région — {years[0]}–{maxYear}</h2>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={360}>
+                <ComposedChart data={evoData as any[]} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis domain={[-2.5, 1.5]} tickFormatter={fmtWgi} tick={{ fontSize: 11, fill: '#64748b' }}
+                    label={{ value: 'WGI Stabilité', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} formatter={(v: number) => fmtWgi(v)} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: 'Neutre (0)', fontSize: 9, fill: '#64748b', position: 'right' }} />
+                  {ALL_REGIONS.map(reg => (
+                    <Line key={reg} type="monotone" dataKey={reg}
+                      stroke={REGION_COLORS[reg]} strokeWidth={2}
+                      dot={{ r: 3, fill: REGION_COLORS[reg] }} connectNulls />
+                  ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel
+              icon="📈"
+              title="Dynamiques de stabilité politique par région"
+              subtitle="Stabilité politique WGI moyenne par région 2015–2024 — Afrique du Sud incluse dans Afrique Australe"
+              cards={evolutionInsights}
+            />
+            <h3 className="text-sm font-bold text-gray-700 mt-4">Heatmap — Stabilité politique par pays & année</h3>
+            <HeatmapChart
+              matrix={buildHeatMatrix(gouvData, 'political_stability')}
+              years={years} countries={countries} regions={heatRegions}
+              scale="wgi" format={fmtWgi}
+            />
+            <InsightPanel
+              icon="⚡"
+              title="Analyse des anomalies temporelles — Stabilité Politique"
+              subtitle="Chocs géopolitiques · Résilience historique · Recovery institutionnelle"
+              cards={heatmapStabInsights}
+            />
+          </div>
+        )}
+
+        {/* ── Détail Pays ──────────────────────────────────────────────── */}
+        {activeTab === 'detail' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-sm font-bold text-gray-700">Profil gouvernance par pays</h2>
+              <select
+                aria-label="Sélection du pays"
+                value={effectiveCountry}
+                onChange={e => setSelectedCountry(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-300"
+              >
+                {sortedCountries.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            {/* Radar + Scorecard */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="md:col-span-2 bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+                <p className="text-[11px] text-gray-500 mb-3 uppercase tracking-wide">Profil radar WGI — {effectiveCountry} ({maxYear})</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <RadarChart data={radarData} outerRadius="72%">
+                    <PolarGrid stroke="#e5e7eb" />
+                    <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: '#374151' }} />
+                    <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#9ca3af' }} />
+                    <Radar dataKey="value"
+                      stroke={REGION_COLORS[countryLastRow?.region ?? 'Autre'] ?? '#1B3F6B'}
+                      fill={REGION_COLORS[countryLastRow?.region ?? 'Autre'] ?? '#1B3F6B'}
+                      fillOpacity={0.28} strokeWidth={2} />
+                    <Tooltip formatter={(v: number) => [`${v.toFixed(1)}/100`, 'Score normalisé']} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-white rounded-xl p-5 flex flex-col justify-between" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-0.5">{effectiveCountry}</h4>
+                  <p className="text-[11px] text-gray-500 mb-4">{countryRegion} · {maxYear}</p>
+                  <div className="space-y-2.5">
+                    <KpiRow label="Stabilité pol. (WGI)" value={countryLastRow?.political_stability != null ? fmtWgiSgn(countryLastRow.political_stability) : '—'} />
+                    <KpiRow label="Qualité régl. (WGI)"  value={countryLastRow?.regulatory_quality  != null ? fmtWgiSgn(countryLastRow.regulatory_quality)  : '—'} />
+                    <KpiRow label="KAOPEN"                value={countryLastRow?.kaopen              != null ? fmtWgi(countryLastRow.kaopen)                 : '—'} />
+                    <KpiRow label="IDE % PIB"             value={countryLastRow?.fdi_inflows_pct_gdp != null ? fmtPct(countryLastRow.fdi_inflows_pct_gdp)    : '—'} />
+                  </div>
+                </div>
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid hsl(0,0%,92%)' }}>
+                  <p className="text-[10px] text-gray-400 mb-1 uppercase tracking-wide">Ouverture financière</p>
+                  <KaopenBadge value={countryLastRow?.kaopen ?? null} />
+                </div>
               </div>
             </div>
-            <div className="mt-3 pt-3" style={{ borderTop: '1px solid hsl(0,0%,92%)' }}>
-              <p className="text-[10px] text-gray-400 mb-1 uppercase tracking-wide">Ouverture financière</p>
-              <KaopenBadge value={countryLastRow?.kaopen ?? null} />
+            {/* Timeline individuelle */}
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <p className="text-[11px] text-gray-500 mb-3 uppercase tracking-wide">Évolution indicateurs — {effectiveCountry} ({years[0]}–{maxYear})</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="wgi" domain={[-2.5, 2.5]} tick={{ fontSize: 10, fill: '#64748b' }} label={{ value: 'WGI', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#94a3b8' }} />
+                  <YAxis yAxisId="fdi" orientation="right" tick={{ fontSize: 10, fill: '#64748b' }} label={{ value: 'IDE %', angle: 90, position: 'insideRight', fontSize: 9, fill: '#94a3b8' }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="wgi" y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                  <Line yAxisId="wgi" type="monotone" dataKey="political_stability" name="Stabilité pol."  stroke="#1B3F6B" strokeWidth={2.5} dot={{ r: 4 }} />
+                  <Line yAxisId="wgi" type="monotone" dataKey="regulatory_quality"  name="Qualité régl."  stroke="#1E8449" strokeWidth={2}   dot={{ r: 3 }} />
+                  <Line yAxisId="wgi" type="monotone" dataKey="kaopen"              name="KAOPEN"          stroke="#9B59B6" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="6 2" />
+                  <Line yAxisId="fdi" type="monotone" dataKey="fdi_inflows_pct_gdp" name="IDE % PIB"      stroke="#E8940C" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="4 4" />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
+            <InsightPanel
+              icon="🔍"
+              title={`PROFIL GOUVERNANCE — ${effectiveCountry.toUpperCase()}`}
+              subtitle={`Région : ${countryRegion} — Analyse complète ${countryCoverage}`}
+              cards={countryInsights}
+            />
           </div>
-        </div>
+        )}
 
-        {/* Timeline individuelle */}
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <p className="text-[11px] text-gray-500 mb-3 uppercase tracking-wide">Évolution indicateurs — {effectiveCountry} ({years[0]}–{maxYear})</p>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="wgi" domain={[-2.5, 2.5]} tick={{ fontSize: 10, fill: '#64748b' }} label={{ value: 'WGI', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#94a3b8' }} />
-              <YAxis yAxisId="fdi" orientation="right" tick={{ fontSize: 10, fill: '#64748b' }} label={{ value: 'IDE %', angle: 90, position: 'insideRight', fontSize: 9, fill: '#94a3b8' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="wgi" y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-              <Line yAxisId="wgi" type="monotone" dataKey="political_stability" name="Stabilité pol."  stroke="#1B3F6B" strokeWidth={2.5} dot={{ r: 4 }} />
-              <Line yAxisId="wgi" type="monotone" dataKey="regulatory_quality"  name="Qualité régl."  stroke="#1E8449" strokeWidth={2}   dot={{ r: 3 }} />
-              <Line yAxisId="wgi" type="monotone" dataKey="kaopen"              name="KAOPEN"          stroke="#9B59B6" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="6 2" />
-              <Line yAxisId="fdi" type="monotone" dataKey="fdi_inflows_pct_gdp" name="IDE % PIB"      stroke="#E8940C" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="4 4" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        {/* ── KAOPEN ───────────────────────────────────────────────────── */}
+        {activeTab === 'kaopen' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Distribution KAOPEN par région (boîte à moustaches)</h2>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={kaopenBox} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis tickFormatter={fmtWgi} tick={{ fontSize: 11, fill: '#64748b' }} domain={[-2.5, 2.5]} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      return (
+                        <div className="bg-white rounded-lg p-3 shadow-lg border border-gray-200 text-xs">
+                          <p className="font-bold mb-1">{d.region}</p>
+                          <p>Médiane : <b>{fmtWgi(d.median)}</b></p>
+                          <p>Q1–Q3 : {fmtWgi(d.q1)} – {fmtWgi(d.q3)}</p>
+                          <p>Min–Max : {fmtWgi(d.min)} – {fmtWgi(d.max)}</p>
+                        </div>
+                      )
+                    }}
+                  />
+                  <ReferenceLine y={0}  stroke="#1B3F6B" strokeDasharray="4 4" label={{ value: 'KAOPEN = 0', fontSize: 10, fill: '#1B3F6B', position: 'right' }} />
+                  <ReferenceLine y={1}  stroke="#1E8449" strokeDasharray="4 4" label={{ value: 'Ouverture', fontSize: 9, fill: '#1E8449', position: 'right' }} />
+                  <ReferenceLine y={-1} stroke="#C0392B" strokeDasharray="4 4" label={{ value: 'Fermeture', fontSize: 9, fill: '#C0392B', position: 'right' }} />
+                  <Bar dataKey="q3"    fill="hsla(215,40%,60%,0.20)" />
+                  <Bar dataKey="q1"    fill="white" />
+                  <Line type="monotone" dataKey="median" stroke="#1B3F6B" dot={{ r: 5, fill: '#1B3F6B' }} strokeWidth={0} name="Médiane" />
+                  <Line type="monotone" dataKey="max"    stroke="#1E8449" dot={{ r: 3, fill: '#1E8449' }} strokeWidth={0} name="Max" />
+                  <Line type="monotone" dataKey="min"    stroke="#C0392B" dot={{ r: 3, fill: '#C0392B' }} strokeWidth={0} name="Min" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel icon="🌐" title="Ouverture financière (KAOPEN) — Analyse régionale" cards={kaopenInsights} />
 
-        <InsightPanel
-          icon="🔍"
-          title={`PROFIL GOUVERNANCE — ${effectiveCountry.toUpperCase()}`}
-          subtitle={`Région : ${countryRegion} — Analyse complète ${countryCoverage}`}
-          cards={countryInsights}
-        />
-      </section>
+            <h3 className="text-sm font-bold text-gray-700 mt-4">Heatmap — Qualité réglementaire par pays & année</h3>
+            <HeatmapChart
+              matrix={buildHeatMatrix(gouvData, 'regulatory_quality')}
+              years={years} countries={countries} regions={heatRegions}
+              scale="wgi" format={fmtWgi}
+            />
+            <InsightPanel
+              icon="📋"
+              title="Qualité réglementaire — Analyse approfondie"
+              subtitle="Trajectoire réformiste · Prévisibilité (σ) · Convergence intra-régionale"
+              cards={heatmapRegInsights}
+            />
+          </div>
+        )}
 
-      {/* ── Section 6 : KAOPEN distribution + Heatmap Réglementation ─────── */}
-      <section id="kaopen" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Distribution KAOPEN par région (boîte à moustaches)</h2>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={kaopenBox} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis tickFormatter={fmtWgi} tick={{ fontSize: 11, fill: '#64748b' }} domain={[-2.5, 2.5]} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const d = payload[0].payload
-                  return (
-                    <div className="bg-white rounded-lg p-3 shadow-lg border border-gray-200 text-xs">
-                      <p className="font-bold mb-1">{d.region}</p>
-                      <p>Médiane : <b>{fmtWgi(d.median)}</b></p>
-                      <p>Q1–Q3 : {fmtWgi(d.q1)} – {fmtWgi(d.q3)}</p>
-                      <p>Min–Max : {fmtWgi(d.min)} – {fmtWgi(d.max)}</p>
-                    </div>
-                  )
-                }}
-              />
-              <ReferenceLine y={0}  stroke="#1B3F6B" strokeDasharray="4 4" label={{ value: 'KAOPEN = 0', fontSize: 10, fill: '#1B3F6B', position: 'right' }} />
-              <ReferenceLine y={1}  stroke="#1E8449" strokeDasharray="4 4" label={{ value: 'Ouverture', fontSize: 9, fill: '#1E8449', position: 'right' }} />
-              <ReferenceLine y={-1} stroke="#C0392B" strokeDasharray="4 4" label={{ value: 'Fermeture', fontSize: 9, fill: '#C0392B', position: 'right' }} />
-              <Bar dataKey="q3"    fill="hsla(215,40%,60%,0.20)" />
-              <Bar dataKey="q1"    fill="white" />
-              <Line type="monotone" dataKey="median" stroke="#1B3F6B" dot={{ r: 5, fill: '#1B3F6B' }} strokeWidth={0} name="Médiane" />
-              <Line type="monotone" dataKey="max"    stroke="#1E8449" dot={{ r: 3, fill: '#1E8449' }} strokeWidth={0} name="Max" />
-              <Line type="monotone" dataKey="min"    stroke="#C0392B" dot={{ r: 3, fill: '#C0392B' }} strokeWidth={0} name="Min" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        <InsightPanel icon="🌐" title="Ouverture financière (KAOPEN) — Analyse régionale" cards={kaopenInsights} />
+        {/* ── Classement ───────────────────────────────────────────────── */}
+        {activeTab === 'classement' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-sm font-bold text-gray-700">Classement gouvernemental des pays</h2>
+              <YearOrAvgNav years={years} value={tableYear} onChange={setTableYear} />
+            </div>
+            <CountryTable rows={tableRows} columns={tableCols} initialSort="stab" showRank />
+            <InsightPanel
+              icon="🏆"
+              title="CLASSEMENT GOUVERNANCE — INDICATEURS CLÉS"
+              subtitle="Top pays par indicateur — Stabilité · Réglementation · KAOPEN · IDE"
+              cards={rankingInsights}
+            />
+          </div>
+        )}
 
-        {/* Heatmap Qualité Réglementaire */}
-        <h3 className="text-sm font-bold text-gray-700 mt-4">Heatmap — Qualité réglementaire par pays & année</h3>
-        <HeatmapChart
-          matrix={buildHeatMatrix(gouvData, 'regulatory_quality')}
-          years={years} countries={countries} regions={heatRegions}
-          scale="wgi" format={fmtWgi}
-        />
-        <InsightPanel
-          icon="📋"
-          title="Qualité réglementaire — Analyse approfondie"
-          subtitle="Trajectoire réformiste · Prévisibilité (σ) · Convergence intra-régionale"
-          cards={heatmapRegInsights}
-        />
-      </section>
+      </div>
 
-      {/* ── Section 7 : Classement gouvernemental des pays ──────────────── */}
-      <section id="classement" className="scroll-mt-20 space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-sm font-bold text-gray-700">Classement gouvernemental des pays</h2>
-          <YearOrAvgNav years={years} value={tableYear} onChange={setTableYear} />
-        </div>
-        <CountryTable rows={tableRows} columns={tableCols} initialSort="stab" showRank />
-        <InsightPanel
-          icon="🏆"
-          title="CLASSEMENT GOUVERNANCE — INDICATEURS CLÉS"
-          subtitle="Top pays par indicateur — Stabilité · Réglementation · KAOPEN · IDE"
-          cards={rankingInsights}
-        />
-      </section>
+      {/* ── Prev / Next navigation ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: '1px solid hsl(0,0%,93%)' }}>
+        <button
+          onClick={goPrev}
+          disabled={currentTabIdx === 0}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+          style={currentTabIdx === 0
+            ? { background: 'hsl(0,0%,96%)', color: '#d1d5db', cursor: 'not-allowed' }
+            : { background: 'hsl(0,0%,97%)', color: '#374151', border: '1px solid hsl(0,0%,88%)', cursor: 'pointer' }}
+        >
+          <span>←</span>
+          <span>{currentTabIdx > 0 ? TABS[currentTabIdx - 1].label : '—'}</span>
+        </button>
+        <span className="text-xs text-gray-400 font-medium">{currentTabIdx + 1} / {TABS.length}</span>
+        <button
+          onClick={goNext}
+          disabled={currentTabIdx === TABS.length - 1}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+          style={currentTabIdx === TABS.length - 1
+            ? { background: 'hsl(0,0%,96%)', color: '#d1d5db', cursor: 'not-allowed' }
+            : { background: 'hsl(213,60%,27%)', color: 'white', cursor: 'pointer' }}
+        >
+          <span>{currentTabIdx < TABS.length - 1 ? TABS[currentTabIdx + 1].label : '—'}</span>
+          <span>→</span>
+        </button>
+      </div>
     </CartographieLayout>
+  )
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function YearOrAvgNav({ years, value, onChange }: { years: number[]; value: YearSel; onChange: (v: YearSel) => void }) {
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {years.map(y => (
+        <button key={y} onClick={() => onChange(y)}
+          className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${value === y ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >{y}</button>
+      ))}
+      <button onClick={() => onChange('avg')}
+        className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${value === 'avg' ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+      >Moy. {years[0]}–{years[years.length - 1]}</button>
+    </div>
   )
 }

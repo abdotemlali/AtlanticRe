@@ -4,7 +4,7 @@ import { AlertOctagon, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
-import { formatCompact } from '../utils/formatters'
+import { formatCompact, formatMAD } from '../utils/formatters'
 
 interface AlertItem {
     pays: string
@@ -172,8 +172,8 @@ export default function DashboardAlerts() {
                                                     {a.branche}
                                                 </td>
                                                 <td className="py-2.5 px-4 text-right font-mono">{a.contract_count}</td>
-                                                <td className="py-2.5 px-4 text-right font-mono text-[var(--color-navy)] font-medium">{formatCompact(a.total_written_premium)}</td>
-                                                <td className="py-2.5 px-4 text-right font-mono text-[var(--color-red)] font-medium">{formatCompact(a.total_resultat)}</td>
+                                                <td className="py-2.5 px-4 text-right font-mono text-[var(--color-navy)] font-medium">{formatMAD(a.total_written_premium)}</td>
+                                                <td className="py-2.5 px-4 text-right font-mono text-[var(--color-red)] font-medium">{formatMAD(a.total_resultat)}</td>
                                                 <td className="py-2.5 px-4 text-right font-mono text-[var(--color-red)] font-bold">{a.avg_ulr.toFixed(1)}%</td>
                                             </tr>
                                         ))}

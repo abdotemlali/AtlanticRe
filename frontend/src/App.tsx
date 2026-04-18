@@ -41,8 +41,9 @@ const CartographieNonVie = lazy(() => import('./pages/CartographieNonVie'))
 const CartographieVie = lazy(() => import('./pages/CartographieVie'))
 const CartographieMacro = lazy(() => import('./pages/CartographieMacro'))
 const CartographieGouvernance = lazy(() => import('./pages/CartographieGouvernance'))
-const AnalyseGlobale = lazy(() => import('./pages/AnalyseGlobale'))
-const AnalysePays    = lazy(() => import('./pages/AnalysePays'))
+const AnalyseGlobale   = lazy(() => import('./pages/AnalyseGlobale'))
+const AnalysePays      = lazy(() => import('./pages/AnalysePays'))
+const ComparaisonPays  = lazy(() => import('./pages/ComparaisonPays'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -93,8 +94,9 @@ function AppRoutes() {
           <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/macroeconomie" element={<ErrorBoundary><CartographieMacro /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/gouvernance" element={<ErrorBoundary><CartographieGouvernance /></ErrorBoundary>} />
-          <Route path="/modelisation/analyse"       element={<ErrorBoundary><AnalyseGlobale /></ErrorBoundary>} />
-          <Route path="/modelisation/analyse/:pays" element={<ErrorBoundary><AnalysePays /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse"           element={<ErrorBoundary><AnalyseGlobale /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse/:pays"     element={<ErrorBoundary><AnalysePays /></ErrorBoundary>} />
+          <Route path="/modelisation/comparaison"       element={<ErrorBoundary><ComparaisonPays /></ErrorBoundary>} />
         </Route>
 
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />

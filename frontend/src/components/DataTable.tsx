@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useData, filtersToParams } from '../context/DataContext'
 import api from '../utils/api'
-import { formatDate, formatCompact, formatPercent, truncate } from '../utils/formatters'
+import { formatDate, formatCompact, formatPercent, formatMAD, truncate } from '../utils/formatters'
 import { ArrowUp, ArrowDown, ArrowUpDown, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import ExportButton from './ExportButton'
 import { StatusBadge } from './ui/Badge'
@@ -218,7 +218,7 @@ export default function DataTable() {
                   <td>
                     {c.status && <StatusBadge status={c.status} size="xs" />}
                   </td>
-                  <td className="text-right font-mono text-xs">{formatCompact(c.written_premium)}</td>
+                  <td className="text-right font-mono text-xs">{formatMAD(c.written_premium)}</td>
                   <td
                     className="text-right font-mono text-xs font-semibold"
                     style={{ color: ulrColor(c.ulr) }}
@@ -229,7 +229,7 @@ export default function DataTable() {
                     className="text-right font-mono text-xs font-semibold"
                     style={{ color: c.resultat !== null && c.resultat >= 0 ? 'var(--color-emerald)' : 'var(--color-red)' }}
                   >
-                    {formatCompact(c.resultat)}
+                    {formatMAD(c.resultat)}
                   </td>
                   <td className="text-xs text-gray-400">{formatDate(c.inception_date)}</td>
                   <td className="text-xs text-gray-400">{formatDate(c.expiry_date)}</td>

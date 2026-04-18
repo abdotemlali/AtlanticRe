@@ -13,7 +13,7 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 import {
-  TrendingUp, Shield, Users, DollarSign, AlertTriangle,
+  TrendingUp, Shield, Users, Banknote, AlertTriangle,
   ChevronDown, ChevronRight, Percent, Download,
 } from 'lucide-react'
 
@@ -305,9 +305,9 @@ export default function AffairesTraites() {
       {/* KPI Cards */}
       {summary && (
         <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
-          <KPICard label="EPI Total" value={`${fmtMAD(summary.epi_total)} MAD`} sub="Volume de prime protégé" color={COLORS.blue} icon={DollarSign} />
+          <KPICard label="EPI Total" value={`${fmtMAD(summary.epi_total)} MAD`} sub="Volume de prime protégé" color={COLORS.blue} icon={Banknote} />
           <KPICard label="PMD Totale" value={`${fmtMAD(summary.pmd_totale)} MAD`} sub="Coût de protection payé" color={COLORS.orange} icon={TrendingUp} />
-          <KPICard label="Courtage Total" value={`${fmtMAD(summary.courtage_total)} MAD`} sub="Coût d'intermédiation" color={COLORS.red} icon={DollarSign} />
+          <KPICard label="Courtage Total" value={`${fmtMAD(summary.courtage_total)} MAD`} sub="Coût d'intermédiation" color={COLORS.red} icon={Banknote} />
           <KPICard label="Taux Placement" value={`${summary.taux_placement_moyen}%`} sub="Ratio PMD / EPI" color={COLORS.olive} icon={Percent} />
           <KPICard label="Rating > A" value={`${summary.rating_a_plus_moyen}%`} sub="Part chez sécurités solides" color={summary.rating_a_plus_moyen >= 70 ? COLORS.green : COLORS.orange} icon={Shield} />
         </div>

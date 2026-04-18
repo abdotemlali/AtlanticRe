@@ -262,7 +262,7 @@ def export_pdf(request: dict, user: dict = Depends(require_role("admin", "souscr
     elements.append(Spacer(1, 0.5 * cm))
 
     if markets:
-        headers = ["Rang", "Pays", "Branche", "Score", "Badge", "Prime Écrite", "LR Moy.", "Résultat", "Nb Contrats"]
+        headers = ["Rang", "Pays", "Branche", "Score", "Badge", "Prime Écrite (MAD)", "LR Moy.", "Résultat (MAD)", "Nb Contrats"]
         data = [headers]
         for i, m in enumerate(markets[:top_n], 1):
             data.append([

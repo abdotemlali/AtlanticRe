@@ -18,6 +18,19 @@ export function formatCurrency(value: number | null | undefined, currency = 'MAD
   return `${formatted} ${currency}`
 }
 
+/**
+ * Formate un montant en MAD avec séparateur de milliers (Axe 1 — Portefeuille Interne).
+ * Exemples : 1 250 000 → "1,25M MAD" | 500 000 → "500K MAD" | 800 → "800 MAD"
+ */
+export function formatMAD(value: number | null | undefined, unit: 'MAD' | 'MDH' = 'MAD'): string {
+  if (value === null || value === undefined || isNaN(value)) return '—'
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (abs >= 1_000_000) return `${sign}${formatNumber(abs / 1_000_000, 2)}M ${unit}`
+  if (abs >= 1_000) return `${sign}${formatNumber(abs / 1_000, 0)}K ${unit}`
+  return `${sign}${new Intl.NumberFormat('fr-MA').format(abs)} ${unit}`
+}
+
 /** Format as percentage */
 export function formatPercent(value: number | null | undefined, decimals = 1): string {
   if (value === null || value === undefined || isNaN(value)) return '—'

@@ -11,7 +11,7 @@ import FinancesChart from '../components/Charts/FinancesChart'
 import RentabiliteChart from '../components/Charts/RentabiliteChart'
 import InactiveClients from './InactiveClients'
 import { useAuth } from '../context/AuthContext'
-import { Map, TrendingUp, PieChart, Table, FileText, DollarSign, BarChart2, UserX, LayoutDashboard } from 'lucide-react'
+import { Map, TrendingUp, PieChart, Table, FileText, Banknote, BarChart2, UserX, LayoutDashboard } from 'lucide-react'
 
 const TABS = [
   { id: 'carte', label: 'Carte', icon: Map },
@@ -19,7 +19,7 @@ const TABS = [
   { id: 'repartition', label: 'Répartition', icon: PieChart },
   { id: 'pivot', label: 'Tableau croisé', icon: Table },
   { id: 'contrats', label: 'Détail contrats', icon: FileText },
-  { id: 'finances', label: 'Finances', icon: DollarSign },
+  { id: 'finances', label: 'Finances', icon: Banknote },
   { id: 'rentabilite', label: 'Rentabilité', icon: BarChart2 },
 ]
 

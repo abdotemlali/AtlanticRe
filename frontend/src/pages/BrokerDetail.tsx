@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, ComposedChart, Line, Legend,
 } from 'recharts'
 import {
-  ArrowLeft, Briefcase, DollarSign, TrendingUp, Shield, Activity,
+  ArrowLeft, Briefcase, Banknote, TrendingUp, Shield, Activity,
   Users, Globe, FileText, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Select from 'react-select'
@@ -165,7 +165,7 @@ export default function BrokerDetail() {
           {/* KPI Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14, marginBottom: 20 }}>
             {[
-              { label: 'Volume', value: `${fmtMAD(profile.total_written_premium || 0)} MAD`, icon: DollarSign, color: C.navy },
+              { label: 'Volume', value: `${fmtMAD(profile.total_written_premium || 0)} MAD`, icon: Banknote, color: C.navy },
               { label: 'Résultat', value: `${fmtMAD(profile.total_resultat || 0)} MAD`, icon: TrendingUp, color: (profile.total_resultat || 0) >= 0 ? C.green : C.red },
               { label: 'ULR', value: formatPercent(profile.avg_ulr), icon: Activity, color: ulrColorDecimal(profile.avg_ulr) },
               { label: 'Contrats', value: String(profile.contract_count || 0), icon: FileText, color: C.blue },

@@ -36,7 +36,9 @@ interface CedanteGlobal {
 // ─── Formatage montant marocain ───────────────────────────────────────────────
 
 function formatMontant(v: number): string {
-  return v.toLocaleString('fr-MA', { maximumFractionDigits: 0 }) + ' DH'
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toLocaleString('fr-MA', { maximumFractionDigits: 2 })}M MAD`
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toLocaleString('fr-MA', { maximumFractionDigits: 0 })}K MAD`
+  return v.toLocaleString('fr-MA', { maximumFractionDigits: 0 }) + ' MAD'
 }
 
 // ─── Barre de progression ──────────────────────────────────────────────────────
@@ -194,7 +196,7 @@ function VueGlobale({
       // Onglet 1 — Résumé
       const summaryRows = data.map(d => ({
         Cédante: d.cedante,
-        'Prime FAC Totale (DH)': d.total_prime_fac,
+        'Prime FAC Totale (MAD)': d.total_prime_fac,
         'Nb Branches FAC': d.nb_branches_fac,
         'Branches Saturées': d.nb_branches_saturees,
         'Ratio Saturation': `${d.nb_branches_saturees} / ${d.nb_branches_fac}`,
@@ -209,7 +211,7 @@ function VueGlobale({
           detailRows.push({
             Cédante: d.cedante,
             Branche: b.branche,
-            'Prime FAC (DH)': b.total_prime_fac,
+            'Prime FAC (MAD)': b.total_prime_fac,
             'Nb Affaires': b.nb_affaires_fac,
             Saturé: b.is_saturated ? 'Oui' : 'Non',
             'Score Saturation': b.saturation_score,
@@ -543,7 +545,7 @@ export default function FacSaturation() {
           <p className="text-xs text-[var(--color-gray-500)] mb-2 uppercase font-bold tracking-wider">Ciblage & Adaptation des Seuils</p>
           <div className="flex flex-wrap gap-4">
             <label className="flex flex-col gap-1 text-xs font-bold text-[var(--color-navy)]">
-              Seuil Prime (DH)
+              Seuil Prime (MAD)
               <input
                 type="number"
                 step={100000}

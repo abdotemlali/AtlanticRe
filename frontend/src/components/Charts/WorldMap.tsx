@@ -3,7 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simp
 import { useData, filtersToParams } from '../../context/DataContext'
 import api from '../../utils/api'
 import { API_ROUTES } from '../../constants/api'
-import { formatCompact, formatPercent } from '../../utils/formatters'
+import { formatCompact, formatPercent, formatMAD } from '../../utils/formatters'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 
@@ -425,16 +425,16 @@ export default function WorldMap({
           <div className="space-y-1" style={{ fontSize: '0.75rem' }}>
             {colorBy === 'exposition' ? (
               <>
-                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Exposition : <span style={{ color: '#fff', fontWeight: 700 }}>{formatCompact(tooltip.data.exposition || 0)}</span></p>
-                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Somme assurée : <span style={{ color: '#fff', fontWeight: 700 }}>{formatCompact(tooltip.data.sum_insured_100 || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Exposition : <span style={{ color: '#fff', fontWeight: 700 }}>{formatMAD(tooltip.data.exposition || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Somme assurée : <span style={{ color: '#fff', fontWeight: 700 }}>{formatMAD(tooltip.data.sum_insured_100 || 0)}</span></p>
                 <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Part moy. : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.avg_share_signed || 0}%</span></p>
                 <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Contrats : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.contract_count}</span></p>
               </>
             ) : (
               <>
-                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Prime écrite : <span style={{ color: 'hsl(83,50%,55%)', fontWeight: 700 }}>{formatCompact(tooltip.data.total_written_premium || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Prime écrite : <span style={{ color: 'hsl(83,50%,55%)', fontWeight: 700 }}>{formatMAD(tooltip.data.total_written_premium || 0)}</span></p>
                 <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Loss Ratio : <span style={{ color: (tooltip.data.avg_ulr || 0) > 100 ? 'hsl(358,66%,54%)' : (tooltip.data.avg_ulr || 0) > 70 ? 'hsl(43,96%,56%)' : 'hsl(152,56%,39%)', fontWeight: 700 }}>{formatPercent(tooltip.data.avg_ulr || 0)}</span></p>
-                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Résultat : <span style={{ color: (tooltip.data.total_resultat || 0) >= 0 ? 'hsl(152,56%,39%)' : 'hsl(358,66%,54%)', fontWeight: 700 }}>{formatCompact(tooltip.data.total_resultat || 0)}</span></p>
+                <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Résultat : <span style={{ color: (tooltip.data.total_resultat || 0) >= 0 ? 'hsl(152,56%,39%)' : 'hsl(358,66%,54%)', fontWeight: 700 }}>{formatMAD(tooltip.data.total_resultat || 0)}</span></p>
                 <p style={{ color: 'hsla(0,0%,100%,0.65)' }}>Contrats : <span style={{ color: '#fff', fontWeight: 700 }}>{tooltip.data.contract_count}</span></p>
               </>
             )}

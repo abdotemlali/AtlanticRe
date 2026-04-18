@@ -2,8 +2,8 @@ import React from 'react';
 // 🎨 STYLE UPDATED — KPICards : float-element glassmorphism, stagger entrance, icônes avec gradient, useCountUp préservé
 import { useEffect, useState } from "react"
 import { useData } from '../context/DataContext'
-import { DollarSign, TrendingUp, TrendingDown, Shield, FileText, Activity, Percent } from 'lucide-react'
-import { formatCompact, formatPercent } from '../utils/formatters'
+import { Banknote, TrendingUp, TrendingDown, Shield, FileText, Activity, Percent } from 'lucide-react'
+import { formatCompact, formatPercent, formatMAD } from '../utils/formatters'
 import { KPICardSkeleton } from './ui/Skeleton'
 
 /* ─── useCountUp — logique métier inchangée ─── */
@@ -153,9 +153,9 @@ export default function KPICards() {
     {
       label: 'Prime écrite',
       rawValue: kpiSummary?.total_written_premium,
-      formatFn: formatCompact,
+      formatFn: formatMAD,
       sub: "Volume d'affaires total",
-      icon: <DollarSign />,
+      icon: <Banknote />,
       accentColor: 'hsl(209,28%,24%)',
       glowColor: 'hsla(209,28%,24%,0.10)',
       trend: 'neutral',
@@ -163,7 +163,7 @@ export default function KPICards() {
     {
       label: 'Résultat net',
       rawValue: kpiSummary?.total_resultat,
-      formatFn: formatCompact,
+      formatFn: formatMAD,
       sub: 'Résultat technique agrégé',
       icon: resultPositive ? <TrendingUp /> : <TrendingDown />,
       accentColor: resultAccent,
@@ -183,7 +183,7 @@ export default function KPICards() {
     {
       label: "Somme assurée",
       rawValue: kpiSummary?.total_sum_insured,
-      formatFn: formatCompact,
+      formatFn: formatMAD,
       sub: "Exposition globale",
       icon: <Shield />,
       accentColor: 'hsl(209,24%,32%)',

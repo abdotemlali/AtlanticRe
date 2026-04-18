@@ -4,7 +4,7 @@ import { ArrowUp, ArrowDown, ArrowUpDown, BarChart2, Table } from 'lucide-react'
 import api from '../../utils/api'
 import { API_ROUTES } from '../../constants/api'
 import { useData, filtersToParams } from '../../context/DataContext'
-import { formatCompact, formatPercent } from '../../utils/formatters'
+import { formatCompact, formatPercent, formatMAD } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
 
 interface ContractTypeData {
@@ -101,7 +101,7 @@ export default function RentabiliteChart() {
                 {entry.name}:
               </span>
               <span className="font-mono font-bold" style={{ color: entry.dataKey === 'avg_ulr' ? 'hsl(30,88%,56%)' : entry.color }}>
-                {entry.dataKey === 'avg_ulr' ? formatPercent(entry.value) : formatCompact(entry.value)}
+                {entry.dataKey === 'avg_ulr' ? formatPercent(entry.value) : formatMAD(entry.value)}
               </span>
             </div>
           ))}
@@ -157,7 +157,7 @@ export default function RentabiliteChart() {
                 {sortedData.map((d, i) => (
                   <tr key={i} className="hover:bg-[var(--color-off-white)] transition-colors border-b border-[var(--color-gray-100)] last:border-0">
                     <td className="py-3 px-4 font-bold text-[var(--color-navy)] text-xs">{d.type_contrat}</td>
-                    <td className="py-3 px-4 text-right font-mono text-xs">{formatCompact(d.total_written_premium)}</td>
+                    <td className="py-3 px-4 text-right font-mono text-xs">{formatMAD(d.total_written_premium)}</td>
                     <td className="py-3 px-4 text-right font-mono text-xs text-[var(--color-gray-500)]">{d.contract_count}</td>
                     <td className="py-3 px-4 text-right font-mono text-[11px] font-bold">
                       {d.avg_ulr !== null && (
@@ -171,7 +171,7 @@ export default function RentabiliteChart() {
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-xs text-[var(--color-gray-500)]">{formatPercent(d.avg_commission)}</td>
                     <td className="py-3 px-4 text-right font-mono text-xs font-bold" style={{ color: d.total_resultat >= 0 ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)' }}>
-                      {formatCompact(d.total_resultat)}
+                      {formatMAD(d.total_resultat)}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-xs font-bold" style={{ color: d.ratio > 20 ? 'hsl(83,52%,36%)' : d.ratio > 0 ? 'hsl(30,88%,56%)' : 'hsl(358,66%,54%)' }}>
                       {d.ratio.toFixed(1)}%

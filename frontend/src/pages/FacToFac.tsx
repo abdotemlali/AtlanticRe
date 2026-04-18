@@ -8,7 +8,7 @@ import {
   ScatterChart, Scatter, ZAxis, Cell, ReferenceLine,
 } from 'recharts'
 import {
-  DollarSign, TrendingUp, Users, Percent, BarChart2, Shuffle,
+  Banknote, TrendingUp, Users, Percent, BarChart2, Shuffle,
   ArrowUp, ArrowDown, ArrowUpDown, Download,
 } from 'lucide-react'
 
@@ -443,7 +443,7 @@ export default function FacToFac() {
       {kpis && (
         <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
           <KPICard label="Engagement Partenaire Total" value={`${fmtMAD(kpis.engagement_total)} MAD`}         sub="Exposition maximale en capital"       color={C.red}    icon={TrendingUp}  />
-          <KPICard label="Prime Partenaire Totale"     value={`${fmtMAD(kpis.prime_partenaire_total)} MAD`}   sub="Prime nette revenant aux partenaires" color={C.olive}  icon={DollarSign}  />
+          <KPICard label="Prime Partenaire Totale"     value={`${fmtMAD(kpis.prime_partenaire_total)} MAD`}   sub="Prime nette revenant aux partenaires" color={C.olive}  icon={Banknote}   />
           <KPICard label="Moyenne Part Partenaire"     value={`${kpis.part_partenaire_moyen.toFixed(2)}%`} sub="Quote-part effective moyenne"    color={C.orange} icon={Percent}     />
           <KPICard label="Prime Atlantic Re Totale"    value={`${fmtMAD(kpis.prime_atlantic_re_total)} MAD`} sub="Prime brute souscrite"                color={C.blue}   icon={BarChart2}   />
           <KPICard label="Nombre de Partenaires"       value={`${kpis.nb_partenaires}`}                       sub="Partenaires preneurs distincts"       color={C.navy}   icon={Users}       />

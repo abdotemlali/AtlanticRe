@@ -7,7 +7,7 @@ import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData, filtersToParams } from '../context/DataContext'
 import { useFetch } from '../hooks/useFetch'
-import { formatCompact, formatPercent, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
+import { formatCompact, formatPercent, formatMAD, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import WorldMap from '../components/Charts/WorldMap'
 import { BRANCH_COLORS, SHARED_SELECT_PROPS, LABEL_STYLE } from '../constants/styles'
@@ -328,7 +328,7 @@ export default function Analysis() {
     import('xlsx').then(XLSX => {
       const rows = sortedBranchData.map((b: any) => ({
         Branche: b.branche,
-        'Prime Écrite (DH)': b.total_written_premium ?? 0,
+        'Prime Écrite (MAD)': b.total_written_premium ?? 0,
         'ULR (%)': b.avg_ulr !== null && b.avg_ulr !== undefined ? Number(b.avg_ulr) : '',
         'Commission (%)': Number((b.avg_commission ?? 0).toFixed(2)),
         'Courtage (%)': Number((b.avg_brokerage_rate ?? 0).toFixed(2)),
@@ -447,7 +447,7 @@ export default function Analysis() {
                           <p className="font-bold mb-2 text-[var(--color-navy)]">{d.pays}</p>
                           <div className="flex justify-between gap-4">
                             <span className="opacity-70">Prime Écrite:</span>
-                            <span className="font-mono font-bold text-[var(--color-navy)]">{formatCompact(d.total_written_premium)}</span>
+                            <span className="font-mono font-bold text-[var(--color-navy)]">{formatMAD(d.total_written_premium)}</span>
                           </div>
                           <div className="flex justify-between gap-4 mt-1">
                             <span className="opacity-70">ULR:</span>
@@ -730,12 +730,12 @@ export default function Analysis() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-100)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between">
               <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Prime Écrite</span>
-              <span className="text-2xl font-mono font-bold text-[var(--color-navy)]">{formatCompact(profile.total_written_premium)}</span>
+              <span className="text-2xl font-mono font-bold text-[var(--color-navy)]">{formatMAD(profile.total_written_premium)}</span>
             </div>
             <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-100)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between">
               <span className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Résultat Net</span>
               <span className="text-2xl font-mono font-bold" style={{ color: profile.total_resultat >= 0 ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)' }}>
-                {formatCompact(profile.total_resultat)}
+                {formatMAD(profile.total_resultat)}
               </span>
             </div>
             <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-100)] shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col justify-between">
@@ -786,7 +786,7 @@ export default function Analysis() {
                             <div key={i} className="flex justify-between gap-4 mt-1 font-mono">
                               <span className="opacity-70 font-sans">{entry.name}</span>
                               <span style={{ color: entry.dataKey === 'avg_ulr' ? 'hsl(30,88%,56%)' : entry.color }} className="font-bold">
-                                {entry.dataKey === 'avg_ulr' ? formatPercent(entry.value) : formatCompact(entry.value)}
+                                {entry.dataKey === 'avg_ulr' ? formatPercent(entry.value) : formatMAD(entry.value)}
                               </span>
                             </div>
                           ))}

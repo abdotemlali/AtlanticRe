@@ -5,7 +5,7 @@ import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown, Download } from 'luci
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
-import { formatCompact, formatPercent } from '../utils/formatters'
+import { formatCompact, formatPercent, formatMAD } from '../utils/formatters'
 import { getScopedParams } from '../utils/pageFilterScopes'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
 import PageFilterPanel from '../components/PageFilterPanel'
@@ -340,10 +340,10 @@ export default function ExpositionRisques() {
                   Cédante: risk.cedante,
                   Branche: risk.branche,
                   'Pays Risque': risk.pays_risque,
-                  'Somme Assurée 100% (DH)': risk.sum_insured_100 ?? 0,
+                  'Somme Assurée 100% (MAD)': risk.sum_insured_100 ?? 0,
                   'Part (%)': risk.share_signed ?? 0,
-                  'Exposition AR (DH)': risk.exposition ?? 0,
-                  'Prime Écrite (DH)': risk.written_premium ?? 0,
+                  'Exposition AR (MAD)': risk.exposition ?? 0,
+                  'Prime Écrite (MAD)': risk.written_premium ?? 0,
                   'ULR (%)': risk.ulr !== null && risk.ulr !== undefined ? Number(risk.ulr) : '',
                 }))
                 const wb = XLSX.utils.book_new()
@@ -408,12 +408,12 @@ export default function ExpositionRisques() {
                     <td className="p-3 text-gray-600">{risk.cedante}</td>
                     <td className="p-3 text-gray-600">{risk.branche}</td>
                     <td className="p-3 text-gray-600">{risk.pays_risque}</td>
-                    <td className="p-3 text-right font-medium">{formatCompact(risk.sum_insured_100)}</td>
+                    <td className="p-3 text-right font-medium">{formatMAD(risk.sum_insured_100)}</td>
                     <td className="p-3 text-center">{risk.share_signed}%</td>
                     <td className={`p-3 text-right font-bold ${isHighExposure ? 'text-red-500' : 'text-[var(--color-navy)]'}`}>
-                      {formatCompact(risk.exposition)}
+                      {formatMAD(risk.exposition)}
                     </td>
-                    <td className="p-3 text-right font-medium">{formatCompact(risk.written_premium)}</td>
+                    <td className="p-3 text-right font-medium">{formatMAD(risk.written_premium)}</td>
                     <td className="p-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                         risk.ulr > 100 ? 'bg-red-100 text-red-600' : 

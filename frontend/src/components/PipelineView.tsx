@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { Target, PieChart as PieIcon, BarChart2, Loader2 } from 'lucide-react'
-import { formatCompact } from '../utils/formatters'
+import { formatCompact, formatMAD } from '../utils/formatters'
 import { useData, filtersToParams } from '../context/DataContext'
 import api from '../utils/api'
 
@@ -161,7 +161,7 @@ export default function PipelineView() {
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-200)] shadow-sm">
                     <div className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Volume Total (MAD)</div>
-                    <div className="text-2xl font-mono font-bold text-[var(--color-navy)]">{formatCompact(analytics.totalVolume)}</div>
+                    <div className="text-2xl font-mono font-bold text-[var(--color-navy)]">{formatMAD(analytics.totalVolume)}</div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-[var(--color-gray-200)] shadow-sm relative overflow-hidden">
                     <div className="text-xs font-bold text-[var(--color-gray-500)] uppercase tracking-wider mb-2">Taux de Conversion (Confirmés / Clôturés)</div>
@@ -199,7 +199,7 @@ export default function PipelineView() {
                                                     <div className="font-bold text-[var(--color-navy)] mb-2">{item.name}</div>
                                                     <div className="flex justify-between items-center gap-4">
                                                         <span className="text-[var(--color-gray-500)]">Volume :</span>
-                                                        <span className="font-mono font-bold text-[var(--color-navy)]">{formatCompact(item.value)}</span>
+                                                        <span className="font-mono font-bold text-[var(--color-navy)]">{formatMAD(item.value)}</span>
                                                     </div>
                                                 </div>
                                             )
@@ -307,14 +307,14 @@ export default function PipelineView() {
                                                                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
                                                                         <span className="text-[var(--color-gray-600)]">{STATUS_LABELS[entry.dataKey as string]}</span>
                                                                     </div>
-                                                                    <span className="font-mono font-bold text-[var(--color-navy)]">{formatCompact(entry.value)}</span>
+                                                                    <span className="font-mono font-bold text-[var(--color-navy)]">{formatMAD(entry.value)}</span>
                                                                 </div>
                                                             )
                                                         })}
                                                     </div>
                                                     <div className="flex justify-between items-center text-xs font-bold border-t pt-2 mt-2">
                                                         <span className="text-[var(--color-navy)]">Total</span>
-                                                        <span className="font-mono text-[var(--color-navy)]">{formatCompact(total)}</span>
+                                                        <span className="font-mono text-[var(--color-navy)]">{formatMAD(total)}</span>
                                                     </div>
                                                 </div>
                                             )

@@ -5,7 +5,7 @@ import Select from 'react-select'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Cell as PieCell, Line, Legend, ComposedChart } from 'recharts'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
-import { formatCompact, formatPercent, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
+import { formatCompact, formatPercent, formatMAD, ulrColor, toOptions, toNumOptions } from '../utils/formatters'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import ActiveFiltersBar from '../components/ActiveFiltersBar'
 import { useFetch } from '../hooks/useFetch'
@@ -258,7 +258,7 @@ export default function CedanteAnalysis() {
                           <p className="font-bold mb-2 text-[var(--color-navy)]">{d.cedante}</p>
                           <div className="flex justify-between gap-4">
                             <span className="opacity-70">Prime Écrite:</span>
-                            <span className="font-mono font-bold text-[var(--color-navy)]">{formatCompact(d.total_written_premium)}</span>
+                            <span className="font-mono font-bold text-[var(--color-navy)]">{formatMAD(d.total_written_premium)}</span>
                           </div>
                           <div className="flex justify-between gap-4 mt-1">
                             <span className="opacity-70">ULR:</span>
@@ -889,7 +889,7 @@ export default function CedanteAnalysis() {
                     import('xlsx').then(XLSX => {
                       const rows = sortedBranchData.map((b: any) => ({
                         Branche: b.branche,
-                        'Prime Écrite (DH)': b.total_written_premium ?? 0,
+                        'Prime Écrite (MAD)': b.total_written_premium ?? 0,
                         'ULR (%)': b.avg_ulr !== null && b.avg_ulr !== undefined ? Number(b.avg_ulr) : '',
                         'Commission (%)': Number((b.avg_commission ?? 0).toFixed(2)),
                         'Courtage (%)': Number((b.avg_brokerage_rate ?? 0).toFixed(2)),

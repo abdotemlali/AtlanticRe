@@ -14,7 +14,7 @@ import {
 } from 'recharts'
 import { useData, filtersToParams, filtersToParamsExcluding } from '../../context/DataContext'
 import api from '../../utils/api'
-import { formatCompact, truncate } from '../../utils/formatters'
+import { formatCompact, formatMAD, truncate } from '../../utils/formatters'
 import { ChartSkeleton } from '../ui/Skeleton'
 
 // 🎨 Updated palette — HSL Premium aligned with Design System
@@ -49,7 +49,7 @@ const GlassTooltip = ({ active, payload, label, isBar = false }: any) => {
         {isBar ? label : payload[0]?.name}
       </p>
       <p style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: isBar ? 'hsl(83,50%,55%)' : payload[0]?.payload?.fill || 'hsl(83,50%,55%)' }}>
-        {formatCompact(payload[0]?.value)}
+        {formatMAD(payload[0]?.value)}
       </p>
     </div>
   )

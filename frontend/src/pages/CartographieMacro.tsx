@@ -1,13 +1,12 @@
 /**
  * CartographieMacro — Cartographie Macroéconomique Afrique
  * 7 indicateurs : PIB, croissance, inflation, compte courant, taux de change, PIB/hab, intégration régionale.
- * Architecture identique à CartographieVie et CartographieNonVie.
- * Insights 100% dynamiques via useMacroInsights.
+ * Navigation par onglets paginés (style AnalysePays).
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  Area, Legend, ComposedChart, ReferenceLine, Line, Scatter, ScatterChart, ZAxis,
+  Area, Legend, ComposedChart, ReferenceLine, Line,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts'
 import { useCartographieData } from '../hooks/useCartographieData'
@@ -42,21 +41,89 @@ const fmtUsd = (v: number) => `$${v.toFixed(0)}/hab`
 const fmtScore = (v: number) => v.toFixed(3)
 
 type YearSel = number | 'avg'
+type TabId = 'kpis' | 'top10' | 'carte' | 'scatter' | 'evolution' | 'inflation' | 'integration' | 'detail' | 'tableau'
 
-const NAV_ITEMS = [
-  { id: 'kpis',         label: 'KPIs' },
-  { id: 'carte',        label: 'Carte' },
-  { id: 'scatter',      label: 'Scatter multi-axes' },
-  { id: 'evolution',    label: 'Évolution PIB' },
-  { id: 'inflation',    label: 'Distribution Inflation' },
-  { id: 'integration',  label: 'Intégration Régionale' },
-  { id: 'detail',       label: 'Détail Pays' },
-  { id: 'tableau',      label: 'Classement' },
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'kpis',        label: 'KPIs',                   icon: '📊' },
+  { id: 'top10',       label: 'Top 10 PIB',             icon: '🏆' },
+  { id: 'carte',       label: 'Carte',                  icon: '🗺️' },
+  { id: 'scatter',     label: 'Scatter',                icon: '🎯' },
+  { id: 'evolution',   label: 'Évolution PIB',          icon: '📈' },
+  { id: 'inflation',   label: 'Inflation',              icon: '🌡️' },
+  { id: 'integration', label: 'Intégration',            icon: '🤝' },
+  { id: 'detail',      label: 'Détail Pays',            icon: '🌍' },
+  { id: 'tableau',     label: 'Classement',             icon: '📋' },
 ]
+
+// ── Tab Navigation Bar ──────────────────────────────────────────────────────
+function TabNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
+  return (
+    <div className="bg-white rounded-xl overflow-hidden mb-1"
+      style={{ border: '1px solid hsl(0,0%,90%)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      <div className="flex overflow-x-auto scrollbar-hide">
+        {TABS.map((tab, i) => {
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all relative flex-shrink-0"
+              style={active ? {
+                color: 'hsl(35,85%,30%)',
+                background: 'hsla(35,85%,55%,0.10)',
+                borderBottom: '2px solid hsl(35,85%,55%)',
+              } : {
+                color: '#6b7280',
+                borderBottom: '2px solid transparent',
+              }}
+              id={`tab-macro-${tab.id}`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {i < TABS.length - 1 && !active && (
+                <span className="absolute right-0 top-1/4 bottom-1/4 w-px" style={{ background: 'hsl(0,0%,90%)' }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Progress Indicator ──────────────────────────────────────────────────
+function TabProgress({ activeTab }: { activeTab: TabId }) {
+  const currentIndex = TABS.findIndex(t => t.id === activeTab)
+  return (
+    <div className="flex items-center gap-1.5 mb-4">
+      {TABS.map((tab, i) => (
+        <div key={tab.id} className="h-1 rounded-full transition-all" style={{
+          flex: 1,
+          background: i === currentIndex
+            ? 'hsl(35,85%,55%)'
+            : i < currentIndex
+            ? 'hsla(35,85%,55%,0.35)'
+            : 'hsl(0,0%,90%)',
+        }} />
+      ))}
+    </div>
+  )
+}
 
 export default function CartographieMacro() {
   const { data, years, countries, loading, error } = useCartographieData('macroeconomie')
   const maxYear = years.length ? years[years.length - 1] : 2024
+
+  const [activeTab, setActiveTab] = useState<TabId>('kpis')
+
+  useEffect(() => {
+    const container = document.getElementById('scar-main-scroll')
+    if (container) container.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [activeTab])
+
+  const currentTabIdx = TABS.findIndex(t => t.id === activeTab)
+  const goPrev = () => { if (currentTabIdx > 0) setActiveTab(TABS[currentTabIdx - 1].id) }
+  const goNext = () => { if (currentTabIdx < TABS.length - 1) setActiveTab(TABS[currentTabIdx + 1].id) }
 
   // SA est traité comme un pays normal dans cartographie macro — appartient à Afrique Australe
   const macroData = useMemo(
@@ -166,7 +233,6 @@ export default function CartographieMacro() {
   )
 
   // ── Évolution PIB par région ────────────────────────────────────────────────
-  // SA est inclus dans Afrique Australe via macroData — aucun filtre nécessaire
   const evoData = useMemo(() => {
     const out: Record<number, any> = {}
     for (const r of macroData) {
@@ -253,8 +319,6 @@ export default function CartographieMacro() {
     [macroData, effectiveCountry]
   )
   const { cards: countryInsights, region: countryRegion, coverage: countryCoverage } = useMacroCountryInsights(macroData, effectiveCountry)
-
-  // ── Ranking insights ────────────────────────────────────────────────────────
   const rankingInsights = useMacroRankingInsights(macroData)
 
   // ── Tableau ─────────────────────────────────────────────────────────────────
@@ -326,352 +390,354 @@ export default function CartographieMacro() {
       title="Cartographie — Macroéconomie"
       subtitle="Analyse macroéconomique de 34 pays africains (2015–2024) : PIB, croissance, inflation, solde courant, taux de change et intégration régionale."
       dataSource="World Bank · IMF · UNCTAD"
-      navItems={NAV_ITEMS}
+      navItems={[]}
     >
-      <RegionLegend />
+      {/* ── Tab Navigation ─────────────────────────────────────────────── */}
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabProgress activeTab={activeTab} />
 
-      {/* Section 0 — KPIs */}
-      <section id="kpis" className="scroll-mt-20">
-        <CartographieKPIGrid kpis={kpis} />
-      </section>
+      {/* ── Tab Content ────────────────────────────────────────────────── */}
+      <div className="space-y-5">
 
-      {/* Top 10 PIB */}
-      <section>
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <h2 className="text-sm font-bold text-gray-700">Top 10 PIB africains</h2>
-          <YearOrAvgNav years={years} value={top10Year} onChange={setTop10Year} />
-        </div>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart data={top10} layout="vertical" margin={{ top: 5, right: 40, left: 100, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis type="category" dataKey="pays" tick={{ fontSize: 11, fill: '#374151' }} width={100} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} formatter={(v: number) => fmtBn(v)} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {top10.map((t, i) => <Cell key={i} fill={REGION_COLORS[t.region] ?? REGION_COLORS.Autre} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <InsightPanel icon="💰" title="Analyse du classement PIB" cards={top10Insights} />
-      </section>
-
-      {/* Section 1 — Carte */}
-      <section id="carte" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Carte choroplèthe — Afrique Macroéconomie</h2>
-        <AfricaMap
-          indicators={mapIndicators}
-          rowsByCountryYear={allMapMatrices}
-          years={years}
-          defaultYear={maxYear}
-          showZafBorder={false}
-        />
-        <InsightPanel
-          icon="🗺️"
-          title="Lecture de la carte macroéconomique"
-          subtitle="Calculés sur la moyenne 2015–2024"
-          cards={choroplethInsights}
-        />
-      </section>
-
-      {/* Section 2 — Scatter multi-axes */}
-      <section id="scatter" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Scatter multi-axes — Positionnement macro des pays</h2>
-        <ConfigurableScatterBubble
-          title="Scatter macro multi-axes"
-          metrics={scatterMetrics}
-          defaultX="inflation"
-          defaultY="growth"
-          sizeLabel="PIB (Mn USD)"
-          sizeFormat={fmtBn}
-          pointsByYear={scatterAllByYear}
-          years={years}
-          defaultYear={maxYear}
-          onAxesChange={(x, y) => { setScatterXKey(x); setScatterYKey(y) }}
-        />
-        <InsightPanel
-          icon={
-            scatterXKey === 'inflation' && scatterYKey === 'growth' ? '🌡️' :
-            scatterXKey === 'gdpCap' && scatterYKey === 'growth' ? '💰' :
-            scatterXKey === 'currentAcc' && scatterYKey === 'growth' ? '⚖️' : 
-            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') ? '💱' :
-            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '🏢' :
-            (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '🏦' : 
-            (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') ? '💎' :
-            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') ? '💸' :
-            (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'gdp' || scatterYKey === 'gdp') ? '👑' :
-            '📊'
-          }
-          title={
-            (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'growth' || scatterYKey === 'growth')
-              ? 'INFLATION VS CROISSANCE PIB'
-              : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'growth' || scatterYKey === 'growth')
-              ? 'PIB/HAB VS CROISSANCE PIB'
-              : (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'growth' || scatterYKey === 'growth')
-              ? 'COMPTE COURANT VS CROISSANCE PIB'
-              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc')
-              ? 'INFLATION VS COMPTE COURANT'
-              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
-              ? 'INFLATION VS PIB'
-              : (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
-              ? 'COMPTE COURANT VS PIB'
-              : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc')
-              ? 'PIB/HAB VS COMPTE COURANT'
-              : (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap')
-              ? 'INFLATION VS PIB/HAB'
-              : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'gdp' || scatterYKey === 'gdp')
-              ? 'PIB/HAB VS PIB'
-              : 'ANALYSE MULTI-AXES MACRO'
-          }
-          subtitle="Se recalcule automatiquement selon les axes sélectionnés"
-          cards={scatterInsights}
-        />
-      </section>
-
-      {/* Section 3 — Évolution PIB */}
-      <section id="evolution" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Évolution du PIB par région 2015–{maxYear}</h2>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={380}>
-            <ComposedChart data={evoData as any[]} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} formatter={(v: number) => fmtBn(v)} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {ALL_REGIONS.map(reg => (
-                <Area key={reg} yAxisId="left" type="monotone" dataKey={reg} stackId="1"
-                  stroke={REGION_COLORS[reg]} fill={REGION_COLORS[reg]} fillOpacity={0.7} />
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        <InsightPanel
-          icon="📈"
-          title="Dynamiques de croissance PIB régionales"
-          subtitle="CAGR réels 2015–2024 — Afrique du Sud incluse dans Afrique Australe"
-          cards={evolutionInsights}
-        />
-
-        <div className="flex items-center gap-3 mt-4 flex-wrap">
-          <h3 className="text-sm font-bold text-gray-700">PIB par région</h3>
-          <AnimatedControls years={years} value={barYear} onChange={y => { setBarYear(y); setBarShowAvg(false) }} />
-          <button
-            onClick={() => setBarShowAvg(v => !v)}
-            className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${barShowAvg ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-          >
-            Moy. {years[0]}–{years[years.length - 1]}
-          </button>
-        </div>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={barRegional}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} formatter={(v: number) => fmtBn(v)} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {barRegional.map((b, i) => <Cell key={i} fill={REGION_COLORS[b.region] ?? '#95a5a6'} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <InsightPanel
-          icon="📊"
-          title="PIB PAR RÉGION — ANALYSE COMPARATIVE"
-          subtitle={barShowAvg ? `Calculés sur la moyenne 2015–2024` : `Année ${barYear}`}
-          cards={barRegionalInsights}
-        />
-      </section>
-
-      {/* Section 4 — Distribution Inflation (Heatmap + Box-plot) */}
-      <section id="inflation" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Distribution de l'Inflation par pays et par région</h2>
-
-        {/* Heatmap historique */}
-        <HeatmapChart
-          matrix={heatMatrix}
-          years={years}
-          countries={countries}
-          regions={heatRegions}
-          scale="inflation"
-          format={fmtPct}
-        />
-
-        {/* Box-plot by region */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <h3 className="text-sm font-bold text-gray-700">Distribution de l'inflation par région (boîte à moustaches)</h3>
-        </div>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={340}>
-            <ComposedChart data={inflBoxByRegion(macroData)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 'auto']} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const d = payload[0].payload
-                  return (
-                    <div className="bg-white rounded-lg p-3 shadow-lg border border-gray-200 text-xs">
-                      <p className="font-bold">{d.region}</p>
-                      <p>Médiane : <b>{d.median.toFixed(1)}%</b></p>
-                      <p>Q1–Q3 : {d.q1.toFixed(1)}% – {d.q3.toFixed(1)}%</p>
-                      <p>Min–Max : {d.min.toFixed(1)}% – {d.max.toFixed(1)}%</p>
-                    </div>
-                  )
-                }}
-              />
-              <ReferenceLine y={5} stroke="#1E8449" strokeDasharray="4 4" label={{ value: 'Seuil 5% (stable)', fontSize: 10, fill: '#1E8449', position: 'right' }} />
-              <ReferenceLine y={10} stroke="#C0392B" strokeDasharray="4 4" label={{ value: 'Seuil 10% (risque)', fontSize: 10, fill: '#C0392B', position: 'right' }} />
-              <Bar dataKey="q3" fill="hsla(35,85%,55%,0.35)" />
-              <Bar dataKey="q1" fill="white" />
-              <Line type="monotone" dataKey="median" stroke="#1B3F6B" dot={{ r: 4, fill: '#1B3F6B' }} strokeWidth={0} />
-              <Line type="monotone" dataKey="max" stroke="#C0392B" dot={{ r: 2, fill: '#C0392B' }} strokeWidth={0} />
-              <Line type="monotone" dataKey="min" stroke="#94a3b8" dot={{ r: 2 }} strokeWidth={0} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        <InsightPanel
-          icon="🌡️"
-          title="DISTRIBUTION DE L'INFLATION PAR RÉGION"
-          subtitle="Analyse comparative des pressions inflationnistes par zone géographique 2015–2024"
-          cards={inflationDistribInsights}
-        />
-      </section>
-
-      {/* Section 5 — Intégration régionale + Radar */}
-      <section id="integration" className="scroll-mt-20 space-y-4">
-        <h2 className="text-sm font-bold text-gray-700">Score d'intégration régionale — Classement</h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar chart intégration */}
-          <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-            <p className="text-xs font-semibold text-gray-500 mb-3">Classement des pays par score d'intégration</p>
-            <ResponsiveContainer width="100%" height={Math.max(380, integrationRows.length * 25)}>
-              <BarChart data={integrationRows} layout="vertical" margin={{ top: 5, right: 40, left: 120, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" tickFormatter={fmtScore} tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 0.7]} />
-                <YAxis type="category" dataKey="pays" interval={0} tick={{ fontSize: 10, fill: '#374151' }} width={120} />
-                <Tooltip formatter={(v: number) => fmtScore(v)} contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} />
-                <Bar dataKey="score" radius={[0, 4, 4, 0]}>
-                  {integrationRows.map((t, i) => <Cell key={i} fill={REGION_COLORS[t.region] ?? '#95a5a6'} />)}
-                </Bar>
-                <ReferenceLine 
-                  x={0.4} 
-                  stroke="#1E8449" 
-                  strokeDasharray="4 4" 
-                  label={({ viewBox }: any) => {
-                    const bandHeight = viewBox.height / Math.max(1, integrationRows.length);
-                    let thresholdIdx = 0;
-                    for (let i = 0; i < integrationRows.length; i++) {
-                      if (integrationRows[i].score >= 0.4) thresholdIdx = i;
-                      else break; // Les données sont triées par ordre décroissant
-                    }
-                    const yCenter = viewBox.y + bandHeight * thresholdIdx + bandHeight / 2;
-                    return (
-                      <g>
-                        <rect x={viewBox.x + 6} y={yCenter - 9} width={105} height={18} fill="white" fillOpacity={0.9} rx={3} />
-                        <text x={viewBox.x + 10} y={yCenter + 3} fill="#1E8449" fontSize={9} fontWeight="600">
-                          Seuil 0.4 (bien intégré)
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* ── KPIs ─────────────────────────────────────────────────────── */}
+        {activeTab === 'kpis' && (
+          <div className="space-y-5 animate-fade-in">
+            <RegionLegend />
+            <CartographieKPIGrid kpis={kpis} />
           </div>
+        )}
 
-          {/* Radar profil macro par région */}
-          <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-            <p className="text-xs font-semibold text-gray-500 mb-3">Profil macro régional (score normalisé)</p>
-            <ResponsiveContainer width="100%" height={380}>
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="#f0f0f0" />
-                <PolarAngleAxis dataKey="region" tick={{ fontSize: 9, fill: '#374151' }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                {radarData.map((d, i) => (
-                  <Radar
-                    key={d.region}
-                    name={d.region}
-                    dataKey={(_: any) => (Object.values(radarData[0]).filter(v => typeof v === 'number') as number[])[i % 4]}
-                    stroke={REGION_COLORS[d.region] ?? '#95a5a6'}
-                    fill={REGION_COLORS[d.region] ?? '#95a5a6'}
-                    fillOpacity={0.2}
+        {/* ── Top 10 PIB ───────────────────────────────────────────────── */}
+        {activeTab === 'top10' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <h2 className="text-sm font-bold text-gray-700">Top 10 PIB africains</h2>
+              <YearOrAvgNav years={years} value={top10Year} onChange={setTop10Year} />
+            </div>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={top10} layout="vertical" margin={{ top: 5, right: 40, left: 100, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <XAxis type="number" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis type="category" dataKey="pays" tick={{ fontSize: 11, fill: '#374151' }} width={100} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} formatter={(v: number) => fmtBn(v)} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {top10.map((t, i) => <Cell key={i} fill={REGION_COLORS[t.region] ?? REGION_COLORS.Autre} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel icon="💰" title="Analyse du classement PIB" cards={top10Insights} />
+          </div>
+        )}
+
+        {/* ── Carte ────────────────────────────────────────────────────── */}
+        {activeTab === 'carte' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Carte choroplèthe — Afrique Macroéconomie</h2>
+            <AfricaMap
+              indicators={mapIndicators}
+              rowsByCountryYear={allMapMatrices}
+              years={years}
+              defaultYear={maxYear}
+              showZafBorder={false}
+            />
+            <InsightPanel
+              icon="🗺️"
+              title="Lecture de la carte macroéconomique"
+              subtitle="Calculés sur la moyenne 2015–2024"
+              cards={choroplethInsights}
+            />
+          </div>
+        )}
+
+        {/* ── Scatter ──────────────────────────────────────────────────── */}
+        {activeTab === 'scatter' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Scatter multi-axes — Positionnement macro des pays</h2>
+            <ConfigurableScatterBubble
+              title="Scatter macro multi-axes"
+              metrics={scatterMetrics}
+              defaultX="inflation"
+              defaultY="growth"
+              sizeLabel="PIB (Mn USD)"
+              sizeFormat={fmtBn}
+              pointsByYear={scatterAllByYear}
+              years={years}
+              defaultYear={maxYear}
+              onAxesChange={(x, y) => { setScatterXKey(x); setScatterYKey(y) }}
+            />
+            <InsightPanel
+              icon={
+                scatterXKey === 'inflation' && scatterYKey === 'growth' ? '🌡️' :
+                scatterXKey === 'gdpCap' && scatterYKey === 'growth' ? '💰' :
+                scatterXKey === 'currentAcc' && scatterYKey === 'growth' ? '⚖️' : '📊'
+              }
+              title={
+                (scatterXKey === 'inflation' || scatterYKey === 'inflation') && (scatterXKey === 'growth' || scatterYKey === 'growth')
+                  ? 'INFLATION VS CROISSANCE PIB'
+                  : (scatterXKey === 'gdpCap' || scatterYKey === 'gdpCap') && (scatterXKey === 'growth' || scatterYKey === 'growth')
+                  ? 'PIB/HAB VS CROISSANCE PIB'
+                  : (scatterXKey === 'currentAcc' || scatterYKey === 'currentAcc') && (scatterXKey === 'growth' || scatterYKey === 'growth')
+                  ? 'COMPTE COURANT VS CROISSANCE PIB'
+                  : 'ANALYSE MULTI-AXES MACRO'
+              }
+              subtitle="Se recalcule automatiquement selon les axes sélectionnés"
+              cards={scatterInsights}
+            />
+          </div>
+        )}
+
+        {/* ── Évolution PIB ─────────────────────────────────────────────── */}
+        {activeTab === 'evolution' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Évolution du PIB par région 2015–{maxYear}</h2>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={380}>
+                <ComposedChart data={evoData as any[]} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} formatter={(v: number) => fmtBn(v)} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {ALL_REGIONS.map(reg => (
+                    <Area key={reg} yAxisId="left" type="monotone" dataKey={reg} stackId="1"
+                      stroke={REGION_COLORS[reg]} fill={REGION_COLORS[reg]} fillOpacity={0.7} />
+                  ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel
+              icon="📈"
+              title="Dynamiques de croissance PIB régionales"
+              subtitle="CAGR réels 2015–2024 — Afrique du Sud incluse dans Afrique Australe"
+              cards={evolutionInsights}
+            />
+
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
+              <h3 className="text-sm font-bold text-gray-700">PIB par région</h3>
+              <AnimatedControls years={years} value={barYear} onChange={y => { setBarYear(y); setBarShowAvg(false) }} />
+              <button
+                onClick={() => setBarShowAvg(v => !v)}
+                className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${barShowAvg ? 'bg-[#1B3F6B] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                Moy. {years[0]}–{years[years.length - 1]}
+              </button>
+            </div>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barRegional}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} formatter={(v: number) => fmtBn(v)} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {barRegional.map((b, i) => <Cell key={i} fill={REGION_COLORS[b.region] ?? '#95a5a6'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel
+              icon="📊"
+              title="PIB PAR RÉGION — ANALYSE COMPARATIVE"
+              subtitle={barShowAvg ? `Calculés sur la moyenne 2015–2024` : `Année ${barYear}`}
+              cards={barRegionalInsights}
+            />
+          </div>
+        )}
+
+        {/* ── Distribution Inflation ────────────────────────────────────── */}
+        {activeTab === 'inflation' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Distribution de l'Inflation par pays et par région</h2>
+            <HeatmapChart
+              matrix={heatMatrix}
+              years={years}
+              countries={countries}
+              regions={heatRegions}
+              scale="inflation"
+              format={fmtPct}
+            />
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="text-sm font-bold text-gray-700">Distribution de l'inflation par région (boîte à moustaches)</h3>
+            </div>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={340}>
+                <ComposedChart data={inflBoxByRegion(macroData)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="region" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 'auto']} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      return (
+                        <div className="bg-white rounded-lg p-3 shadow-lg border border-gray-200 text-xs">
+                          <p className="font-bold">{d.region}</p>
+                          <p>Médiane : <b>{d.median.toFixed(1)}%</b></p>
+                          <p>Q1–Q3 : {d.q1.toFixed(1)}% – {d.q3.toFixed(1)}%</p>
+                          <p>Min–Max : {d.min.toFixed(1)}% – {d.max.toFixed(1)}%</p>
+                        </div>
+                      )
+                    }}
                   />
-                ))}
-                <Legend wrapperStyle={{ fontSize: 10 }} />
-              </RadarChart>
-            </ResponsiveContainer>
+                  <ReferenceLine y={5} stroke="#1E8449" strokeDasharray="4 4" label={{ value: 'Seuil 5% (stable)', fontSize: 10, fill: '#1E8449', position: 'right' }} />
+                  <ReferenceLine y={10} stroke="#C0392B" strokeDasharray="4 4" label={{ value: 'Seuil 10% (risque)', fontSize: 10, fill: '#C0392B', position: 'right' }} />
+                  <Bar dataKey="q3" fill="hsla(35,85%,55%,0.35)" />
+                  <Bar dataKey="q1" fill="white" />
+                  <Line type="monotone" dataKey="median" stroke="#1B3F6B" dot={{ r: 4, fill: '#1B3F6B' }} strokeWidth={0} />
+                  <Line type="monotone" dataKey="max" stroke="#C0392B" dot={{ r: 2, fill: '#C0392B' }} strokeWidth={0} />
+                  <Line type="monotone" dataKey="min" stroke="#94a3b8" dot={{ r: 2 }} strokeWidth={0} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel
+              icon="🌡️"
+              title="DISTRIBUTION DE L'INFLATION PAR RÉGION"
+              subtitle="Analyse comparative des pressions inflationnistes par zone géographique 2015–2024"
+              cards={inflationDistribInsights}
+            />
           </div>
-        </div>
+        )}
 
-        <InsightPanel
-          icon="🤝"
-          title="INTÉGRATION RÉGIONALE — ANALYSE"
-          subtitle="Classement des pays par score d'intégration économique régionale"
-          cards={integrationInsights}
-        />
-      </section>
+        {/* ── Intégration Régionale ─────────────────────────────────────── */}
+        {activeTab === 'integration' && (
+          <div className="space-y-5 animate-fade-in">
+            <h2 className="text-sm font-bold text-gray-700">Score d'intégration régionale — Classement</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Bar chart intégration */}
+              <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+                <p className="text-xs font-semibold text-gray-500 mb-3">Classement des pays par score d'intégration</p>
+                <ResponsiveContainer width="100%" height={Math.max(380, integrationRows.length * 25)}>
+                  <BarChart data={integrationRows} layout="vertical" margin={{ top: 5, right: 40, left: 120, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                    <XAxis type="number" tickFormatter={fmtScore} tick={{ fontSize: 11, fill: '#64748b' }} domain={[0, 0.7]} />
+                    <YAxis type="category" dataKey="pays" interval={0} tick={{ fontSize: 10, fill: '#374151' }} width={120} />
+                    <Tooltip formatter={(v: number) => fmtScore(v)} contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0' }} />
+                    <Bar dataKey="score" radius={[0, 4, 4, 0]}>
+                      {integrationRows.map((t, i) => <Cell key={i} fill={REGION_COLORS[t.region] ?? '#95a5a6'} />)}
+                    </Bar>
+                    <ReferenceLine x={0.4} stroke="#1E8449" strokeDasharray="4 4" label={{ value: 'Seuil 0.4', fontSize: 9, fill: '#1E8449', position: 'insideTopRight' }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Radar profil macro par région */}
+              <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+                <p className="text-xs font-semibold text-gray-500 mb-3">Profil macro régional (score normalisé)</p>
+                <ResponsiveContainer width="100%" height={380}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="#f0f0f0" />
+                    <PolarAngleAxis dataKey="region" tick={{ fontSize: 9, fill: '#374151' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                    {radarData.map((d, i) => (
+                      <Radar
+                        key={d.region}
+                        name={d.region}
+                        dataKey={(_: any) => (Object.values(radarData[0]).filter(v => typeof v === 'number') as number[])[i % 4]}
+                        stroke={REGION_COLORS[d.region] ?? '#95a5a6'}
+                        fill={REGION_COLORS[d.region] ?? '#95a5a6'}
+                        fillOpacity={0.2}
+                      />
+                    ))}
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <InsightPanel
+              icon="🤝"
+              title="INTÉGRATION RÉGIONALE — ANALYSE"
+              subtitle="Classement des pays par score d'intégration économique régionale"
+              cards={integrationInsights}
+            />
+          </div>
+        )}
 
-      {/* Section 6 — Détail pays */}
-      <section id="detail" className="scroll-mt-20 space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-bold text-gray-700">Profil macroéconomique par pays</h2>
-          <select
-            aria-label="Pays"
-            value={effectiveCountry}
-            onChange={e => setSelectedCountry(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-300"
-          >
-            {sortedCountries.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-          <ResponsiveContainer width="100%" height={420}>
-            <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: '0%', fontSize: 9, fill: '#94a3b8' }} />
-              <Bar yAxisId="left" dataKey="gdp_mn" name="PIB" fill="#1B3F6B" fillOpacity={0.6} barSize={20} />
-              <Line yAxisId="right" type="monotone" dataKey="gdp_growth_pct" name="Croissance PIB" stroke="#1E8449" strokeWidth={2.5} dot={{ r: 4 }} />
-              <Line yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation" stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="right" type="monotone" dataKey="current_account_mn" name="Compte courant (Mn)" stroke="#8E44AD" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        {/* ── Détail Pays ──────────────────────────────────────────────── */}
+        {activeTab === 'detail' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-bold text-gray-700">Profil macroéconomique par pays</h2>
+              <select
+                aria-label="Pays"
+                value={effectiveCountry}
+                onChange={e => setSelectedCountry(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-300"
+              >
+                {sortedCountries.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={420}>
+                <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: '0%', fontSize: 9, fill: '#94a3b8' }} />
+                  <Bar yAxisId="left" dataKey="gdp_mn" name="PIB" fill="#1B3F6B" fillOpacity={0.6} barSize={20} />
+                  <Line yAxisId="right" type="monotone" dataKey="gdp_growth_pct" name="Croissance PIB" stroke="#1E8449" strokeWidth={2.5} dot={{ r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation" stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="current_account_mn" name="Compte courant (Mn)" stroke="#8E44AD" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <InsightPanel
+              icon="🌍"
+              title={`PROFIL MACRO — ${effectiveCountry.toUpperCase()}`}
+              subtitle={`Région : ${countryRegion || '-'} — Analyse complète ${countryCoverage}`}
+              cards={countryInsights}
+            />
+          </div>
+        )}
 
-        <InsightPanel
-          icon="🌍"
-          title={`PROFIL MACRO — ${effectiveCountry.toUpperCase()}`}
-          subtitle={`Région : ${countryRegion || '-'} — Analyse complète ${countryCoverage}`}
-          cards={countryInsights}
-        />
-      </section>
+        {/* ── Classement ───────────────────────────────────────────────── */}
+        {activeTab === 'tableau' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-sm font-bold text-gray-700">Classement macroéconomique des pays</h2>
+              <YearOrAvgNav years={years} value={tableYear} onChange={setTableYear} />
+            </div>
+            <CountryTable rows={tableRows} columns={tableCols} initialSort="gdp" showRank />
+            <InsightPanel
+              icon="🏆"
+              title="CLASSEMENT MACRO — INDICATEURS CLÉS"
+              subtitle="Top 5 par indicateur — sélection Atlantic Re"
+              cards={rankingInsights}
+            />
+          </div>
+        )}
 
-      {/* Section 7 — Tableau Classement */}
-      <section id="tableau" className="scroll-mt-20 space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-sm font-bold text-gray-700">Classement macroéconomique des pays</h2>
-          <YearOrAvgNav years={years} value={tableYear} onChange={setTableYear} />
-        </div>
-        <CountryTable rows={tableRows} columns={tableCols} initialSort="gdp" showRank />
+      </div>
 
-        <InsightPanel
-          icon="🏆"
-          title="CLASSEMENT MACRO — INDICATEURS CLÉS"
-          subtitle="Top 5 par indicateur — sélection Atlantic Re"
-          cards={rankingInsights}
-        />
-      </section>
+      {/* ── Prev / Next navigation ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: '1px solid hsl(0,0%,93%)' }}>
+        <button
+          onClick={goPrev}
+          disabled={currentTabIdx === 0}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+          style={currentTabIdx === 0
+            ? { background: 'hsl(0,0%,96%)', color: '#d1d5db', cursor: 'not-allowed' }
+            : { background: 'hsl(0,0%,97%)', color: '#374151', border: '1px solid hsl(0,0%,88%)', cursor: 'pointer' }}
+        >
+          <span>←</span>
+          <span>{currentTabIdx > 0 ? TABS[currentTabIdx - 1].label : '—'}</span>
+        </button>
+        <span className="text-xs text-gray-400 font-medium">{currentTabIdx + 1} / {TABS.length}</span>
+        <button
+          onClick={goNext}
+          disabled={currentTabIdx === TABS.length - 1}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+          style={currentTabIdx === TABS.length - 1
+            ? { background: 'hsl(0,0%,96%)', color: '#d1d5db', cursor: 'not-allowed' }
+            : { background: 'hsl(35,85%,55%)', color: 'white', cursor: 'pointer' }}
+        >
+          <span>{currentTabIdx < TABS.length - 1 ? TABS[currentTabIdx + 1].label : '—'}</span>
+          <span>→</span>
+        </button>
+      </div>
     </CartographieLayout>
   )
 }

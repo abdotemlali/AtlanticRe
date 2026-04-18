@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Select from 'react-select'
 import {
@@ -19,6 +19,26 @@ import { useAnalysePaysInsights } from '../hooks/useAnalyseInsights'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type YearSel = number | 'avg'
+
+type TabId =
+  | 'kpis'
+  | 'radar'
+  | 'non-vie'
+  | 'vie'
+  | 'macro'
+  | 'gouvernance'
+  | 'positionnement'
+
+// ── Tab definitions ────────────────────────────────────────────────────────────
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'kpis',            label: 'KPIs & Évolution', icon: '📊' },
+  { id: 'radar',           label: 'Radar',             icon: '🎯' },
+  { id: 'non-vie',         label: 'Non-Vie',           icon: '🔵' },
+  { id: 'vie',             label: 'Vie',               icon: '🟢' },
+  { id: 'macro',           label: 'Macroéconomie',    icon: '💹' },
+  { id: 'gouvernance',     label: 'Gouvernance',       icon: '🏛' },
+  { id: 'positionnement',  label: 'Positionnement',   icon: '🏆' },
+]
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function avg(a: number[]) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0 }
@@ -74,17 +94,17 @@ function YearOrAvgNav({ years, value, onChange }: { years: number[]; value: Year
 function StabBadge({ v }: { v: number | null }) {
   if (v == null) return <span className="text-gray-400">—</span>
   const [label, color, bg] =
-    v >= 0.5  ? ['Stable',        '#1E8449', 'hsla(140,50%,40%,0.12)'] :
-    v >= -0.5 ? ['Modéré',        '#B9770E', 'hsla(35,85%,55%,0.12)'] :
-               ['Instable',       '#922B21', 'hsla(0,60%,50%,0.12)']
+    v >= 0.5  ? ['Stable',   '#1E8449', 'hsla(140,50%,40%,0.12)'] :
+    v >= -0.5 ? ['Modéré',   '#B9770E', 'hsla(35,85%,55%,0.12)'] :
+               ['Instable',  '#922B21', 'hsla(0,60%,50%,0.12)']
   return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color, background: bg }}>{label}</span>
 }
 function KaopenBadge({ v }: { v: number | null }) {
   if (v == null) return <span className="text-gray-400">—</span>
   const [label, color, bg] =
-    v > 1    ? ['Ouvert',   '#1E8449', 'hsla(140,50%,40%,0.12)'] :
-    v >= -0.5 ? ['Partiel',  '#B9770E', 'hsla(35,85%,55%,0.12)'] :
-               ['Fermé',    '#922B21', 'hsla(0,60%,50%,0.12)']
+    v > 1    ? ['Ouvert',  '#1E8449', 'hsla(140,50%,40%,0.12)'] :
+    v >= -0.5 ? ['Partiel', '#B9770E', 'hsla(35,85%,55%,0.12)'] :
+               ['Fermé',   '#922B21', 'hsla(0,60%,50%,0.12)']
   return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color, background: bg }}>{label}</span>
 }
 function FdiBadge({ v }: { v: number | null }) {
@@ -106,18 +126,82 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── NAV items ──────────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { id: 'header',         label: 'Identité' },
-  { id: 'scorecard',      label: 'KPIs' },
-  { id: 'evolution',      label: 'Évolution' },
-  { id: 'radar',          label: 'Radar' },
-  { id: 'non-vie',        label: 'Non-Vie' },
-  { id: 'vie',            label: 'Vie' },
-  { id: 'macro',          label: 'Macroéconomie' },
-  { id: 'gouvernance',    label: 'Gouvernance' },
-  { id: 'positionnement', label: 'Positionnement' },
-]
+// ── Tab Navigation Bar ─────────────────────────────────────────────────────────
+function TabNav({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: TabId
+  onTabChange: (t: TabId) => void
+}) {
+  return (
+    <div
+      className="bg-white rounded-xl overflow-hidden mb-1"
+      style={{ border: '1px solid hsl(0,0%,90%)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+    >
+      <div className="flex overflow-x-auto scrollbar-hide">
+        {TABS.map((tab, i) => {
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all relative flex-shrink-0"
+              style={
+                active
+                  ? {
+                      color: 'hsl(83,52%,30%)',
+                      background: 'hsla(83,52%,42%,0.08)',
+                      borderBottom: '2px solid hsl(83,52%,36%)',
+                    }
+                  : {
+                      color: '#6b7280',
+                      borderBottom: '2px solid transparent',
+                    }
+              }
+              id={`tab-${tab.id}`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {i < TABS.length - 1 && !active && (
+                <span
+                  className="absolute right-0 top-1/4 bottom-1/4 w-px"
+                  style={{ background: 'hsl(0,0%,90%)' }}
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Tab progress indicator ─────────────────────────────────────────────────────
+function TabProgress({ activeTab }: { activeTab: TabId }) {
+  const currentIndex = TABS.findIndex(t => t.id === activeTab)
+  return (
+    <div className="flex items-center gap-1.5 mb-4">
+      {TABS.map((tab, i) => (
+        <div
+          key={tab.id}
+          className="h-1 rounded-full transition-all"
+          style={{
+            flex: 1,
+            background: i === currentIndex
+              ? 'hsl(83,52%,36%)'
+              : i < currentIndex
+              ? 'hsla(83,52%,36%,0.35)'
+              : 'hsl(0,0%,90%)',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ── NAV items (sidebar désactivée pour AnalysePays) ───────────────────────────
+const NAV_ITEMS: { id: string; label: string }[] = []
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AnalysePays() {
@@ -130,12 +214,18 @@ export default function AnalysePays() {
   const { data: gouvData }         = useCartographieData('gouvernance')
 
   const [selectedYear, setSelectedYear] = useState<YearSel>('avg')
+  const [activeTab, setActiveTab] = useState<TabId>('kpis')
   const paysDecoded = pays ? decodeURIComponent(pays) : ''
 
-  // ── Scroll to top when country changes ───────────────────────────────────
+  // ── Scroll to top when country or tab changes ─────────────────────────────
   useEffect(() => {
     const container = document.getElementById('scar-main-scroll')
     if (container) container.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [pays, activeTab])
+
+  // ── Reset tab to kpis when country changes ────────────────────────────────
+  useEffect(() => {
+    setActiveTab('kpis')
   }, [pays])
 
   // ── Filter rows for this country ──────────────────────────────────────────
@@ -239,11 +329,6 @@ export default function AnalysePays() {
 
   // ── Radar 6D ──────────────────────────────────────────────────────────────
   const radarData = useMemo(() => {
-    const getNvAvg  = (f: keyof typeof nvData[0])    => { const v = getRowVal(nvData,    f, selectedYear); return v }
-    const getMacAvg = (f: keyof typeof macroData[0]) => { const v = getRowVal(macroData, f, selectedYear); return v }
-    const getGovAvg = (f: keyof typeof gouvData[0])  => { const v = getRowVal(gouvData,  f, selectedYear); return v }
-
-    // Continental maxima for normalization (from full dataset)
     const source = selectedYear === 'avg' ? nvData : nvData.filter(r => r.annee === selectedYear)
     const macSrc  = selectedYear === 'avg' ? macroData : macroData.filter(r => r.annee === selectedYear)
     const gouvSrc = selectedYear === 'avg' ? gouvData : gouvData.filter(r => r.annee === selectedYear)
@@ -252,7 +337,6 @@ export default function AnalysePays() {
     const maxContPenetNV   = Math.max(0, ...source.map(r => r.taux_penetration_pct ?? 0))
     const maxContGdpCap    = Math.max(0, ...macSrc.map(r => r.gdp_per_capita ?? 0))
 
-    // Values for this country
     const primesNV  = nvVal('primes_emises_mn_usd')
     const penetNV   = nvVal('taux_penetration_pct')
     const primesVie = vieVal('primes_emises_mn_usd')
@@ -260,20 +344,11 @@ export default function AnalysePays() {
     const polStab   = gouvVal('political_stability')
     const kaopen    = gouvVal('kaopen')
 
-    // Vies max
     const vieSrc = selectedYear === 'avg' ? vieData : vieData.filter(r => r.annee === selectedYear)
     const maxContPrimesVie = Math.max(0, ...vieSrc.map(r => r.primes_emises_mn_usd ?? 0))
 
     const norm = (v: number | null, max: number) => v != null && max > 0 ? Math.min(100, (v / max) * 100) : 0
     const normWgi = (v: number | null) => v != null ? Math.max(0, Math.min(100, ((v + 2.5) / 5) * 100)) : 0
-
-    // Median continental
-    const avgPrimesNV  = getNvAvg('primes_emises_mn_usd')
-    const avgPenetNV   = getNvAvg('taux_penetration_pct')
-    const avgPrimesVie = getRowVal(vieData, 'primes_emises_mn_usd', selectedYear)
-    const avgGdpCap    = getMacAvg('gdp_per_capita')
-    const avgPolStab   = getGovAvg('political_stability')
-    const avgKaopen    = getGovAvg('kaopen')
 
     const medPrimesNV  = median((selectedYear === 'avg' ? nvData : nvData.filter(r => r.annee === selectedYear)).map(r => r.primes_emises_mn_usd).filter((v): v is number => v != null))
     const medPenetNV   = median((selectedYear === 'avg' ? nvData : nvData.filter(r => r.annee === selectedYear)).map(r => r.taux_penetration_pct).filter((v): v is number => v != null))
@@ -282,50 +357,18 @@ export default function AnalysePays() {
     const medPolStab   = median(gouvSrc.map(r => r.political_stability).filter((v): v is number => v != null))
     const medKaopen    = median(gouvSrc.map(r => r.kaopen).filter((v): v is number => v != null))
 
-    void avgPrimesNV; void avgPenetNV; void avgPrimesVie; void avgGdpCap; void avgPolStab; void avgKaopen
-
     return [
-      {
-        dim: 'Primes NV',
-        pays: norm(primesNV, maxContPrimesNV),
-        mediane: norm(medPrimesNV, maxContPrimesNV),
-        fullMark: 100,
-      },
-      {
-        dim: 'Pénétration NV',
-        pays: norm(penetNV, maxContPenetNV),
-        mediane: norm(medPenetNV, maxContPenetNV),
-        fullMark: 100,
-      },
-      {
-        dim: 'Primes Vie',
-        pays: norm(primesVie, maxContPrimesVie),
-        mediane: norm(medPrimesVie, maxContPrimesVie),
-        fullMark: 100,
-      },
-      {
-        dim: 'PIB/hab',
-        pays: norm(gdpCap, maxContGdpCap),
-        mediane: norm(medGdpCap, maxContGdpCap),
-        fullMark: 100,
-      },
-      {
-        dim: 'Stabilité pol.',
-        pays: normWgi(polStab),
-        mediane: normWgi(medPolStab),
-        fullMark: 100,
-      },
-      {
-        dim: 'Ouverture fin.',
-        pays: normWgi(kaopen),
-        mediane: normWgi(medKaopen),
-        fullMark: 100,
-      },
+      { dim: 'Primes NV',     pays: norm(primesNV, maxContPrimesNV), mediane: norm(medPrimesNV, maxContPrimesNV), fullMark: 100 },
+      { dim: 'Pénétration NV', pays: norm(penetNV, maxContPenetNV),  mediane: norm(medPenetNV, maxContPenetNV),  fullMark: 100 },
+      { dim: 'Primes Vie',    pays: norm(primesVie, maxContPrimesVie), mediane: norm(medPrimesVie, maxContPrimesVie), fullMark: 100 },
+      { dim: 'PIB/hab',       pays: norm(gdpCap, maxContGdpCap),    mediane: norm(medGdpCap, maxContGdpCap),    fullMark: 100 },
+      { dim: 'Stabilité pol.', pays: normWgi(polStab),               mediane: normWgi(medPolStab),               fullMark: 100 },
+      { dim: 'Ouverture fin.', pays: normWgi(kaopen),                mediane: normWgi(medKaopen),                fullMark: 100 },
     ]
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nvData, vieData, macroData, gouvData, nvRows, vieRows, macRows, gouvRows, selectedYear])
 
-  // ── NV positioning bar (top 10 + current country) ─────────────────────────
+  // ── NV positioning bar ────────────────────────────────────────────────────
   const nvPositionData = useMemo(() => {
     const source = selectedYear === 'avg' ? nvData : nvData.filter(r => r.annee === selectedYear)
     const byPays: Record<string, { region: string; vals: number[] }> = {}
@@ -402,7 +445,6 @@ export default function AnalysePays() {
       { label: 'IDE (% PIB)',          value: fdiMap.get(paysDecoded) ?? null,       rank: rank(fdiMap, paysDecoded),      fmt: fmtPct },
     ]
 
-    // vs région
     const region = countryRegion
     const regNvPrimesVals  = [...nvPrimesMap.entries()].filter(([p]) => (nvData.find(r => r.pays === p)?.region ?? '') === region).map(([, v]) => v)
     const regNvPenetVals   = [...nvPenetMap.entries()].filter(([p]) => (nvData.find(r => r.pays === p)?.region ?? '') === region).map(([, v]) => v)
@@ -418,7 +460,6 @@ export default function AnalysePays() {
       fdi:      regFdiVals.length      ? avg(regFdiVals)      : null,
     }
 
-    // vs médiane continentale
     const medContNvPrimes = median([...nvPrimesMap.values()])
     const medContNvPenet  = median([...nvPenetMap.values()])
     const medContGdpCap   = median([...gdpCapMap.values()])
@@ -430,389 +471,509 @@ export default function AnalysePays() {
   }, [nvData, vieData, macroData, gouvData, paysDecoded, selectedYear, countryRegion])
 
   const yearLabel = selectedYear === 'avg' ? 'Moy. 2015–2024' : String(selectedYear)
-
-  // ── Tooltip style ─────────────────────────────────────────────────────────
   const tooltipStyle = { borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }
+
+  const handleTabChange = useCallback((t: TabId) => {
+    setActiveTab(t)
+  }, [])
+
+  // ── Tab button navigation (prev/next) ─────────────────────────────────────
+  const currentTabIdx = TABS.findIndex(t => t.id === activeTab)
+  const goPrev = () => { if (currentTabIdx > 0) setActiveTab(TABS[currentTabIdx - 1].id) }
+  const goNext = () => { if (currentTabIdx < TABS.length - 1) setActiveTab(TABS[currentTabIdx + 1].id) }
 
   return (
     <CartographieLayout
-      title={`Analyse · ${paysDecoded}`}
-      subtitle="Vue complète sur les 4 dimensions : Non-Vie, Vie, Macroéconomie et Gouvernance"
-      dataSource="Axco Navigator · World Bank · IMF · WGI · Chinn-Ito"
+      title=""
+      subtitle=""
+      dataSource=""
       navItems={NAV_ITEMS}
     >
-      {/* ── HEADER PAYS ───────────────────────────────────────────────────── */}
-      <section id="header" className="scroll-mt-20">
+      {/* ── HEADER PERMANENT ────────────────────────────────────────────── */}
+      <div
+        id="tab-nav"
+        className="bg-white rounded-xl overflow-hidden"
+        style={{ border: '1px solid hsl(0,0%,88%)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+      >
+        {/* Ligne 1 — Identité pays + actions */}
         <div
-          className="bg-white rounded-xl p-6"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
+          className="px-5 py-4 flex items-center gap-4"
+          style={{ borderBottom: '1px solid hsl(0,0%,93%)' }}
         >
-          <div className="flex flex-col md:flex-row md:items-center gap-4 flex-wrap">
-            {/* Identity */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{paysDecoded}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[11px] font-bold"
-                    style={{ background: `${regionColor}18`, color: regionColor }}
-                  >{countryRegion}</span>
-                </div>
+          {/* Badge région (couleur) */}
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+            style={{ background: `${regionColor}18`, border: `2px solid ${regionColor}35` }}
+          >🌍</div>
+
+          {/* Nom pays + région */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900 leading-none truncate">{paysDecoded}</h1>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase flex-shrink-0"
+                style={{ background: `${regionColor}18`, color: regionColor }}
+              >{countryRegion}</span>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5">Afrique · 34 pays couverts · Axco · World Bank · WGI</p>
+          </div>
+
+          {/* Dropdown changement de pays */}
+          <div className="w-52 flex-shrink-0 hidden sm:block">
+            <Select
+              options={countryOptions}
+              value={countryOptions.find(o => o.value === paysDecoded) || null}
+              onChange={v => v && navigate(`/modelisation/analyse/${encodeURIComponent(v.value)}`)}
+              placeholder="Changer de pays…"
+              isClearable={false}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              styles={{
+                control: (b: any) => ({
+                  ...b, borderRadius: 8, minHeight: 34, fontSize: 12,
+                  borderColor: 'hsl(0,0%,86%)', boxShadow: 'none',
+                  '&:hover': { borderColor: 'hsl(83,52%,42%)' },
+                }),
+                valueContainer: (b: any) => ({ ...b, padding: '0 8px' }),
+                option: (b: any, s: any) => ({
+                  ...b, fontSize: 12,
+                  background: s.isFocused ? 'hsla(83,52%,42%,0.10)' : 'white',
+                  color: '#374151',
+                }),
+              }}
+            />
+          </div>
+
+          {/* Bouton retour */}
+          <button
+            onClick={() => navigate('/modelisation/analyse')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-shrink-0 hover:shadow-sm"
+            style={{
+              background: 'hsl(0,0%,97%)',
+              color: '#374151',
+              border: '1px solid hsl(0,0%,86%)',
+            }}
+          >
+            <span style={{ fontSize: 14 }}>←</span>
+            <span className="hidden sm:inline">Analyse globale</span>
+          </button>
+
+          {/* Bouton comparaison */}
+          <button
+            onClick={() => navigate(`/modelisation/comparaison?a=${encodeURIComponent(paysDecoded)}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-shrink-0 hover:shadow-sm"
+            style={{
+              background: 'hsla(83,52%,36%,0.10)',
+              color: 'hsl(83,52%,28%)',
+              border: '1px solid hsla(83,52%,36%,0.30)',
+            }}
+          >
+            <span>⚖️</span>
+            <span className="hidden sm:inline">Comparer</span>
+          </button>
+        </div>
+
+        {/* Ligne 2 — Sélecteur de période */}
+        <div
+          className="px-5 py-2.5 flex items-center gap-3"
+          style={{ borderBottom: '1px solid hsl(0,0%,93%)', background: 'hsl(0,0%,98.5%)' }}
+        >
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest flex-shrink-0"
+            style={{ color: 'hsl(0,0%,50%)' }}
+          >Période</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {years.map(y => (
+              <button
+                key={y}
+                onClick={() => setSelectedYear(y)}
+                className="px-2 py-0.5 rounded text-[11px] font-semibold transition-colors"
+                style={selectedYear === y
+                  ? { background: 'hsl(83,52%,36%)', color: 'white' }
+                  : { background: 'white', color: '#6b7280', border: '1px solid hsl(0,0%,88%)' }}
+              >{y}</button>
+            ))}
+            <button
+              onClick={() => setSelectedYear('avg')}
+              className="px-2.5 py-0.5 rounded text-[11px] font-semibold transition-colors"
+              style={selectedYear === 'avg'
+                ? { background: 'hsl(83,52%,36%)', color: 'white' }
+                : { background: 'white', color: '#6b7280', border: '1px solid hsl(0,0%,88%)' }}
+            >Moy. 2015–2024</button>
+          </div>
+        </div>
+
+        {/* Ligne 3 — Barre de tabs */}
+        <TabNav activeTab={activeTab} onTabChange={handleTabChange} />
+      </div>
+
+      {/* Progress bar */}
+      <TabProgress activeTab={activeTab} />
+
+      {/* ── TAB CONTENT ─────────────────────────────────────────────────── */}
+      <div id="tab-content" className="space-y-5">
+
+        {/* ── TAB: KPIs + ÉVOLUTION ─────────────────────────────────────── */}
+        {activeTab === 'kpis' && (
+          <div className="space-y-5 animate-fade-in">
+            <SectionTitle>📊 Tableau de bord — {paysDecoded}</SectionTitle>
+            <CartographieKPIGrid kpis={kpis} />
+
+            {/* Évolution 2015–2024 */}
+            <SectionTitle>📈 Évolution 2015–2024 : Assurance &amp; Macroéconomie</SectionTitle>
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
+            >
+              <p className="text-xs text-gray-500 mb-4">
+                Série complète 2015–2024. Axe gauche : primes (Mn$) · Axe droit : indicateurs macroéconomiques (%).
+              </p>
+              <ResponsiveContainer width="100%" height={360}>
+                <ComposedChart data={evoData} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left" tickFormatter={v => fmtMn(v)} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                  <Bar yAxisId="left" dataKey="primes_nv"  name="Primes NV"  fill="hsl(83,52%,42%)"  fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="primes_vie" name="Primes Vie" fill="hsl(140,50%,40%)" fillOpacity={0.5} radius={[3, 3, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="gdp_growth" name="Croiss. PIB %"  stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="inflation"  name="Inflation %"    stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: RADAR ────────────────────────────────────────────────── */}
+        {activeTab === 'radar' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <SectionTitle>🎯 Profil multidimensionnel — {yearLabel}</SectionTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Période :</span>
+                <YearOrAvgNav years={years} value={selectedYear} onChange={setSelectedYear} />
+              </div>
+            </div>
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
+            >
+              <p className="text-xs text-gray-500 mb-4">
+                Comparaison du pays vs la médiane des 34 pays africains sur 6 dimensions normalisées (0–100).
+              </p>
+              <ResponsiveContainer width="100%" height={400}>
+                <RadarChart data={radarData} margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
+                  <PolarGrid stroke="#e5e7eb" />
+                  <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <Radar name={paysDecoded} dataKey="pays"    stroke="hsl(83,52%,42%)"  fill="hsl(83,52%,42%)"  fillOpacity={0.3} strokeWidth={2} />
+                  <Radar name="Médiane continentale" dataKey="mediane" stroke="#1B3F6B" fill="#1B3F6B" fillOpacity={0.1} strokeWidth={1.5} strokeDasharray="5 3" />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: NON-VIE ──────────────────────────────────────────────── */}
+        {activeTab === 'non-vie' && (
+          <div className="space-y-5 animate-fade-in">
+            <SectionTitle>🔵 Assurance Non-Vie — {paysDecoded}</SectionTitle>
+
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs Non-Vie 2015–2024</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={nvRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                  <Bar    yAxisId="left"  dataKey="primes_emises_mn_usd" name="Primes (Mn$)"  fill="hsl(83,52%,42%)" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+                  <Line   yAxisId="right" type="monotone" dataKey="taux_penetration_pct" name="Pénétration %" stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line   yAxisId="right" type="monotone" dataKey="densite_assurance_usd" name="Densité ($/hab)" stroke="#E8940C" strokeWidth={1.5} dot={{ r: 2 }} />
+                  <Line   yAxisId="right" type="monotone" dataKey="croissance_primes_pct" name="Croissance %"  stroke="#1E8449" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <h3 className="text-xs font-bold text-gray-600 mb-3">Rang continental — Primes Non-Vie ({yearLabel})</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={nvPositionData} layout="vertical" margin={{ top: 5, right: 50, left: 100, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <XAxis type="number" tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis type="category" dataKey="pays" tick={{ fontSize: 10, fill: '#374151' }} width={100} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtMn(v)} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} name="Primes NV">
+                    {nvPositionData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.pays === paysDecoded || entry.pays.includes(paysDecoded)
+                          ? 'hsl(83,52%,36%)'
+                          : 'hsla(27,47%,37%,0.30)'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <NvTable rows={nvRows} />
+            <InsightPanel icon="🔵" title={`PROFIL NON-VIE — ${paysDecoded.toUpperCase()}`} cards={nvInsights} />
+          </div>
+        )}
+
+        {/* ── TAB: VIE ──────────────────────────────────────────────────── */}
+        {activeTab === 'vie' && (
+          <div className="space-y-5 animate-fade-in">
+            <SectionTitle>🟢 Assurance Vie — {paysDecoded}</SectionTitle>
+
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs Vie 2015–2024</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={vieRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar    yAxisId="left"  dataKey="primes_emises_mn_usd" name="Primes Vie (Mn$)" fill="hsl(140,50%,40%)" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+                  <Line   yAxisId="right" type="monotone" dataKey="taux_penetration_pct" name="Pénétration %" stroke="hsl(83,52%,36%)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line   yAxisId="right" type="monotone" dataKey="densite_assurance_usd" name="Densité ($/hab)" stroke="#E8940C" strokeWidth={1.5} dot={{ r: 2 }} />
+                  <Line   yAxisId="right" type="monotone" dataKey="croissance_primes_pct" name="Croissance %" stroke="#1E8449" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <NvVieStructure nvRows={nvRows} vieRows={vieRows} />
+            <VieTable rows={vieRows} />
+            <InsightPanel icon="🟢" title={`PROFIL VIE — ${paysDecoded.toUpperCase()}`} cards={vieInsights} />
+          </div>
+        )}
+
+        {/* ── TAB: MACROÉCONOMIE ────────────────────────────────────────── */}
+        {activeTab === 'macro' && (
+          <div className="space-y-5 animate-fade-in">
+            <SectionTitle>💹 Macroéconomie — {paysDecoded}</SectionTitle>
+
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution macro 2015–2024</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={macRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                  <Bar    yAxisId="left"  dataKey="gdp_mn"           name="PIB (Mn$)"         fill="hsl(209,42%,30%)" fillOpacity={0.6} radius={[3, 3, 0, 0]} />
+                  <Line   yAxisId="right" type="monotone" dataKey="gdp_growth_pct"    name="Croiss. PIB %"  stroke="#1E8449" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line   yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation %"   stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Période :</span>
+              <YearOrAvgNav years={years} value={selectedYear} onChange={setSelectedYear} />
+            </div>
+
+            <MacroRadar macRows={macRows} allMacroData={macroData} countryRegion={countryRegion} pays={paysDecoded} selectedYear={selectedYear} />
+            <MacroTable rows={macRows} />
+            <InsightPanel icon="📊" title={`PROFIL MACRO — ${paysDecoded.toUpperCase()}`} cards={macInsights} />
+          </div>
+        )}
+
+        {/* ── TAB: GOUVERNANCE ──────────────────────────────────────────── */}
+        {activeTab === 'gouvernance' && (
+          <div className="space-y-5 animate-fade-in">
+            <SectionTitle>🏛 Gouvernance — {paysDecoded}</SectionTitle>
+
+            <div
+              className="bg-white rounded-xl p-5"
+              style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+            >
+              <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs de gouvernance 2015–2024</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={gouvRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis yAxisId="left"  domain={[-2.5, 2.5]} tickFormatter={v => v.toFixed(1)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <ReferenceLine yAxisId="left" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                  <Line yAxisId="left"  type="monotone" dataKey="political_stability" name="Stab. politique" stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left"  type="monotone" dataKey="regulatory_quality"  name="Qualité régl."  stroke="#1E8449" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left"  type="monotone" dataKey="kaopen"              name="KAOPEN"          stroke="#8E44AD" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="5 3" />
+                  <Line yAxisId="right" type="monotone" dataKey="fdi_inflows_pct_gdp" name="IDE (% PIB)"    stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Période :</span>
+              <YearOrAvgNav years={years} value={selectedYear} onChange={setSelectedYear} />
+            </div>
+
+            <GouvRadar gouvRows={gouvRows} allGouvData={gouvData} pays={paysDecoded} selectedYear={selectedYear} />
+            <GouvScorecard gouvRows={gouvRows} />
+            <GouvTable rows={gouvRows} />
+            <InsightPanel icon="🏛" title={`PROFIL GOUVERNANCE — ${paysDecoded.toUpperCase()}`} cards={gouvInsights} />
+          </div>
+        )}
+
+        {/* ── TAB: POSITIONNEMENT ───────────────────────────────────────── */}
+        {activeTab === 'positionnement' && (
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <SectionTitle>🏆 Positionnement Continental — {yearLabel}</SectionTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Période :</span>
+                <YearOrAvgNav years={years} value={selectedYear} onChange={setSelectedYear} />
               </div>
             </div>
 
-            {/* Country selector */}
-            <div className="w-full md:w-64">
-              <Select
-                options={countryOptions}
-                value={countryOptions.find(o => o.value === paysDecoded) || null}
-                onChange={v => v && navigate(`/modelisation/analyse/${encodeURIComponent(v.value)}`)}
-                placeholder="Changer de pays…"
-                isClearable={false}
-                menuPortalTarget={document.body}
-                menuPosition="fixed"
-                styles={{
-                  control: (b: any) => ({
-                    ...b, borderRadius: 10, minHeight: 40,
-                    borderColor: 'hsl(0,0%,88%)', boxShadow: 'none',
-                    '&:hover': { borderColor: 'hsl(83,52%,42%)' },
-                  }),
-                  option: (b: any, s: any) => ({
-                    ...b,
-                    background: s.isFocused ? 'hsla(83,52%,42%,0.10)' : 'white',
-                    color: '#374151', fontSize: 13,
-                  }),
-                }}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Bloc 1 — Rang continental */}
+              <div
+                className="bg-white rounded-xl p-5"
+                style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              >
+                <h3 className="text-xs font-bold text-gray-700 mb-3">Rang continental (sur 34 pays)</h3>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="py-1.5 text-left font-bold text-gray-500">Indicateur</th>
+                      <th className="py-1.5 text-right font-bold text-gray-500">Valeur</th>
+                      <th className="py-1.5 text-right font-bold text-gray-500">Rang</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positionnement.indicators.map(ind => (
+                      <tr key={ind.label} className="border-b border-gray-100">
+                        <td className="py-1.5 text-gray-700">{ind.label}</td>
+                        <td className="py-1.5 text-right font-mono text-gray-700">{ind.fmt(ind.value)}</td>
+                        <td className="py-1.5 text-right">
+                          {ind.rank != null ? (
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                              style={ind.rank <= 10
+                                ? { color: '#1E8449', background: 'hsla(140,50%,40%,0.12)' }
+                                : ind.rank <= 20
+                                ? { color: '#B9770E', background: 'hsla(35,85%,55%,0.12)' }
+                                : { color: '#922B21', background: 'hsla(0,60%,50%,0.12)' }
+                              }
+                            >{ind.rank}/34</span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bloc 2 — Vs région */}
+              <div
+                className="bg-white rounded-xl p-5"
+                style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              >
+                <h3 className="text-xs font-bold text-gray-700 mb-1">Vs moyenne de sa région</h3>
+                <p className="text-[11px] text-gray-500 mb-3">{countryRegion}</p>
+                <VsTable
+                  pays={paysDecoded}
+                  items={[
+                    { label: 'Primes NV',    pays: positionnement.indicators[0].value,    ref: positionnement.regAvg.nvPrimes, fmt: fmtMn,     higher: true },
+                    { label: 'Pénétration NV', pays: positionnement.indicators[1].value,  ref: positionnement.regAvg.nvPenet,  fmt: fmtPct,    higher: true },
+                    { label: 'PIB/hab',      pays: positionnement.indicators[3].value,    ref: positionnement.regAvg.gdpCap,   fmt: fmtUsd,    higher: true },
+                    { label: 'Stab. pol.',   pays: positionnement.indicators[5].value,    ref: positionnement.regAvg.polStab,  fmt: fmtWgi,    higher: true },
+                    { label: 'IDE (% PIB)',  pays: positionnement.indicators[6].value,    ref: positionnement.regAvg.fdi,      fmt: fmtPct,    higher: true },
+                  ]}
+                />
+              </div>
+
+              {/* Bloc 3 — Vs médiane continentale */}
+              <div
+                className="bg-white rounded-xl p-5"
+                style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              >
+                <h3 className="text-xs font-bold text-gray-700 mb-1">Vs médiane continentale</h3>
+                <p className="text-[11px] text-gray-500 mb-3">34 pays africains</p>
+                <VsTable
+                  pays={paysDecoded}
+                  items={[
+                    { label: 'Primes NV',    pays: positionnement.indicators[0].value,   ref: positionnement.median.nvPrimes,  fmt: fmtMn,  higher: true },
+                    { label: 'Pénétration NV', pays: positionnement.indicators[1].value, ref: positionnement.median.nvPenet,   fmt: fmtPct, higher: true },
+                    { label: 'PIB/hab',      pays: positionnement.indicators[3].value,   ref: positionnement.median.gdpCap,    fmt: fmtUsd, higher: true },
+                    { label: 'Stab. pol.',   pays: positionnement.indicators[5].value,   ref: positionnement.median.polStab,   fmt: fmtWgi, higher: true },
+                    { label: 'IDE (% PIB)',  pays: positionnement.indicators[6].value,   ref: positionnement.median.fdi,       fmt: fmtPct, higher: true },
+                  ]}
+                />
+              </div>
             </div>
 
-            {/* Back button */}
-            <button
-              onClick={() => navigate('/modelisation/analyse')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0"
-              style={{ background: 'hsla(83,52%,42%,0.10)', color: 'hsl(83,52%,30%)', border: '1px solid hsla(83,52%,42%,0.25)' }}
-            >← Retour à l'analyse globale</button>
-          </div>
-
-          {/* Year selector */}
-          <div className="flex items-center gap-3 mt-4 flex-wrap">
-            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Période :</span>
-            <YearOrAvgNav years={years} value={selectedYear} onChange={setSelectedYear} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── SCORECARD 8 KPIs ──────────────────────────────────────────────── */}
-      <section id="scorecard" className="scroll-mt-20">
-        <CartographieKPIGrid kpis={kpis} />
-      </section>
-
-      {/* ── ÉVOLUTION GLOBALE (série complète, ignore year selector) ──────── */}
-      <section id="evolution" className="scroll-mt-20 space-y-3">
-        <SectionTitle>📈 Évolution 2015–2024 : Assurance &amp; Macroéconomie</SectionTitle>
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
-        >
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart data={evoData} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left" tickFormatter={v => fmtMn(v)} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Bar yAxisId="left" dataKey="primes_nv"  name="Primes NV"  fill="hsl(83,52%,42%)"  fillOpacity={0.7} radius={[3, 3, 0, 0]} />
-              <Bar yAxisId="left" dataKey="primes_vie" name="Primes Vie" fill="hsl(140,50%,40%)" fillOpacity={0.5} radius={[3, 3, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="gdp_growth" name="Croiss. PIB %"  stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="right" type="monotone" dataKey="inflation"  name="Inflation %"    stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* ── RADAR 6D ──────────────────────────────────────────────────────── */}
-      <section id="radar" className="scroll-mt-20 space-y-3">
-        <SectionTitle>🎯 Profil multidimensionnel — {yearLabel}</SectionTitle>
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}
-        >
-          <ResponsiveContainer width="100%" height={380}>
-            <RadarChart data={radarData} margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
-              <PolarGrid stroke="#e5e7eb" />
-              <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
-              <Radar name={paysDecoded} dataKey="pays"    stroke="hsl(83,52%,42%)"  fill="hsl(83,52%,42%)"  fillOpacity={0.3} strokeWidth={2} />
-              <Radar name="Médiane continentale" dataKey="mediane" stroke="#1B3F6B" fill="#1B3F6B" fillOpacity={0.1} strokeWidth={1.5} strokeDasharray="5 3" />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* ── SECTION NON-VIE ───────────────────────────────────────────────── */}
-      <section id="non-vie" className="scroll-mt-20 space-y-5">
-        <SectionTitle>🔵 Assurance Non-Vie</SectionTitle>
-
-        {/* 4a — Évolution NV (série complète) */}
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs Non-Vie 2015–2024</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={nvRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Bar    yAxisId="left"  dataKey="primes_emises_mn_usd" name="Primes (Mn$)"  fill="hsl(83,52%,42%)" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
-              <Line   yAxisId="right" type="monotone" dataKey="taux_penetration_pct" name="Pénétration %" stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
-              <Line   yAxisId="right" type="monotone" dataKey="densite_assurance_usd" name="Densité ($/hab)" stroke="#E8940C" strokeWidth={1.5} dot={{ r: 2 }} />
-              <Line   yAxisId="right" type="monotone" dataKey="croissance_primes_pct" name="Croissance %"  stroke="#1E8449" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 4b — Positionnement continental NV */}
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <h3 className="text-xs font-bold text-gray-600 mb-3">Rang continental — Primes Non-Vie ({yearLabel})</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={nvPositionData} layout="vertical" margin={{ top: 5, right: 50, left: 100, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis type="category" dataKey="pays" tick={{ fontSize: 10, fill: '#374151' }} width={100} />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtMn(v)} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} name="Primes NV">
-                {nvPositionData.map((entry, i) => (
-                  <Cell
-                    key={i}
-                    fill={entry.pays === paysDecoded || entry.pays.includes(paysDecoded)
-                      ? 'hsl(83,52%,36%)'
-                      : 'hsla(27,47%,37%,0.30)'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 4c — Tableau NV */}
-        <NvTable rows={nvRows} />
-
-        {/* 4d — Insights NV */}
-        <InsightPanel icon="🔵" title={`PROFIL NON-VIE — ${paysDecoded.toUpperCase()}`} cards={nvInsights} />
-      </section>
-
-      {/* ── SECTION VIE ───────────────────────────────────────────────────── */}
-      <section id="vie" className="scroll-mt-20 space-y-5">
-        <SectionTitle>🟢 Assurance Vie</SectionTitle>
-
-        {/* 5a — Évolution Vie (série complète) */}
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs Vie 2015–2024</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={vieRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar    yAxisId="left"  dataKey="primes_emises_mn_usd" name="Primes Vie (Mn$)" fill="hsl(140,50%,40%)" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
-              <Line   yAxisId="right" type="monotone" dataKey="taux_penetration_pct" name="Pénétration %" stroke="hsl(83,52%,36%)" strokeWidth={2} dot={{ r: 3 }} />
-              <Line   yAxisId="right" type="monotone" dataKey="densite_assurance_usd" name="Densité ($/hab)" stroke="#E8940C" strokeWidth={1.5} dot={{ r: 2 }} />
-              <Line   yAxisId="right" type="monotone" dataKey="croissance_primes_pct" name="Croissance %" stroke="#1E8449" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 5b — Structure NV vs Vie */}
-        <NvVieStructure nvRows={nvRows} vieRows={vieRows} />
-
-        {/* 5c — Tableau Vie */}
-        <VieTable rows={vieRows} />
-
-        {/* 5d — Insights Vie */}
-        <InsightPanel icon="🟢" title={`PROFIL VIE — ${paysDecoded.toUpperCase()}`} cards={vieInsights} />
-      </section>
-
-      {/* ── SECTION MACRO ─────────────────────────────────────────────────── */}
-      <section id="macro" className="scroll-mt-20 space-y-5">
-        <SectionTitle>📊 Macroéconomie</SectionTitle>
-
-        {/* 6a — Évolution macro (série complète) */}
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution macro 2015–2024</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={macRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left"  tickFormatter={v => fmtMn(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Bar    yAxisId="left"  dataKey="gdp_mn"           name="PIB (Mn$)"         fill="hsl(209,42%,30%)" fillOpacity={0.6} radius={[3, 3, 0, 0]} />
-              <Line   yAxisId="right" type="monotone" dataKey="gdp_growth_pct"    name="Croiss. PIB %"  stroke="#1E8449" strokeWidth={2} dot={{ r: 3 }} />
-              <Line   yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation %"   stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 6b — Radar macro régional */}
-        <MacroRadar macRows={macRows} allMacroData={macroData} countryRegion={countryRegion} pays={paysDecoded} selectedYear={selectedYear} />
-
-        {/* 6c — Tableau macro */}
-        <MacroTable rows={macRows} />
-
-        {/* 6d — Insights macro */}
-        <InsightPanel icon="📊" title={`PROFIL MACRO — ${paysDecoded.toUpperCase()}`} cards={macInsights} />
-      </section>
-
-      {/* ── SECTION GOUVERNANCE ───────────────────────────────────────────── */}
-      <section id="gouvernance" className="scroll-mt-20 space-y-5">
-        <SectionTitle>🏛 Gouvernance</SectionTitle>
-
-        {/* 7a — Évolution WGI (série complète) */}
-        <div
-          className="bg-white rounded-xl p-5"
-          style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-        >
-          <h3 className="text-xs font-bold text-gray-600 mb-3">Évolution des indicateurs de gouvernance 2015–2024</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={gouvRows} margin={{ top: 5, right: 50, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis yAxisId="left"  domain={[-2.5, 2.5]} tickFormatter={v => v.toFixed(1)} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v?.toFixed(1)}%`} tick={{ fontSize: 10, fill: '#64748b' }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine yAxisId="left" y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Line yAxisId="left"  type="monotone" dataKey="political_stability" name="Stab. politique" stroke="#1B3F6B" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="left"  type="monotone" dataKey="regulatory_quality"  name="Qualité régl."  stroke="#1E8449" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="left"  type="monotone" dataKey="kaopen"              name="KAOPEN"          stroke="#8E44AD" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="5 3" />
-              <Line yAxisId="right" type="monotone" dataKey="fdi_inflows_pct_gdp" name="IDE (% PIB)"    stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 7b — Radar WGI */}
-        <GouvRadar gouvRows={gouvRows} allGouvData={gouvData} pays={paysDecoded} selectedYear={selectedYear} />
-
-        {/* 7c — KPI scorecard gouvernance */}
-        <GouvScorecard gouvRows={gouvRows} />
-
-        {/* 7d — Tableau gouvernance */}
-        <GouvTable rows={gouvRows} />
-
-        {/* 7e — Insights gouvernance */}
-        <InsightPanel icon="🏛" title={`PROFIL GOUVERNANCE — ${paysDecoded.toUpperCase()}`} cards={gouvInsights} />
-      </section>
-
-      {/* ── POSITIONNEMENT CONTINENTAL ────────────────────────────────────── */}
-      <section id="positionnement" className="scroll-mt-20 space-y-5">
-        <SectionTitle>🌍 Positionnement Continental — {yearLabel}</SectionTitle>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Bloc 1 — Rang continental */}
-          <div
-            className="bg-white rounded-xl p-5"
-            style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-          >
-            <h3 className="text-xs font-bold text-gray-700 mb-3">Rang continental (sur 34 pays)</h3>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-1.5 text-left font-bold text-gray-500">Indicateur</th>
-                  <th className="py-1.5 text-right font-bold text-gray-500">Valeur</th>
-                  <th className="py-1.5 text-right font-bold text-gray-500">Rang</th>
-                </tr>
-              </thead>
-              <tbody>
-                {positionnement.indicators.map(ind => (
-                  <tr key={ind.label} className="border-b border-gray-100">
-                    <td className="py-1.5 text-gray-700">{ind.label}</td>
-                    <td className="py-1.5 text-right font-mono text-gray-700">{ind.fmt(ind.value)}</td>
-                    <td className="py-1.5 text-right">
-                      {ind.rank != null ? (
-                        <span
-                          className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                          style={ind.rank <= 10
-                            ? { color: '#1E8449', background: 'hsla(140,50%,40%,0.12)' }
-                            : ind.rank <= 20
-                            ? { color: '#B9770E', background: 'hsla(35,85%,55%,0.12)' }
-                            : { color: '#922B21', background: 'hsla(0,60%,50%,0.12)' }
-                          }
-                        >{ind.rank}/34</span>
-                      ) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Bloc 2 — Vs région */}
-          <div
-            className="bg-white rounded-xl p-5"
-            style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-          >
-            <h3 className="text-xs font-bold text-gray-700 mb-1">Vs moyenne de sa région</h3>
-            <p className="text-[11px] text-gray-500 mb-3">{countryRegion}</p>
-            <VsTable
-              pays={paysDecoded}
-              items={[
-                { label: 'Primes NV',    pays: positionnement.indicators[0].value,    ref: positionnement.regAvg.nvPrimes, fmt: fmtMn,     higher: true },
-                { label: 'Pénétration NV', pays: positionnement.indicators[1].value,  ref: positionnement.regAvg.nvPenet,  fmt: fmtPct,    higher: true },
-                { label: 'PIB/hab',      pays: positionnement.indicators[3].value,    ref: positionnement.regAvg.gdpCap,   fmt: fmtUsd,    higher: true },
-                { label: 'Stab. pol.',   pays: positionnement.indicators[5].value,    ref: positionnement.regAvg.polStab,  fmt: fmtWgi,    higher: true },
-                { label: 'IDE (% PIB)',  pays: positionnement.indicators[6].value,    ref: positionnement.regAvg.fdi,      fmt: fmtPct,    higher: true },
-              ]}
+            {/* Synthèse finale */}
+            <InsightPanel
+              icon="🎯"
+              title={`SYNTHÈSE — ${paysDecoded.toUpperCase()} · PERSPECTIVES ATLANTIC RE`}
+              cards={syntheseInsights}
             />
           </div>
+        )}
 
-          {/* Bloc 3 — Vs médiane continentale */}
-          <div
-            className="bg-white rounded-xl p-5"
-            style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+        {/* ── PREV / NEXT NAVIGATION ────────────────────────────────────── */}
+        <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid hsl(0,0%,92%)' }}>
+          <button
+            onClick={goPrev}
+            disabled={currentTabIdx === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={
+              currentTabIdx === 0
+                ? { color: '#d1d5db', cursor: 'not-allowed' }
+                : { color: 'hsl(83,52%,30%)', background: 'hsla(83,52%,42%,0.08)', border: '1px solid hsla(83,52%,42%,0.20)' }
+            }
           >
-            <h3 className="text-xs font-bold text-gray-700 mb-1">Vs médiane continentale</h3>
-            <p className="text-[11px] text-gray-500 mb-3">34 pays africains</p>
-            <VsTable
-              pays={paysDecoded}
-              items={[
-                { label: 'Primes NV',    pays: positionnement.indicators[0].value,   ref: positionnement.median.nvPrimes,  fmt: fmtMn,  higher: true },
-                { label: 'Pénétration NV', pays: positionnement.indicators[1].value, ref: positionnement.median.nvPenet,   fmt: fmtPct, higher: true },
-                { label: 'PIB/hab',      pays: positionnement.indicators[3].value,   ref: positionnement.median.gdpCap,    fmt: fmtUsd, higher: true },
-                { label: 'Stab. pol.',   pays: positionnement.indicators[5].value,   ref: positionnement.median.polStab,   fmt: fmtWgi, higher: true },
-                { label: 'IDE (% PIB)',  pays: positionnement.indicators[6].value,   ref: positionnement.median.fdi,       fmt: fmtPct, higher: true },
-              ]}
-            />
-          </div>
-        </div>
-      </section>
+            ← {currentTabIdx > 0 ? `${TABS[currentTabIdx - 1].icon} ${TABS[currentTabIdx - 1].label}` : 'Début'}
+          </button>
 
-      {/* ── SYNTHÈSE PAYS ─────────────────────────────────────────────────── */}
-      <InsightPanel
-        icon="🎯"
-        title={`SYNTHÈSE — ${paysDecoded.toUpperCase()} · PERSPECTIVES ATLANTIC RE`}
-        cards={syntheseInsights}
-      />
+          <span className="text-xs text-gray-400 font-semibold">
+            {currentTabIdx + 1} / {TABS.length}
+          </span>
+
+          <button
+            onClick={goNext}
+            disabled={currentTabIdx === TABS.length - 1}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={
+              currentTabIdx === TABS.length - 1
+                ? { color: '#d1d5db', cursor: 'not-allowed' }
+                : { color: 'hsl(83,52%,30%)', background: 'hsla(83,52%,42%,0.08)', border: '1px solid hsla(83,52%,42%,0.20)' }
+            }
+          >
+            {currentTabIdx < TABS.length - 1 ? `${TABS[currentTabIdx + 1].icon} ${TABS[currentTabIdx + 1].label}` : 'Fin'} →
+          </button>
+        </div>
+      </div>
     </CartographieLayout>
   )
 }
