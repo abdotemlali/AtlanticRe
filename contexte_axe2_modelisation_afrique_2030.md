@@ -1,8 +1,8 @@
 # Contexte Axe 2 — Modélisation Afrique 2030 (AtlanticRe)
 
-> **Document de référence exhaustif — Axe 2**  
-> Version : Avril 2026 | Mis à jour depuis le code source (commit f2d7a7c)  
-> Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 2 de l'application AtlanticRe.
+> **Document de référence exhaustif — Axe 2 + Module Synergique**  
+> Version : Avril 2026 | Mis à jour depuis le code source  
+> Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 2 de l'application AtlanticRe, ainsi que le module **Analyse Synergique (Axe 1×2)**.
 
 ---
 
@@ -27,7 +27,11 @@ L'Axe 2 "Modélisation Afrique 2030" est la **dimension prospective et stratégi
 /modelisation/cartographie/gouvernance   → CartographieGouvernance.tsx
 /modelisation/analyse                    → AnalyseGlobale.tsx
 /modelisation/analyse/:pays              → AnalysePays.tsx
-/modelisation/comparaison                → ComparaisonPays.tsx   ← NOUVEAU
+/modelisation/comparaison                → ComparaisonPays.tsx
+
+# Module Synergique (Axe 1 × Axe 2) — hors ScarLayout
+/analyse-synergie                        → AnalyseSynergie.tsx   ← NOUVEAU
+/analyse-synergie/:pays                  → AnalyseSynergiePays.tsx ← NOUVEAU
 ```
 
 Toutes ces routes sont sous le layout `<ScarLayout />` (navbar olive, fond clair adapté Axe 2).
@@ -41,6 +45,7 @@ Toutes ces routes sont sous le layout `<ScarLayout />` (navbar olive, fond clair
 | Macroéconomie | World Bank · IMF · UNCTAD |
 | Gouvernance | World Bank WGI · Chinn-Ito Index · UNCTAD FDI |
 | Analyse par Pays | Consolidation des 4 sources ci-dessus |
+| Analyse Synergique | Portefeuille interne Atlantic Re × données marché africaines (converties MAD) |
 
 ### 1.4 Stack technique (Axe 2 spécifique)
 
@@ -53,6 +58,8 @@ Toutes ces routes sont sous le layout `<ScarLayout />` (navbar olive, fond clair
 | `useParams` (react-router) | Récupération du pays depuis l'URL (`:pays`) |
 | `useSearchParams` (react-router) | Récupération des paramètres query (`:a`, `:b` dans ComparaisonPays) |
 | `react-select` | Sélecteur de pays avec navigation automatique |
+| `api` (axios instance) | Client HTTP interne — utilisé intensivement dans le module Synergique |
+| `formatMAD` | Formateur de montants en MAD (Dirham marocain) |
 
 ---
 
@@ -1094,6 +1101,375 @@ export function useAnalysePaysInsights(
 // Insights contextualisés pays vs continent :
 // positionnement, tendances, risques, opportunités Atlantic Re
 ```
+
+---
+
+## 21. Module Analyse Synergique — Vue globale (`/analyse-synergie`)
+
+### 21.1 Description et positionnement
+
+`AnalyseSynergie.tsx` — **Vue croisée Portefeuille Interne (Axe 1) × Marchés Africains (Axe 2)**. Ce module est la couche de synthèse stratégique d'AtlanticRe : il croise les données du portefeuille réel et les données de marché externes pour mesurer le positionnement effectif d'Atlantic Re sur chaque marché africain.
+
+**Badge identitaire** : `⚙ Axe 1 — Portefeuille` × `🌍 Axe 2 — Afrique` → `⚡ Analyse Synergique`
+
+**Thème couleur** : Or/Ambre (`GOLD = hsl(43,96%,48%)`, `GOLD_DARK = hsl(35,88%,38%)`) — distinct de l'olive Axe 2 et du navy Axe 1.
+
+**Layout** : Intégré dans `ScarLayout` (navbar olive). Accessible via la navbar Axe 2 et la navbar principale.
+
+### 21.2 Tabs (5 onglets)
+
+```typescript
+type SynTabId = 'kpis' | 'classement' | 'evolution' | 'synthese' | 'cedantes'
+
+const SYN_TABS = [
+  { id: 'kpis',       label: 'KPIs & Synthèse',   icon: '📊' },
+  { id: 'classement', label: 'Classement Pays',    icon: '🌍' },
+  { id: 'evolution',  label: 'Évolution',          icon: '📈' },
+  { id: 'synthese',   label: 'Synthèse par Pays',  icon: '🗂️' },
+  { id: 'cedantes',   label: 'Détail par Cédante', icon: '🏢' },
+]
+```
+
+**Navigation** : `SynTabNav` + `SynTabProgress` (thème or, `hsl(35,88%,38%)` actif). Boutons Préc/Suiv + compteur `X / 5`.
+
+### 21.3 Contrôles globaux (persistants au-dessus des tabs)
+
+| Contrôle | Description |
+|---|---|
+| **Taux USD → MAD** | Panneau collapsible — `GET/PUT /synergie/settings` — valeur stockée en base et rechargée à l'init |
+| **Filtre Vie / Non-Vie** | Deux boutons pill — modifie `activeFilter: 'all' \| 'vie' \| 'nonvie'` — impacte KPIs et classements |
+| **Sélecteur d'année** | Boutons pilules : années disponibles + "Moyenne" — déclenche rechargement des endpoints year-dependent |
+| **Sélecteur pays** | `react-select` — navigue vers `/analyse-synergie/:pays` |
+
+### 21.4 APIs consommées
+
+```
+GET  /synergie/settings                         → { usd_to_mad: number }
+PUT  /synergie/settings                         → Sauvegarde du taux
+GET  /synergie/pays-croises                     → PaysCroise[]
+GET  /synergie/kpis?year=&usd_to_mad=           → GlobalKPIs
+GET  /synergie/classements?year=&usd_to_mad=    → Classements
+GET  /synergie/evolution?usd_to_mad=            → EvolutionRow[]
+GET  /synergie/tableau-pays?year=&usd_to_mad=   → TableauPaysRow[]
+GET  /synergie/tableau-cedantes?year=&usd_to_mad= → TableauCedanteRow[]
+```
+
+`/synergie/kpis`, `/synergie/classements`, `/synergie/tableau-pays`, `/synergie/tableau-cedantes` : rechargés à chaque changement d'année ou de taux.
+`/synergie/evolution` : chargé une seule fois (dépend uniquement du taux).
+
+### 21.5 Types de données
+
+```typescript
+interface GlobalKPIs {
+  nb_pays_croises: number              // Pays intersection portefeuille × données
+  nb_pays_croises_nonvie: number
+  nb_pays_croises_vie: number
+  primes_marche_total_mad: number      // Primes totales du marché (MAD)
+  primes_marche_nonvie_mad: number
+  primes_marche_vie_mad: number
+  subject_premium_total: number        // Primes des affaires soumises
+  subject_premium_nonvie_total: number
+  subject_premium_vie_total: number
+  written_premium_total: number        // Primes Atlantic Re souscrites
+  written_premium_nonvie_total: number
+  written_premium_vie_total: number
+  share_written_avg: number            // Part moyenne souscrite (%)
+  share_written_avg_nonvie: number
+  share_written_avg_vie: number
+  penetration_marche_pct: number       // ⭐ Pénétration réelle sur le marché (%)
+  penetration_marche_pct_nonvie: number
+  penetration_marche_pct_vie: number
+  annees_disponibles: number[]
+}
+
+interface TableauPaysRow {
+  pays: string
+  primes_marche_total_mad: number
+  primes_nonvie_mad: number
+  primes_vie_mad: number
+  subject_premium: number
+  subject_nonvie: number
+  subject_vie: number
+  written_premium: number
+  written_nonvie: number
+  written_vie: number
+  share_written_avg: number
+  share_written_avg_nonvie: number
+  share_written_avg_vie: number
+  penetration_marche_pct: number
+  penetration_marche_pct_nonvie: number
+  penetration_marche_pct_vie: number
+  nb_affaires: number
+  nb_cedantes: number
+  ulr_moyen: number
+}
+
+interface TableauCedanteRow {
+  cedante: string
+  pays_risque: string
+  nb_affaires: number
+  subject_premium: number
+  subject_nonvie: number
+  subject_vie: number
+  written_premium: number
+  written_nonvie: number
+  written_vie: number
+  share_written_avg: number
+  share_written_avg_nonvie: number
+  share_written_avg_vie: number
+  penetration_marche_pct: number
+  penetration_marche_pct_nonvie: number
+  penetration_marche_pct_vie: number
+  ulr_moyen: number
+  branches: string[]
+}
+
+interface EvolutionRow {
+  year: number
+  primes_marche_nonvie_mad: number
+  primes_marche_vie_mad: number
+  primes_marche_total_mad: number
+  subject_premium: number
+  subject_nonvie: number
+  subject_vie: number
+  written_premium: number
+  written_nonvie: number
+  written_vie: number
+  share_written_avg: number
+  share_written_avg_nonvie: number
+  share_written_avg_vie: number
+  penetration_marche_pct: number
+  penetration_marche_pct_nonvie: number
+  penetration_marche_pct_vie: number
+}
+```
+
+**Formule clé — Pénétration Réelle** :
+```
+penetration_marche_pct = SHARE_WRITTEN × (Subject Premium / Primes Marché) × 100
+```
+C'est l'**indicateur ⭐ stratégique principal** : il mesure la part effective d'Atlantic Re sur l'ensemble du marché (pas seulement sur les affaires participées).
+
+### 21.6 Tab : KPIs & Synthèse
+
+6 cartes KPI en grille `1 → 2 → 3` colonnes responsive. La 6ème carte (Pénétration Réelle) est **mise en avant** (`kpi-gold-highlighted`) avec badge doré `⭐ Indicateur Clé`.
+
+Toutes les valeurs réagissent au `activeFilter` (all / vie / nonvie).
+
+### 21.7 Tab : Classement Pays — Top 15
+
+6 graphiques `BarChart` horizontal — chacun affiche le **Top 15 pays** :
+
+| Graphique | Métrique principale |
+|---|---|
+| 🏆 Primes de Marché | `primes_marche_total_mad` — stacké NV + Vie |
+| 📋 Primes des Affaires Souscrites | `subject_premium` — stacké NV + Vie |
+| 💼 Primes Atlantic Re | `written_premium` — stacké NV + Vie |
+| 📊 Part sur les Affaires | `share_written_avg` (%) — sensible au filtre NV/Vie |
+| ⭐ Pénétration Réelle | `penetration_marche_pct` (%) — sensible au filtre NV/Vie |
+| 📉 Sinistralité (ULR) | `ulr_moyen` (%) — couleurs dynamiques : vert/orange/rouge |
+
+**Navigation** : clic sur un pays dans un graphique → navigue vers `/analyse-synergie/:pays`.
+
+**ULR Color** : vert < 70% · orange 70-100% · rouge > 100%.
+
+### 21.8 Tab : Évolution
+
+5 métriques sélectionnables via `evoNavOptions` :
+
+| ID | Label | Graphique |
+|---|---|---|
+| `primes_marche` | Primes de Marché | ComposedChart stacké NV+Vie + Line Total |
+| `subject_premium` | Primes Affaires Souscrites | ComposedChart stacké NV+Vie + Line Total |
+| `written_premium` | Primes Atlantic Re | ComposedChart stacké NV+Vie + Line Total |
+| `share_written` | Part sur les Affaires (%) | BarChart simple |
+| `penetration_marche` | Pénétration Réelle ⭐ | AreaChart rempli (GOLD_FILL) |
+
+Tous les charts filtrent selon `activeFilter` (affichage NV uniquement, Vie uniquement, ou les deux).
+
+### 21.9 Tab : Synthèse par Pays
+
+Tableau complet de tous les pays croisés — colonnes triables, recherche texte, pagination (20 lignes/page).
+
+**Colonnes** : Pays · Primes Marché · Subject NV · Subject Vie · Written NV · Written Vie · Part (%) · Pénétration (%) · Affaires · Cédantes · ULR (%)
+
+Clic sur une ligne → navigue vers `/analyse-synergie/:pays`.
+
+**Sort** : tri par colonne (click sur header), tableau `sortedPays` recalculé via `useMemo`.
+
+### 21.10 Tab : Détail par Cédante
+
+Tableau de toutes les cédantes × pays — colonnes triables, recherche texte, pagination.
+
+**Colonnes** : Cédante · Pays Risque · Affaires · Subject (NV, Vie, Total) · Written · Part (%) · Pénétration (%) · ULR · Branches
+
+Clic sur `Pays Risque` → navigue vers `/analyse-synergie/:pays`.
+
+### 21.11 ULR Color helper
+
+```typescript
+function ulrColor(v: number): string {
+  if (v < 70)  return 'hsl(152,56%,39%)'  // Vert — sain
+  if (v < 100) return 'hsl(30,88%,56%)'   // Orange — risque
+  return 'hsl(358,66%,54%)'               // Rouge — critique
+}
+```
+
+---
+
+## 22. Module Analyse Synergique — Vue pays (`/analyse-synergie/:pays`)
+
+### 22.1 Description
+
+`AnalyseSynergiePays.tsx` — **Rapport détaillé de positionnement Atlantic Re dans un marché africain**. Page la plus stratégique de l'application : croise données de marché (Axe 2) et données de portefeuille (Axe 1) pour générer un diagnostic automatique.
+
+**Accès** : depuis `AnalyseSynergie` (click pays dans graphique, tableau, ou sélecteur).
+**Retour** : bouton `← Analyse Synergique` dans le header.
+
+### 22.2 Tabs (4 onglets)
+
+```typescript
+type PaysTabId = 'kpis' | 'evolution' | 'rapport' | 'cedantes'
+
+const PAYS_TABS = [
+  { id: 'kpis',      label: 'KPIs & Synthèse',          icon: '📊' },
+  { id: 'evolution', label: 'Évolution',                 icon: '📈' },
+  { id: 'rapport',   label: 'Rapport de Recommandation', icon: '📋' },
+  { id: 'cedantes',  label: 'Détail par Cédante',        icon: '📁' },
+]
+```
+
+**Navigation** : `PaysTabNav` + `PaysTabProgress` (même thème or que la vue globale). Boutons Préc/Suiv. Scroll-to-top automatique au changement de tab **et** au changement de pays.
+
+### 22.3 Contrôles
+
+| Contrôle | Description |
+|---|---|
+| **Filtre Vie / Non-Vie** | Pills dans le header — même logique que la vue globale |
+| **Sélecteur d'année** | Boutons pilules issus de `kpis.annees_disponibles` + "Moyenne" |
+| **Bouton retour** | `← Analyse Synergique` → navigue vers `/analyse-synergie` |
+
+### 22.4 APIs consommées
+
+```
+GET /synergie/settings                                   → { usd_to_mad: number }
+GET /synergie/pays/:pays/kpis?year=&usd_to_mad=         → PaysKPIs
+GET /synergie/pays/:pays/evolution?usd_to_mad=          → EvolutionRow[]
+GET /synergie/pays/:pays/rapport?year=&usd_to_mad=      → Rapport
+GET /synergie/pays/:pays/tableau-cedantes?year=&usd_to_mad= → TableauCedanteRow[]
+```
+
+### 22.5 Interface `Rapport` (unique au module pays)
+
+```typescript
+interface Rapport {
+  pays: string
+  primes_marche_total_mad: number
+  primes_nonvie_mad: number
+  primes_vie_mad: number
+  subject_premium: number
+  written_premium: number
+  share_written_avg: number       // SHARE_WRITTEN moyen (%)
+  penetration_marche_pct: number  // Pénétration réelle (%)
+  ulr_moyen: number               // ULR moyen (%)
+  nb_cedantes: number
+  nb_affaires: number
+  croissance_marche_cagr: number  // CAGR du marché (%/an)
+  croissance_written_cagr: number // CAGR des primes Atlantic Re (%/an)
+  cedantes_detail: CedanteDetail[]
+  branches_presentes: string[]
+  branches_absentes: string[]
+  evolution_marche: { year: number; nonvie: number; vie: number; total: number }[]
+  evolution_atlantic: { year: number; subject_premium: number; written_premium: number; share_written_avg: number; penetration_marche_pct: number }[]
+  annees_disponibles: number[]
+}
+
+interface CedanteDetail {
+  cedante: string
+  subject_premium: number
+  written_premium: number
+  share_written: number
+  share_written_avg: number
+  ulr: number
+  ulr_moyen: number
+  nb_affaires: number
+  pct_written_vs_pays: number   // % des primes totales du pays — trié DESC
+}
+```
+
+### 22.6 Tab : KPIs & Synthèse
+
+6 cartes KPI en grille `1 → 2 → 3` colonnes :
+
+| KPI | Données |
+|---|---|
+| Primes Totales du Marché | `primes_marche_total_mad` (filtrable NV/Vie) |
+| Primes des Affaires Souscrites | `subject_premium_total` (filtrable NV/Vie) |
+| Primes Totales Atlantic Re | `written_premium_total` (filtrable NV/Vie) |
+| Part sur les Affaires | `share_written_avg` (%) — filtrable NV/Vie |
+| Marchés / Affaires / Cédantes | `nb_affaires` · `nb_cedantes` · `ulr_moyen` |
+| ⭐ Pénétration Réelle *(highlighted)* | `penetration_marche_pct` (filtrable NV/Vie) |
+
+**Header KPI** : affiche badges dorés (nb affaires, nb cédantes), badge ULR coloré, badge Part affaires, badge Pénétration réelle ⭐.
+
+### 22.7 Tab : Évolution
+
+Identique à la vue globale mais scopé au pays. 5 métriques sélectionnables via `evoNavOptions`. Charts ReactCharts filtrent selon `activeFilter`.
+
+### 22.8 Tab : Rapport de Recommandation
+
+Système de diagnostic automatique — voir section **`docs/rapport-recommandation-logique.md`** pour le détail complet.
+
+**Synthèse** :
+
+**Paramètres configurables (`RapportParams`)** — ajustables via panneau `⚙ Paramètres` :
+
+| Paramètre | Défaut | Signification |
+|---|---|---|
+| `seuil_part_elevee` | 30% | Share Written > seuil → concentration |
+| `seuil_ulr_risque` | 80% | ULR > seuil → sinistralité préoccupante |
+| `seuil_ulr_critique` | 100% | ULR > seuil → sinistralité critique |
+| `seuil_cedantes_min` | 2 | Nb cédantes < seuil → mono-cédante |
+| `seuil_cedantes_max` | 10 | Nb cédantes > seuil → portefeuille étendu |
+| `seuil_croissance_elevee` | 10% | CAGR > seuil → marché en forte croissance |
+| `seuil_penetration_faible` | 0.1% | Pénétration < seuil → sous-représentation |
+| `seuil_cedante_dominante` | 40% | Top cédante > seuil → concentration bilatérale |
+
+**6 sections diagnostiques** générées par `buildDiagnostics(rapport, params)` :
+
+| Section | Variable(s) | Classes possibles |
+|---|---|---|
+| 1 — Positionnement | `share_written_avg`, `penetration_marche_pct` | `success` / `warning` / `info` |
+| 2 — Sinistralité | `ulr_moyen` | `success` / `warning` / `danger` |
+| 3 — Diversification Cédantes | `nb_cedantes`, `pct_top_cedante` | `success` / `warning` / `danger` / `info` |
+| 4 — Dynamique Marché | `croissance_marche_cagr`, `penetration`, `ulr` | `opportunity` / `success` / `danger` / `info` |
+| 5 — Branches *(conditionnelle)* | `branches_absentes`, `branches_presentes` | `info` |
+| 6 — Recommandations Stratégiques | Agrégat des sections 1-5 | `danger` / `warning` / `success` |
+
+**Recalcul** : 100% client-side via `useMemo([rapport, rapportParams])` — pas de nouvel appel API.
+
+**Bouton "Réinitialiser"** : restaure `DEFAULT_PARAMS`.
+
+### 22.9 Tab : Détail par Cédante
+
+Tableau des cédantes pour le pays sélectionné, trié par `written_premium` DESC. Recherche texte, pagination (20/page). Colonnes : Cédante · Affaires · Subject · Written · Part (%) · Pénétration · ULR · Branches · % du pays.
+
+### 22.10 Styles CSS spécifiques au module Synergique
+
+```typescript
+// Classes CSS utilisées (définies dans index.css ou équivalent)
+'kpi-gold'            // Carte KPI standard — fond blanc, accentuation or
+'kpi-gold-highlighted' // Carte KPI vedette — fond dégradé or subtil, badge ⭐
+'badge-gold'          // Badge pilule doré
+'btn-gold'            // Bouton action principal doré
+'animate-fade-in'     // Animation d'entrée des onglets
+```
+
+### 22.11 Navigation et UX
+
+- **Scroll-to-top** : `document.getElementById('scar-main-scroll')?.scrollTo({ top: 0, behavior: 'instant' })` — déclenché à chaque changement de tab ET à chaque changement de pays (via `useEffect([pays])`)
+- **URI encoding** : `encodeURIComponent(pays)` à la navigation, `decodeURIComponent(paysParam)` à la réception
+- **Filtre actif** : `activeFilter: 'all' | 'vie' | 'nonvie'` dérivé de `filterVie` et `filterNonVie` (les deux activés = 'all', les deux désactivés = 'all')
 
 ---
 

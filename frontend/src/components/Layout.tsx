@@ -7,12 +7,12 @@ import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
   LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
-  Globe, Briefcase, Shield, FileText, Users, Crosshair, Shuffle
+  Globe, Briefcase, Shield, FileText, Users, Crosshair, Shuffle, Combine
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 // ─── Nav types ───────────────────────────────────────────────────────────────
-type NavChild  = { to: string; label: string; icon: React.ElementType }
+type NavChild  = { to: string; label: string; icon: React.ElementType; gold?: boolean }
 type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
 type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
 type NavItem   = NavDirect | NavGroup
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
       { to: '/analyse-cedante',   label: 'Analyse Cédante',      icon: PieChart   },
       { to: '/analyse-courtiers', label: 'Analyse Courtiers',    icon: Briefcase  },
       { to: '/exposition',        label: 'Exposition & Risques', icon: Globe      },
+      { to: '/analyse-synergie',  label: 'Analyse Synergie',   icon: Combine,  gold: true },
     ],
   },
   {
@@ -105,7 +106,7 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
           padding: 6,
         }}
       >
-        {children.map(({ to, label: childLabel, icon: ChildIcon }) => (
+        {children.map(({ to, label: childLabel, icon: ChildIcon, gold }) => (
           <NavLink
             key={to}
             to={to}
@@ -114,9 +115,13 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
                 'flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap',
                 'transition-all duration-200',
                 isActive
-                  ? 'text-white bg-[hsla(83,52%,36%,0.22)]'
-                  : 'text-white/55 hover:text-white/90 hover:bg-[hsla(0,0%,100%,0.07)]',
+                  ? gold ? 'text-white' : 'text-white bg-[hsla(83,52%,36%,0.22)]'
+                  : gold ? 'hover:bg-[hsla(0,0%,100%,0.07)]' : 'text-white/55 hover:text-white/90 hover:bg-[hsla(0,0%,100%,0.07)]',
               ].join(' ')
+            }
+            style={({ isActive }) => gold
+              ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', background: isActive ? 'hsla(43,96%,48%,0.25)' : undefined }
+              : undefined
             }
           >
             {({ isActive }) => (
@@ -124,9 +129,19 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
                 <ChildIcon
                   size={13}
                   className="flex-shrink-0"
-                  style={isActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.5 }}
+                  style={
+                    gold
+                      ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', opacity: 1 }
+                      : isActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.5 }
+                  }
                 />
                 <span>{childLabel}</span>
+                {gold && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
+                    Axe 1x2
+                  </span>
+                )}
               </>
             )}
           </NavLink>

@@ -4,10 +4,10 @@ import React from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, BarChart2, ChevronDown, Compass, Database, LayoutDashboard, Map,
-  Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark,
+  Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark, Combine,
 } from 'lucide-react'
 
-type NavChild = { to: string; label: string; icon: React.ElementType; enabled?: boolean }
+type NavChild = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
 type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
 type NavGroup = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
 type NavItem = NavDirect | NavGroup
@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
     children: [
       { to: '/modelisation/analyse', label: 'Analyse par Pays', icon: BarChart2, enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Network, enabled: true },
+      { to: '/analyse-synergie', label: 'Analyse Synergie', icon: Combine, enabled: true, gold: true },
       { to: '/modelisation/projections', label: 'Projections ML', icon: TrendingUp },
     ],
   },
@@ -79,6 +80,31 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
         {children.map(child => {
           const ChildIcon = child.icon
           if (child.enabled) {
+            if (child.gold) {
+              return (
+                <NavLink
+                  key={child.to}
+                  to={child.to}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200"
+                  style={({ isActive }) => ({
+                    color: isActive ? 'white' : 'hsl(43,96%,70%)',
+                    background: isActive ? 'hsla(43,96%,48%,0.28)' : undefined,
+                  })}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'hsla(43,96%,48%,0.15)' }}
+                  onMouseLeave={e => {
+                    const active = e.currentTarget.getAttribute('aria-current') === 'page'
+                    e.currentTarget.style.background = active ? 'hsla(43,96%,48%,0.28)' : ''
+                  }}
+                >
+                  <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(43,96%,65%)' }} />
+                  <span>{child.label}</span>
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
+                    Axe 1x2
+                  </span>
+                </NavLink>
+              )
+            }
             return (
               <NavLink
                 key={child.to}

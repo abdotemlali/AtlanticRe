@@ -46,6 +46,14 @@
   --color-emerald:     hsl(152, 56%, 39%);
   --color-amber:       hsl(43, 96%, 56%);
 
+  /* ── Analyse Synergique — Gold / Ambre premium ── */
+  --synergie-gold:       hsl(43, 96%, 48%);
+  --synergie-gold-dark:  hsl(35, 88%, 38%);
+  --synergie-gold-light: hsl(48, 96%, 65%);
+  --synergie-gold-pale:  hsla(43, 96%, 48%, 0.08);
+  --synergie-gold-muted: hsla(43, 96%, 48%, 0.15);
+  --synergie-amber:      hsl(35, 88%, 50%);
+
   /* Glassmorphism tokens */
   --glass-bg:          hsla(0, 0%, 100%, 0.72);
   --glass-border:      hsla(0, 0%, 100%, 0.28);
@@ -932,3 +940,55 @@ input[type="checkbox"]:focus {
   background: linear-gradient(90deg, transparent 0%, var(--color-gray-200) 25%, var(--color-gray-200) 75%, transparent 100%);
   margin: 4px 16px;
 }
+
+/* ============================================================
+   30. ANALYSE SYNERGIQUE — Gold design system
+   ============================================================ */
+.btn-gold {
+  background: linear-gradient(135deg, var(--synergie-gold), var(--synergie-amber));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+.btn-gold:hover { filter: brightness(1.08); }
+
+.kpi-gold {
+  background: linear-gradient(135deg, hsla(43,96%,48%,0.07), hsla(35,88%,50%,0.04));
+  border-left: 4px solid var(--synergie-gold);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.kpi-gold-highlighted {
+  background: linear-gradient(135deg, hsla(43,96%,48%,0.12), hsla(35,88%,50%,0.08));
+  border: 2px solid var(--synergie-gold);
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 20px hsla(43,96%,48%,0.15);
+}
+
+.badge-gold {
+  background: var(--synergie-gold-pale);
+  color: var(--synergie-gold-dark);
+  border: 1px solid var(--synergie-gold-muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Sections rapport */
+.rapport-section { border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+.rapport-section-danger      { background: hsla(358,66%,54%,0.07); border-left: 4px solid hsl(358,66%,54%); }
+.rapport-section-warning     { background: hsla(30,88%,56%,0.07);  border-left: 4px solid hsl(30,88%,56%);  }
+.rapport-section-success     { background: hsla(152,56%,39%,0.07); border-left: 4px solid hsl(152,56%,39%); }
+.rapport-section-opportunity { background: hsla(43,96%,48%,0.07);  border-left: 4px solid var(--synergie-gold); }
+.rapport-section-info        { background: hsla(209,35%,16%,0.05); border-left: 4px solid hsl(209,35%,40%); }
+
+/* Progress bar gold */
+.progress-gold      { background: var(--synergie-gold-muted); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-gold-fill { background: linear-gradient(90deg, var(--synergie-gold), var(--synergie-amber));
+                      height: 100%; border-radius: 4px; transition: width 0.4s ease; }
