@@ -1,7 +1,7 @@
 # Contexte Axe 1 — Portefeuille Interne (AtlanticRe)
 
 > **Document de référence exhaustif — Axe 1**  
-> Version : Avril 2026 | Généré à partir du code source  
+> Version : Avril 2026 | Mis à jour depuis le code source (commit f2d7a7c)  
 > Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 1 de l'application AtlanticRe.
 
 ---
@@ -45,19 +45,32 @@ Toutes les routes Axe 1 sont **protégées** par `AuthProvider`. Le code-splitti
 ```
 /                         → Home.tsx (choix des axes)
 /login                    → Login.tsx (public)
+/reset-password           → ResetPassword.tsx (public)
+/change-password          → ChangePassword.tsx (public)
 
 ─── Axe 1 (Dashboard opérationnel) ───────────────────────
 /dashboard                → Dashboard.tsx
 /analyse                  → Analysis.tsx (Analyse Cédantes)
+/analyse/:pays            → Analysis.tsx (avec pays pré-sélectionné)
+/analyse-cedante          → CedanteAnalysis.tsx
+/analyse-cedante/:cedante → CedanteAnalysis.tsx (fiche cédante)
+/scoring                  → MarketSelection.tsx (Scoring marché)
+/comparaison              → Comparison.tsx
+/recommandations          → Recommendations.tsx
 /analyse-courtiers        → BrokerAnalysis.tsx
-/selection                → MarketSelection.tsx (Scoring marché)
-/comparaison              → Comparaison.tsx
+/analyse-courtiers/:brokerName → BrokerDetail.tsx
+/top-brokers              → BrokerAnalysis.tsx (alias)
+/exposition               → ExpositionRisques.tsx
+/fac-saturation           → FacSaturation.tsx
 
 ─── Axe 1 — Rétrocession ──────────────────────────────────
 /retrocession/traites     → AffairesTraites.tsx
-/retrocession/cibles-tty  → TargetShare.tsx
+/cibles-tty               → TargetShare.tsx
+/retrocession/securites   → PanelSecurites.tsx
 /retrocession/fac-to-fac  → FacToFac.tsx
-/retrocession/securites   → Securities.tsx
+
+─── Admin ─────────────────────────────────────────────────
+/admin                    → Admin.tsx (admin uniquement)
 ```
 
 ---
@@ -106,6 +119,10 @@ Composant `LocalFilterPanel.tsx` — panneau de filtres **local** (indépendant 
 features: ['year', 'branch', 'typeContract', 'lifeScope', 'cedante', 'broker', 'country']
 ```
 
+### 2.5 PageFilterPanel
+
+Composant `PageFilterPanel.tsx` — panneau de filtres local alternatif, utilisé dans certaines pages analytiques. Similaire à `LocalFilterPanel` mais avec une UI différente.
+
 ---
 
 ## 3. Page : Dashboard (`/dashboard`)
@@ -119,25 +136,30 @@ Page d'accueil opérationnelle de l'Axe 1. Donne une vue panoramique du portefeu
 | Composant | Rôle |
 |---|---|
 | `FilterPanel` | Filtres globaux persistants |
-| `KPICards` | 4 cartes de KPI haut de page |
+| `KPICards` | Cartes de KPI haut de page |
 | `WorldMap` | Carte mondiale choroplèthe |
 | `EvolutionChart` | Courbe d'évolution temporelle des primes |
-| `DistributionChart` | Répartition par branche |
-| `PerformanceChart` | S/P par pays ou branche |
+| `DistributionCharts` | Répartition par branche |
+| `RentabiliteChart` | S/P par pays ou branche |
+| `FinancesChart` | KPIs financiers |
+| `DashboardAlerts` | Alertes et signaux de risque |
+| `PipelineView` | Vue pipeline des affaires |
 
 ### 3.3 KPIs affichés
 
-1. **Prime totale souscrite** — Somme des `written_premium` filtrés
-2. **Résultat net** — Somme des `resultat` filtrés
+1. **Prime totale souscrite** — Somme des `written_premium` filtrés (MAD)
+2. **Résultat net** — Somme des `resultat` filtrés (MAD)
 3. **ULR moyen** — Ratio sinistres/primes pondéré
 4. **Nombre de contrats** — Count des affaires filtrées
+
+> **Note monnaie** : Toutes les valeurs monétaires de l'Axe 1 sont en **MAD (Dirham Marocain)**. L'icône `Banknote` (lucide-react) est utilisée systématiquement à la place de `DollarSign`. Le formatter `formatMAD` est défini dans `utils/formatters.ts`.
 
 ### 3.4 Graphiques
 
 - **WorldMap** : Choroplèthe mondiale, couleur = volume de primes par pays, hover = tooltip détaillé
 - **EvolutionChart** : Stacked area ou line par année de souscription
-- **DistributionChart** : BarChart horizontal – répartition % par branche
-- **PerformanceChart** : Scatter ou BarChart – ULR par pays (top 20)
+- **DistributionCharts** : BarChart horizontal – répartition % par branche
+- **RentabiliteChart** : Scatter ou BarChart – ULR par pays (top 20)
 
 ---
 
@@ -157,7 +179,11 @@ const lf = useLocalFilters()
 const params = { ...filtersToParams(filters), ...lf.buildParams }
 ```
 
-### 4.3 Sections de la page
+### 4.3 Route avec paramètre
+
+La route `/analyse/:pays` permet de pré-sélectionner un pays via l'URL — utilisé par la navigation depuis d'autres pages.
+
+### 4.4 Sections de la page
 
 **Section 1 : Profil Pays**
 - Sélecteur de pays (dropdown)
@@ -178,7 +204,7 @@ const params = { ...filtersToParams(filters), ...lf.buildParams }
 - Répartition géographique (pays couverts)
 - Évolution temporelle + branches actives
 
-### 4.4 API Endpoints
+### 4.5 API Endpoints
 
 ```
 GET /analyse/pays-profil?pays=XX&...
@@ -186,7 +212,7 @@ GET /analyse/branche-detail?branche=XX&...
 GET /analyse/cedante-profil?cedante=XX&...
 ```
 
-### 4.5 Composants spécifiques
+### 4.6 Composants spécifiques
 
 - `FilterPanel` global + `LocalFilterPanel`
 - `ExportButton` — export Excel du tableau courant
@@ -194,13 +220,28 @@ GET /analyse/cedante-profil?cedante=XX&...
 
 ---
 
-## 5. Page : Analyse Courtiers (`/analyse-courtiers`)
+## 5. Page : Analyse Cédante Détaillée (`/analyse-cedante`)
 
 ### 5.1 Description fonctionnelle
 
+`CedanteAnalysis.tsx` — Fiche cédante exhaustive. Accessible depuis `/analyse-cedante` (avec sélecteur) ou directement via `/analyse-cedante/:cedante` (URL avec cédante pré-sélectionnée).
+
+### 5.2 Fonctionnalités
+
+- Fiche complète par cédante : historique primes, ULR, résultat
+- Répartition géographique des affaires
+- Top branches et pays de la cédante
+- Évolution temporelle
+
+---
+
+## 6. Page : Analyse Courtiers (`/analyse-courtiers`)
+
+### 6.1 Description fonctionnelle
+
 `BrokerAnalysis.tsx` — Analyse dédiée aux courtiers (intermédiaires entre AtlanticRe et les cédantes).
 
-### 5.2 Métriques affichées
+### 6.2 Métriques affichées
 
 | Métrique | Description |
 |---|---|
@@ -210,35 +251,39 @@ GET /analyse/cedante-profil?cedante=XX&...
 | Résultat net contribué | Impact sur le bottom-line |
 | Répartition géographique | Pays couverts |
 
-### 5.3 Visualisations
+### 6.3 Visualisations
 
 - **Top 10 courtiers par primes** : BarChart horizontal
 - **Scatter courtiers** : X=Volume, Y=ULR → identification attractifs vs à risque
 - **Timeline** : Évolution temporelle par courtier sélectionné
 - **Tableau détail** : Tri sur toutes colonnes, export Excel
 
-### 5.4 Filtres disponibles
+### 6.4 Filtres disponibles
 
 - Année de souscription (multi)
 - Branche (multi)
 - Pays (multi)
 - Toggle Vie/Non-Vie
 
+### 6.5 Navigation vers fiche courtier
+
+Clic sur un courtier → navigate vers `/analyse-courtiers/:brokerName` → `BrokerDetail.tsx`. La fiche détaillée présente la performance individuelle du courtier, son portefeuille de cédantes et sa répartition géographique.
+
 ---
 
-## 6. Page : Scoring Marché (`/selection`)
+## 7. Page : Scoring Marché (`/scoring`)
 
-### 6.1 Description fonctionnelle
+### 7.1 Description fonctionnelle
 
 `MarketSelection.tsx` — Module de **scoring multicritère dynamique** des marchés (Pays × Branche). Permet à l'équipe de souscription d'identifier les marchés attractifs.
 
-### 6.2 Architecture de la page
+### 7.2 Architecture de la page
 
 Deux zones :
 1. **Sidebar gauche (360px)** — sticky, configuration des critères
 2. **Zone droite** — résultats du scoring
 
-### 6.3 Critères de scoring par défaut
+### 7.3 Critères de scoring par défaut
 
 ```typescript
 const DEFAULT_CRITERIA: Criterion[] = [
@@ -250,7 +295,7 @@ const DEFAULT_CRITERIA: Criterion[] = [
 ]
 ```
 
-### 6.4 Interface de configuration
+### 7.4 Interface de configuration
 
 Pour chaque critère :
 - **Poids (%)** — input numérique, somme doit = 100%
@@ -259,7 +304,7 @@ Pour chaque critère :
 
 **Jauge de validation** : barre rouge/verte selon `Σ poids = 100%` (tolérance ±1%).
 
-### 6.5 Calcul du scoring
+### 7.5 Calcul du scoring
 
 Envoyé au backend :
 ```typescript
@@ -268,7 +313,7 @@ Body: { filters: params, criteria: Criterion[] }
 Response: { markets: MarketScore[] }
 ```
 
-### 6.6 Données retournées par marché
+### 7.6 Données retournées par marché
 
 ```typescript
 interface MarketScore {
@@ -285,7 +330,7 @@ interface MarketScore {
 }
 ```
 
-### 6.7 Score badges
+### 7.7 Score badges
 
 | Badge | Condition | Couleur |
 |---|---|---|
@@ -293,7 +338,7 @@ interface MarketScore {
 | NEUTRE | 40 ≤ score < 70 | `hsl(30,88%,56%)` — orange |
 | À ÉVITER | score < 40 | `hsl(358,66%,54%)` — rouge |
 
-### 6.8 Tableau de résultats
+### 7.8 Tableau de résultats
 
 Colonnes triables : `# | Pays | Branche | Score Global | Recommandation | Prime écrite | LR% | Résultat | Commission | Share% | Contrats | Comparer`
 
@@ -302,13 +347,13 @@ Colonnes triables : `# | Pays | Branche | Score Global | Recommandation | Prime 
 - Colonne Résultat : vert si ≥ 0, rouge si < 0
 - Bouton **Comparer** : navigate vers `/comparaison` avec `sessionStorage.setItem('compare_market_a', JSON.stringify({pays, branche}))`
 
-### 6.9 Filtres de résultats
+### 7.9 Filtres de résultats
 
 - Filtre badge : `Tous | Attractifs | Neutres | À éviter`
 - Top N : input numérique (5-50)
 - `ExportButton` : export Excel avec `variant="recommendations"`
 
-### 6.10 Sauvegarde des seuils
+### 7.10 Sauvegarde des seuils
 
 ```typescript
 PUT /scoring/defaults   → Body: { criteria }
@@ -319,13 +364,13 @@ Accès conditionné par `can('modify_scoring')`.
 
 ---
 
-## 7. Page : Comparaison Marchés (`/comparaison`)
+## 8. Page : Comparaison Marchés (`/comparaison`)
 
-### 7.1 Description fonctionnelle
+### 8.1 Description fonctionnelle
 
-`Comparaison.tsx` — Outil de comparaison côte-à-côte de deux marchés (Pays × Branche). Pré-rempli depuis le scoring (via `sessionStorage`).
+`Comparison.tsx` — Outil de comparaison côte-à-côte de deux marchés (Pays × Branche). Pré-rempli depuis le scoring (via `sessionStorage`).
 
-### 7.2 Fonctionnalités
+### 8.2 Fonctionnalités
 
 - Sélection de deux marchés A et B
 - Comparaison des métriques : primes, ULR, résultat, commission, share, nb contrats
@@ -334,54 +379,111 @@ Accès conditionné par `can('modify_scoring')`.
 
 ---
 
-## 8. Page : Affaires Traitées (`/retrocession/traites`)
+## 9. Page : Affaires Traitées (`/retrocession/traites`)
 
-### 8.1 Description fonctionnelle
+### 9.1 Description fonctionnelle
 
-`AffairesTraites.tsx` — Module de **pilotage de la rétrocession en traité (TTY)**. Analyse les placements des traités auprès des sécurités (réassureurs preneurs).
-
-### 8.2 Sections de la page
-
-**Section 1 : Vue d'ensemble**
-- KPIs : EPI 100% total, PMD total, Taux de placement global, Nb traités actifs
-- BarChart empilé Placé vs Non-placé par branche
-
-**Section 2 : Tableau des traités**
-Colonnes : `N° traité | Cédante | Branche | EPI 100% | PMD | Taux de Plac.% | Statut placement`
-- Tri multi-colonnes, export Excel
-
-**Section 3 : Courtiers de rétrocession**
-- `Courtier | Volume PMD | Nb traités | Taux moyen placement`
-
-**Section 4 : Sécurités (réassureurs preneurs)**
-- `Nom | Rating | Quote-part | PMD total | Nb traités`
-
-### 8.3 Taux de placement
-
-**Formule** : `Taux de Plac.% = PMD / EPI 100%`
-
-### 8.4 Filtres disponibles
-
-`LocalFilterPanel` avec : années, branches, type contrat, vie/non-vie, cédante, courtier, pays.
-
-### 8.5 API Endpoints
+`AffairesTraites.tsx` — Module de **pilotage de la rétrocession en traité (TTY)**. Analyse les placements des traités auprès des sécurités (réassureurs preneurs). Architecture en **2 onglets** :
 
 ```
-GET /retrocession/traites/overview
-GET /retrocession/traites/detail
-GET /retrocession/courtiers
-GET /retrocession/securites
+[Onglet "Vue Globale"]       → Analyse agrégée tous traités
+[Onglet "Vue par Courtier"]  → Analyse par courtier
+```
+
+### 9.2 Filtres disponibles
+
+- **UY** : multi-select par boutons pilules (inclut "Toutes")
+- **Nature** : Proportionnel / Non Proportionnel
+- **Traité** : select
+- Bouton Réinitialiser
+
+### 9.3 KPI Cards (5 cartes communes)
+
+| KPI | Couleur | Description |
+|---|---|---|
+| EPI Total | Bleu | Volume de prime protégé (MAD) |
+| PMD Totale | Orange | Coût de protection payé (MAD) |
+| Courtage Total | Rouge | Coût d'intermédiation (MAD) |
+| Taux Placement | Olive | Ratio PMD / EPI |
+| Rating > A | Vert/Orange | Part chez sécurités solides (%) |
+
+**Formule Taux de Placement** : `PMD / EPI`
+
+### 9.4 Vue Globale — Graphiques
+
+- **Donut Prop vs Non-Prop** : Répartition EPI proportionnel / non-proportionnel (Plotly / PieChart)
+- **PMD par Traité** : BarChart horizontal — couleur Bleu (Prop) vs Orange (Non-Prop)
+- **Taux de Placement** : BarChart horizontal — par traité
+- Si **multi-années** : labels composites `{traite} ({uy})`
+
+### 9.5 Vue Globale — Tableau des Traités
+
+Colonnes : `▶ | Traité | Nature | UY | EPI | PMD 100% | PMD Totale | Courtage | Taux de Plac.% | Séc. | Rating>A`
+
+- **Ligne expandable** → affiche le détail des sécurités de ce traité
+- Sous-lignes sécurités : `↳ Sécurité | PMD par Sécurité | Commission Courtage | Part (%)`
+- Export Excel : 2 feuilles (`Traités` + `Détail Sécurités`)
+
+### 9.6 Vue par Courtier — Section Croisement
+
+**Scatter "Double Rôle"** :
+- X = Primes apportées (contrats), Y = PMD placée (rétro), Z = Volume total
+- Affiche uniquement les courtiers `role_double = true`
+
+**Accordions "Apporteurs purs"** (collapsible) :
+- Table : `Courtier | Prime apportée | Volume total`
+- `pursApporteurOpen` state, transition `max-height` animée
+
+**Accordions "Placeurs purs"** (collapsible) :
+- Table : `Courtier | PMD placée | Volume total`
+- `pursPlaceurOpen` state, même animation
+
+### 9.7 Vue par Courtier — Graphiques et Tableau
+
+- **Top Courtiers par PMD Placée** : BarChart horizontal — top 10, olive
+- **Taux de Courtage Moyen** : BarChart horizontal — top 10, orange
+
+**Tableau des Courtiers** :
+- **Filtre de rôle** (pills) : `Tous | Double Rôle | Apporteur | Placeur`
+  - Compteurs inline par rôle : `Double Rôle (N)`, `Apporteur (N)`, `Placeur (N)`
+  - `filteredCourtiers` calculé via `useMemo` selon `roleFilter`
+- Colonnes : `Courtier | Rôle | Primes Apportées | PMD Placée | Courtage Rétro | Volume Total`
+- Badges de rôle : `Double Rôle` (olive vert) / `Apporteur` (bleu-gris) / `Placeur` (orange)
+- Valeur `—` si zéro (pas de confusion)
+- Export Excel : `courtiers_retrocession_{date}.xlsx`
+
+### 9.8 ROLE_CONFIG
+
+```typescript
+const ROLE_CONFIG = {
+  double:    { label: 'Double Rôle', color: '#4E6820', bg: '#EEF3E6' },
+  apporteur: { label: 'Apporteur',   color: '#2D3E50', bg: '#E8EDF1' },
+  placeur:   { label: 'Placeur',     color: '#E67E22', bg: '#FEF5EC' },
+}
+```
+
+### 9.9 API Endpoints
+
+```
+GET /retrocession/options
+GET /retrocession/summary
+GET /retrocession/by-traite
+GET /retrocession/by-year
+GET /retrocession/by-nature
+GET /retrocession/by-courtier
+GET /retrocession/courtier-croise
+GET /retrocession/placement-status
 ```
 
 ---
 
-## 9. Page : Cibles TTY (`/retrocession/cibles-tty`)
+## 10. Page : Cibles TTY (`/cibles-tty`)
 
-### 9.1 Description fonctionnelle
+### 10.1 Description fonctionnelle
 
 `TargetShare.tsx` — Module de **calcul des parts cibles** sur les traités TTY. Calcule pour chaque traité une part-cible optimale basée sur des règles d'ajustement paramétrables.
 
-### 9.2 Structure de la page
+### 10.2 Structure de la page
 
 ```
 [FilterPanel Local]
@@ -392,7 +494,7 @@ GET /retrocession/securites
 [Charts : Top 15 + Scatter part actuelle vs cible]
 ```
 
-### 9.3 Système d'ajustements paramétrables
+### 10.3 Système d'ajustements paramétrables
 
 ```typescript
 const DEFAULT_ADJUSTMENTS: AdjustmentParams = {
@@ -419,9 +521,7 @@ Part cible       = share_actuelle + ajustement_net/100
 Potentiel add.   = prime_cible - prime_actuelle
 ```
 
-**Barre collapsible** : `Settings2` icon → expand/collapse. Badge "Personnalisés" si les valeurs diffèrent des défauts.
-
-### 9.4 KPI Cards
+### 10.4 KPI Cards
 
 | KPI | Couleur | Description |
 |---|---|---|
@@ -430,7 +530,7 @@ Potentiel add.   = prime_cible - prime_actuelle
 | Traités en Hausse | Olive | Count badge = HAUSSE |
 | Au Cap 10 MDH | Orange | Plafonds atteints |
 
-### 9.5 Classification des traités
+### 10.5 Classification des traités
 
 | Badge | Icône | Condition |
 |---|---|---|
@@ -438,7 +538,7 @@ Potentiel add.   = prime_cible - prime_actuelle
 | STABLE | ⏸ | Part cible ≈ Part actuelle |
 | BAISSE | 📉 | Part cible < Part actuelle |
 
-### 9.6 Tableau détail — colonnes
+### 10.6 Tableau détail — colonnes
 
 `Cédante | Pays | Branche | Part actuelle | ULR | LOB | Ajust. | [expand]`
 
@@ -450,29 +550,26 @@ Potentiel add.   = prime_cible - prime_actuelle
 
 **Tooltip ajustement** : survol cellule Ajust. → `ULR < X% : +N | LOB ≥ Y : +N | Part < Z% : +N | ULR > W% : -N → brut: N → net: N`
 
-### 9.7 Recherche et pagination
+### 10.7 Recherche et pagination
 
 - SearchBar : debounce 300ms, recherche par cédante/branche/pays
 - Pagination serveur : 25 lignes/page, boutons Précédent/Suivant
 - Reset page automatique si filtre/recherche/pill change
 
-### 9.8 Graphiques
+### 10.8 Graphiques
 
 - **Top 15** : BarChart horizontal – top 15 par potentiel additionnel (filtré par pill)
 - **Scatter** : X=Part actuelle, Y=Part cible, ligne de référence Y=X (points au-dessus = hausse)
 
-### 9.9 Export Excel
+### 10.9 Export Excel
 
 ```typescript
 // Bypass pagination : export complet
 GET /retrocession/cibles-tty?export=true&pill=XX&...
 // Fichier : cibles_tty_{pill}.xlsx
-// Colonnes : Cédante, Pays, Branche, Tendance, Part Actuelle (%),
-//            ULR (%), LOB, Ajustement, Part Cible (%), Prime Actuelle,
-//            Prime Cible, Potentiel Additionnel
 ```
 
-### 9.10 API Endpoint
+### 10.10 API Endpoint
 
 ```
 GET /retrocession/cibles-tty
@@ -480,31 +577,24 @@ Params: page, page_size, pill, search, sort_by, sort_desc,
         ulr_low_threshold, ulr_low_bonus, lob_threshold, lob_bonus,
         low_share_threshold, low_share_bonus, ulr_high_threshold,
         ulr_high_malus, max_increase_per_renewal, max_multiple, cap_mdh
-Response: {
-  data: TargetShareRow[],
-  summary: TargetShareSummary,
-  scatter: any[],
-  top15: any[],
-  total_items: number
-}
 ```
 
 ---
 
-## 10. Page : FAC-à-FAC (`/retrocession/fac-to-fac`)
+## 11. Page : FAC-à-FAC (`/retrocession/fac-to-fac`)
 
-### 10.1 Description fonctionnelle
+### 11.1 Description fonctionnelle
 
 `FacToFac.tsx` — Analyse de la **rétrocession facultative (FAC to FAC)**. Analyse les partenaires FAC : réassureurs qui participent aux affaires facultatives.
 
-### 10.2 Architecture : Double vue en onglets
+### 11.2 Architecture : Double vue en onglets
 
 ```
 [Tab "Vue Globale"]       → Analyse agrégée par branche
 [Tab "Vue Par Partenaire"] → Analyse individuelle par partenaire
 ```
 
-### 10.3 Filtres spécifiques (panel interne, non-global)
+### 11.3 Filtres spécifiques (panel interne, non-global)
 
 - **UY** : multi-select par boutons pilules (inclut "Toutes")
 - **LOB** : select (réinitialise Branche à null)
@@ -521,7 +611,7 @@ buildQueryNoBrancheLob() // Sans branche/LOB (pour détail branches)
 
 **Mise en évidence visuelle** : `LOB_BRANCHES` mapping → les barres/lignes de branches non-concernées par le filtre LOB actif sont opacifiées.
 
-### 10.4 KPI Cards (communes aux deux vues)
+### 11.4 KPI Cards (communes aux deux vues)
 
 | KPI | Couleur | Description |
 |---|---|---|
@@ -531,11 +621,10 @@ buildQueryNoBrancheLob() // Sans branche/LOB (pour détail branches)
 | Prime Atlantic Re Totale | Bleu | Prime brute souscrite |
 | Nombre de Partenaires | Navy | Partenaires preneurs distincts |
 
-### 10.5 Vue Globale
+### 11.5 Vue Globale
 
 **Graphique 1 : Évolution des Primes Partenaire par Année**
 - LineChart : `prime_partenaire` (olive, trait plein) + `engagement_partenaire` (rouge, pointillés)
-- Filtré sans UY pour montrer toute la série temporelle
 
 **Graphique 2 : Primes Partenaire par Branche**
 - BarChart horizontal
@@ -546,21 +635,16 @@ buildQueryNoBrancheLob() // Sans branche/LOB (pour détail branches)
 - Lignes highlights si branche filtrée (fond ambre)
 - Export Excel : `fac_to_fac_detail_branches.xlsx`
 
-### 10.6 Vue Par Partenaire
+### 11.6 Vue Par Partenaire
 
 **Graphique 1 : Scatter — Croisement Donneurs × Preneurs**
 - Entreprises à **double rôle** : cèdent des affaires à AtlanticRe ET prennent de la rétrocession
 - X=Prime Donnée à Atlantic Re (MAD), Y=Prime Reçue d'Atlantic Re (MAD)
 - Taille bulle = Engagement Total (normalisé 8-40px, `ZAxis range [64, 1600]`)
-- Tooltip personnalisé : Prime Donnée, Prime Reçue, Engagement Total, Contrats donnés/reçus
-- Chargé **une seule fois** au mount (endpoint sans filtres)
 
 **Graphiques 2-3 : Top 10 Partenaires**
 - Top Primes : BarChart horizontal, olive
 - Top Engagement : BarChart horizontal, rouge
-
-**Graphique 4 : Taux de Part Moyen par Partenaire**
-- BarChart horizontal, orange
 
 **Tableau : Tableau des Partenaires**
 - Filtre de rôle en pills : `Tous | Double Rôle | Donneur | Preneur`
@@ -568,7 +652,7 @@ buildQueryNoBrancheLob() // Sans branche/LOB (pour détail branches)
 - Badges de rôle : Double Rôle (olive) / Donneur (amber) / Preneur (bleu)
 - Export Excel : `fac_to_fac_partenaires.xlsx`
 
-### 10.7 API Endpoints FAC-to-FAC
+### 11.7 API Endpoints FAC-to-FAC
 
 ```
 GET /fac-to-fac/options
@@ -585,13 +669,13 @@ GET /fac-to-fac/crossing   (sans filtre, chargé une fois)
 
 ---
 
-## 11. Page : Sécurités (`/retrocession/securites`)
+## 12. Page : Sécurités (`/retrocession/securites`)
 
-### 11.1 Description fonctionnelle
+### 12.1 Description fonctionnelle
 
-`Securities.tsx` — Vue exhaustive des réassureurs preneurs avec leur rating et exposition.
+`PanelSecurites.tsx` — Vue exhaustive des réassureurs preneurs avec leur rating et exposition.
 
-### 11.2 Fonctionnalités
+### 12.2 Fonctionnalités
 
 - Tableau de toutes les sécurités
 - Colonnes : `Nom | Rating | Type | Share moyen | PMD | Nb traités`
@@ -600,20 +684,36 @@ GET /fac-to-fac/crossing   (sans filtre, chargé une fois)
 
 ---
 
-## 12. Composants réutilisables (Axe 1)
+## 13. Pages analytiques spécifiques
 
-### 12.1 KPICard / KpiCard
+### 13.1 Exposition Risques (`/exposition`)
+
+`ExpositionRisques.tsx` — Analyse de l'exposition globale aux risques du portefeuille.
+
+### 13.2 FAC Saturation (`/fac-saturation`)
+
+`FacSaturation.tsx` — Analyse de la saturation FAC par marché.
+
+### 13.3 Top Brokers (`/top-brokers`)
+
+`TopBrokers.tsx` — Vue consolidée des meilleurs courtiers (alias de `/analyse-courtiers`).
+
+---
+
+## 14. Composants réutilisables (Axe 1)
+
+### 14.1 KPICards
 
 Carte de KPI standardisée :
 - `label` : titre
-- `value` : valeur principale (large, bold)
+- `value` : valeur principale (large, bold) — toujours en **MAD**
 - `sub` / `sublabel` : texte secondaire
-- `icon` : icône lucide-react
+- `icon` : icône lucide-react (`Banknote` pour les montants)
 - `accent` : couleur (`navy | green | olive | amber | red`)
 - Glow effect (ombre colorée via `background` CSS)
 - Animation `animate-fade-in` avec `index * 50ms` de délai
 
-### 12.2 ExportButton
+### 14.2 ExportButton
 
 ```typescript
 interface ExportButtonProps {
@@ -625,7 +725,7 @@ interface ExportButtonProps {
 
 Génère un fichier Excel via `xlsx.writeFile()`.
 
-### 12.3 SortHeader — Tri de tableaux
+### 14.3 SortHeader — Tri de tableaux
 
 ```typescript
 const SortHeader = ({ col, label, align, currentSort, currentDir, onSort }) => (
@@ -636,28 +736,36 @@ const SortHeader = ({ col, label, align, currentSort, currentDir, onSort }) => (
 // Couleur active : hsl(83,52%,36%) — olive AtlanticRe
 ```
 
-### 12.4 ChartSkeleton
+### 14.4 DataTable
 
-Skeleton de chargement des graphiques affiché pendant `loading = true`.
+Composant de tableau de données générique avec tri, pagination et export.
+
+### 14.5 DashboardAlerts
+
+Composant d'alertes et signaux de risque affiché dans le Dashboard.
+
+### 14.6 PipelineView
+
+Vue pipeline des affaires en cours, intégrée dans le Dashboard.
 
 ---
 
-## 13. Hooks personnalisés (Axe 1)
+## 15. Hooks personnalisés (Axe 1)
 
-### 13.1 `useFetch<T>`
+### 15.1 `useFetch<T>`
 
 ```typescript
 const { data, loading, error } = useFetch<T>(url, params)
 // Refetch automatique quand params change
 ```
 
-### 13.2 `useData`
+### 15.2 `useData`
 
 ```typescript
 const { filters, setFilters, filterOptions, scoringCriteria, setScoringCriteria } = useData()
 ```
 
-### 13.3 `useAuth`
+### 15.3 `useAuth`
 
 ```typescript
 const { user, can } = useAuth()
@@ -665,7 +773,7 @@ const { user, can } = useAuth()
 // Rôles : 'admin', 'souscripteur'
 ```
 
-### 13.4 `useLocalFilters`
+### 15.4 `useLocalFilters`
 
 ```typescript
 const lf = useLocalFilters()
@@ -675,9 +783,28 @@ const lf = useLocalFilters()
 
 ---
 
-## 14. Design System (Axe 1)
+## 16. Utilitaires — `formatters.ts`
 
-### 14.1 Palette de couleurs (thème Navy)
+```typescript
+// Formatter MAD (Dirham Marocain) — utilisé dans tout l'Axe 1
+export function formatMAD(value: number): string {
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1)} Md MAD`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)} M MAD`
+  if (value >= 1e3) return `${(value / 1e3).toFixed(0)} K MAD`
+  return `${value.toLocaleString('fr-FR')} MAD`
+}
+
+// Formatter compact (sans unité explicite) 
+export function formatCompact(value: number): string { ... }
+```
+
+> **Règle** : Utiliser `formatMAD` (ou `fmtMAD` local) **systématiquement** pour tous les montants monétaires de l'Axe 1. L'icône `Banknote` de lucide-react remplace `DollarSign` partout.
+
+---
+
+## 17. Design System (Axe 1)
+
+### 17.1 Palette de couleurs (thème Navy)
 
 ```css
 --color-navy:       hsl(209, 35%, 16%)     /* Bleu marine principal */
@@ -695,7 +822,7 @@ const lf = useLocalFilters()
 --orange:           hsl(30, 88%, 56%)      /* Neutre / Attention */
 ```
 
-### 14.2 Classes utilitaires CSS
+### 17.2 Classes utilitaires CSS
 
 ```css
 .btn-secondary     /* Boutons secondaires gris */
@@ -707,7 +834,7 @@ const lf = useLocalFilters()
 .animate-slide-up  /* Slide + fade depuis le bas */
 ```
 
-### 14.3 Scoring badges — color-coding
+### 17.3 Scoring badges — color-coding
 
 | Badge | Fond | Texte | Condition |
 |---|---|---|---|
@@ -717,15 +844,15 @@ const lf = useLocalFilters()
 
 ---
 
-## 15. Sécurité et authentification
+## 18. Sécurité et authentification
 
-### 15.1 AuthProvider
+### 18.1 AuthProvider
 
 - JWT stocké en localStorage
 - Toutes les routes Axe 1 protégées par `<PrivateRoute>`
 - Rôles : `admin` (accès complet) / `souscripteur` (lecture + certaines actions)
 
-### 15.2 Permissions spécifiques
+### 18.2 Permissions spécifiques
 
 ```typescript
 can('modify_scoring')      // Modifier critères et seuils du scoring
@@ -733,7 +860,7 @@ can('export_data')         // Exporter en Excel
 can('view_retrocession')   // Accès pages rétrocession
 ```
 
-### 15.3 API sécurisée
+### 18.3 API sécurisée
 
 - `api.ts` : instance Axios avec interceptor JWT automatique
 - Header : `Authorization: Bearer <token>`
@@ -741,9 +868,11 @@ can('view_retrocession')   // Accès pages rétrocession
 
 ---
 
-## 16. Points d'attention et contraintes techniques
+## 19. Points d'attention et contraintes techniques
 
 > **Filtres mixtes** : Le mélange filtres globaux + filtres locaux est critique. Toujours composer `{ ...filtersToParams(filters), ...lf.buildParams }` avant l'appel API.
+
+> **Monnaie MAD** : TOUTES les valeurs monétaires de l'Axe 1 sont en MAD. Utiliser `formatMAD` ou `fmtMAD` local. L'icône `Banknote` (lucide-react) est la norme — ne jamais utiliser `DollarSign`.
 
 > **Scoring** : Les poids doivent sommer à 100% (±1%). Validation côté frontend via `Math.abs(totalWeight - 100) <= 1`. Le backend rejette les requêtes hors-tolérance.
 
@@ -756,3 +885,7 @@ can('view_retrocession')   // Accès pages rétrocession
 > **sessionStorage pour comparaison** : `sessionStorage.setItem('compare_market_a', JSON.stringify({ pays, branche }))` — passage de données entre Scoring et Comparaison.
 
 > **Scatter FAC-to-FAC (Crossing)** : Données chargées **une seule fois** au mount, indépendantes des filtres. Endpoint `/fac-to-fac/crossing` sans paramètres.
+
+> **AffairesTraites — Rôles courtiers** : Le filtre de rôle `(Tous | Double Rôle | Apporteur | Placeur)` filtre `courtiersCroise` via `useMemo`. Les apporteurs purs et placeurs purs sont dans des accordions collapsibles séparés du scatter principal.
+
+> **ScrollToTop** : `<ScrollToTop />` dans `App.tsx` effectue `window.scrollTo({ top: 0, behavior: 'instant' })` à chaque changement de route.

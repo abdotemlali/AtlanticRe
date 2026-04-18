@@ -1,7 +1,7 @@
 # Contexte Axe 2 — Modélisation Afrique 2030 (AtlanticRe)
 
 > **Document de référence exhaustif — Axe 2**  
-> Version : Avril 2026 | Généré à partir du code source  
+> Version : Avril 2026 | Mis à jour depuis le code source (commit f2d7a7c)  
 > Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 2 de l'application AtlanticRe.
 
 ---
@@ -16,19 +16,21 @@ L'Axe 2 "Modélisation Afrique 2030" est la **dimension prospective et stratégi
 
 **Accès** : Route `/modelisation` → `ModelisationHome.tsx` (landing page de l'axe).
 
-### 1.2 Modules de l'Axe 2
+### 1.2 Modules de l'Axe 2 — Routes complètes
 
 ```
-/modelisation                          → ModelisationHome.tsx (hub central)
-/modelisation/scar                     → SCAR Scoring
-/modelisation/cartographie/non-vie     → CartographieNonVie.tsx
-/modelisation/cartographie/vie         → CartographieVie.tsx
-/modelisation/cartographie/macro       → CartographieMacro.tsx
-/modelisation/cartographie/gouvernance → CartographieGouvernance.tsx
-/modelisation/projections              → Projections ML
-/modelisation/analyse                  → AnalyseGlobale.tsx  ← NOUVEAU
-/modelisation/analyse/:pays            → AnalysePays.tsx     ← NOUVEAU
+/modelisation                            → ModelisationHome.tsx (hub central)
+/modelisation/scar                       → SCAR Scoring (ScarLayout)
+/modelisation/cartographie/non-vie       → CartographieNonVie.tsx
+/modelisation/cartographie/vie           → CartographieVie.tsx
+/modelisation/cartographie/macroeconomie → CartographieMacro.tsx
+/modelisation/cartographie/gouvernance   → CartographieGouvernance.tsx
+/modelisation/analyse                    → AnalyseGlobale.tsx
+/modelisation/analyse/:pays              → AnalysePays.tsx
+/modelisation/comparaison                → ComparaisonPays.tsx   ← NOUVEAU
 ```
+
+Toutes ces routes sont sous le layout `<ScarLayout />` (navbar olive, fond clair adapté Axe 2).
 
 ### 1.3 Sources de données
 
@@ -49,6 +51,7 @@ L'Axe 2 "Modélisation Afrique 2030" est la **dimension prospective et stratégi
 | `recharts` | Tous les graphiques (bar, scatter, radar, heatmap…) |
 | Hooks d'insights | `useNonVieInsights`, `useVieInsights`, `useMacroInsights`, `useGouvInsights`, `useAnalyseInsights` |
 | `useParams` (react-router) | Récupération du pays depuis l'URL (`:pays`) |
+| `useSearchParams` (react-router) | Récupération des paramètres query (`:a`, `:b` dans ComparaisonPays) |
 | `react-select` | Sélecteur de pays avec navigation automatique |
 
 ---
@@ -57,12 +60,12 @@ L'Axe 2 "Modélisation Afrique 2030" est la **dimension prospective et stratégi
 
 ### 2.1 Description
 
-`ModelisationHome.tsx` — Page d'accueil de l'Axe 2. Présente les modules disponibles et des indicateurs clés de synthèse SCAR. Inclut désormais un accès direct au module **Analyse par Pays**.
+`ModelisationHome.tsx` — Page d'accueil de l'Axe 2. Présente les modules disponibles et des indicateurs clés de synthèse SCAR. Inclut désormais un accès direct au module **Analyse par Pays** et **Comparaison de Pays**.
 
 ### 2.2 Structure de la page
 
 - **Header** : Logo + description de l'axe stratégique
-- **Grille des modules** : 5 cartes navigables (SCAR, Non-Vie, Vie, Macro, Gouvernance, ML)
+- **Grille des modules** : cartes navigables (SCAR, Non-Vie, Vie, Macro, Gouvernance, ML, Analyse, Comparaison)
 - **Section indicateurs SCAR** : Tableau de bord synthétique des indicateurs phares
 
 ### 2.3 Indicateurs SCAR (INDICATEURS constant)
@@ -81,28 +84,80 @@ const INDICATEURS = [
 
 ---
 
-## 3. Composants cartographie réutilisables
+## 3. Layout et Navigation Axe 2
 
-### 3.1 `CartographieLayout`
+### 3.1 `ScarLayout`
+
+Wrapper layout pour toutes les pages Axe 2. Fournit :
+- Navbar olive dédiée Axe 2 (distincte de la navbar Navy de l'Axe 1)
+- Zone scrollable principale avec `id="scar-main-scroll"` — utilisée par tous les composants pour le scroll-to-top lors des changements d'onglets
+- `<Outlet />` pour le rendu des pages enfants
+
+### 3.2 `CartographieLayout`
 
 Layout wrapper commun à toutes les pages cartographie. Props :
 
 ```typescript
 interface CartographieLayoutProps {
-  title: string       // Titre de la page
+  title: string       // Titre de la page (vide = header masqué)
   subtitle: string    // Description
   dataSource: string  // Sources de données
-  navItems: NavItem[] // Navigation interne (scroll anchor)
+  navItems: NavItem[] // Navigation interne (vide = nav masquée)
   children: ReactNode
 }
 ```
 
-Fournit :
-- Header sticky avec titre, sous-titre et badges de source
-- Navigation latérale (ou top) avec liens d'ancre vers les sections
-- Layout responsive avec scrolling fluide
+**Évolution** : Dans la version actuelle, les pages cartographie (Non-Vie, Vie, Macro, Gouvernance) passent `navItems=[]` car la navigation interne est remplacée par le système de **tabs horizontaux**. `CartographieLayout` masque automatiquement le header si `title` est vide et la nav si `navItems` est vide.
 
-### 3.2 `AfricaMap`
+---
+
+## 4. Système de Tabs pour les pages Cartographie
+
+### 4.1 Architecture commune (refactorisée)
+
+Toutes les pages cartographie (Non-Vie, Vie, Macro, Gouvernance) utilisent désormais un **système de navigation par onglets horizontaux** à la place du layout avec scroll d'ancre. Ce refactoring améliore l'UX en segmentant le contenu analytique dense en sections distinctes.
+
+**Composants de navigation communs** (définis localement dans chaque page) :
+
+```typescript
+type TabId = 'kpis' | 'top10' | 'carte' | 'scatter' | 'evolution' | 'structure' | 'distribution' | 'detail' | 'tableau'
+
+function TabNav({ activeTab, onTabChange }) // Barre de tabs horizontale scrollable
+function TabProgress({ activeTab })         // Barre de progression (segments colorés)
+// goPrev / goNext                          // Navigation Précédent/Suivant
+```
+
+**Comportement** :
+- Changement d'onglet → scroll automatique vers le haut via `document.getElementById('scar-main-scroll').scrollTo({ top: 0, behavior: 'instant' })`
+- Compteur `X / 9` centré entre les boutons Préc/Suiv
+- Segment actif : couleur navy (`hsl(213,60%,27%)`) pour les 4 pages cartographie
+- Segment inactif précédent : couleur atténuée `hsla(213,60%,27%,0.35)`
+
+### 4.2 Tabs de CartographieNonVie
+
+```typescript
+const TABS = [
+  { id: 'kpis',         label: 'KPIs',             icon: '📊' },
+  { id: 'top10',        label: 'Top 10',            icon: '🏆' },
+  { id: 'carte',        label: 'Carte',             icon: '🗺️' },
+  { id: 'scatter',      label: 'Scatter',           icon: '🎯' },
+  { id: 'evolution',    label: 'Évolution',         icon: '📈' },
+  { id: 'structure',    label: 'Structure',         icon: '🥧' },
+  { id: 'distribution', label: 'Distribution S/P', icon: '📉' },
+  { id: 'detail',       label: 'Détail Pays',       icon: '🌍' },
+  { id: 'tableau',      label: 'Classement',        icon: '📋' },
+]
+```
+
+### 4.3 Tabs de CartographieMacro / CartographieVie / CartographieGouvernance
+
+Schéma similaire à Non-Vie avec adaptations thématiques (ex: `'distribution'` devient `'inflation'` pour Macro, `'evolution'` adaptée, etc.).
+
+---
+
+## 5. Composants cartographie réutilisables
+
+### 5.1 `AfricaMap`
 
 Composant de carte choroplèthe interactive de l'Afrique. Props :
 
@@ -111,7 +166,7 @@ interface AfricaMapProps {
   indicators: {
     key: string
     label: string
-    scale: 'primes' | 'penetration' | 'densite' | 'croissance' | 'gdp' | 'gdpCap' | 'wgi' | 'inflation' | 'currentAcc'
+    scale: 'primes' | 'penetration' | 'densite' | 'croissance' | 'gdp' | 'gdpCap' | 'wgi' | 'inflation' | 'currentAcc' | 'sp'
     format: (v: number) => string
   }[]
   rowsByCountryYear: Record<string, Record<number, Record<string, number | null>>>
@@ -130,11 +185,11 @@ Fonctionnalités :
   - `densite` : linéaire
   - `croissance` / `inflation` : divergente (rouge-blanc-vert)
   - `wgi` : divergente autour de 0
+  - `sp` : divergente avec seuil 70%
 - **Hover country** : tooltip avec valeur, pays, région
 - **Légende** de couleurs intégrée
-- **Afrique du Sud** : traitement spécial selon le contexte (échelle hors-norme pour Non-Vie/Vie, intégrée normalement pour Macro/Gouvernance)
 
-### 3.3 `ConfigurableScatterBubble`
+### 5.2 `ConfigurableScatterBubble`
 
 Scatter plot interactif avec axes configurables. Props :
 
@@ -144,7 +199,7 @@ interface ConfigurableScatterBubbleProps {
   metrics: MetricDef[]      // Liste des métriques disponibles pour X et Y
   defaultX: string
   defaultY: string
-  sizeLabel: string         // Label de la bulle (ex: "Primes émises")
+  sizeLabel: string
   sizeFormat: Function
   pointsByYear: Record<number, ConfigurableScatterPoint[]>
   years: number[]
@@ -158,42 +213,13 @@ interface MetricDef {
   format: Function
   ref?: number    // Valeur de référence (ligne pointillée)
 }
-
-interface ConfigurableScatterPoint {
-  pays: string
-  region: string
-  primes: number  // Taille de bulle
-  [key: string]: any  // Valeurs pour axes X et Y
-}
 ```
 
-Fonctionnalités :
-- Dropdowns de sélection des axes X et Y
-- Coloration par région (palette `REGION_COLORS`)
-- Sélecteur d'année (buttons pilules)
-- Tooltip riche : pays, région, valeur X, valeur Y, taille
-- Lignes de référence pointillées (si `ref` défini sur la métrique)
-- Quadrants avec labels optionnels
+### 5.3 `ScatterBubble`
 
-### 3.4 `ScatterBubble`
+Version simplifiée du scatter avec axes fixes. Utilisée dans `CartographieGouvernance`.
 
-Version simplifiée du scatter avec axes fixes. Utilisée dans `CartographieGouvernance`. Props :
-
-```typescript
-interface ScatterBubbleProps {
-  title: string
-  xLabel: string  yLabel: string  zLabel: string
-  xFormat: Function  yFormat: Function  zFormat: Function
-  pointsByYear: Record<number | string, ScatterPoint[]>
-  years: number[]
-  defaultYear: number
-  xRef?: number  yRef?: number     // Lignes de référence
-  showAvgButton?: boolean          // Bouton "Moyenne 2015-2024"
-  quadrantLabels?: { tl, tr, bl, br: string }  // Labels des 4 quadrants
-}
-```
-
-### 3.5 `CartographieKPIGrid`
+### 5.4 `CartographieKPIGrid`
 
 Grille de 4 KPI cards. Props :
 
@@ -206,7 +232,7 @@ kpis: {
 }[]
 ```
 
-### 3.6 `InsightPanel`
+### 5.5 `InsightPanel`
 
 Panneau d'insights analytiques. Props :
 
@@ -228,7 +254,7 @@ interface InsightCard {
 
 Tous les insights sont **100% dynamiques** : calculés à partir des données réelles via des hooks dédiés.
 
-### 3.7 `CountryTable`
+### 5.6 `CountryTable`
 
 Tableau de classement des pays triable. Props :
 
@@ -249,7 +275,7 @@ interface TableColumn<T> {
 }
 ```
 
-### 3.8 `RegionLegend`
+### 5.7 `RegionLegend`
 
 Légende de couleurs par région africaine. Affichée en haut de chaque page cartographie.
 
@@ -265,7 +291,7 @@ const REGION_COLORS = {
 }
 ```
 
-### 3.9 `HeatmapChart`
+### 5.8 `HeatmapChart`
 
 Heatmap pays × années. Props :
 
@@ -277,61 +303,21 @@ interface HeatmapChartProps {
   regions: Record<string, string>  // pays → région
   scale: 'inflation' | 'wgi' | 'penetration'
   format: (v: number) => string
-  // Inclut une légende verticale de couleur positionnée à droite
+  // Légende verticale de couleur positionnée à droite
 }
 ```
 
-Fonctionnalités :
-- Cellules colorées selon l'échelle sélectionnée
-- Légende verticale (gradient bar) à droite
-- Tooltip : pays, année, valeur
-- Lignes groupées par région
-- Cellules vides (`null`) en gris neutre
+### 5.9 `RegionalDonutChart`
 
-### 3.10 `RegionalDonutChart`
+Donut chart de répartition régionale (utilise Plotly.js). Sélecteur année + bouton moyenne.
 
-Donut chart de répartition régionale (utilise Plotly.js). Props :
+### 5.10 `AnimatedControls`
 
-```typescript
-interface RegionalDonutChartProps {
-  data: any[]
-  years: number[]
-  year: number
-  showAvg: boolean
-  onYearChange: (y: number) => void
-  onToggleAvg: () => void
-}
-```
-
-### 3.11 `AnimatedControls`
-
-Sélecteur d'année animé. Props :
-
-```typescript
-interface AnimatedControlsProps {
-  years: number[]
-  value: number
-  onChange: (y: number) => void
-}
-```
-
-### 3.12 `CartographieLayout` — Navigation interne
-
-Chaque page cartographie définit ses propres `NAV_ITEMS` :
-
-```typescript
-const NAV_ITEMS = [
-  { id: 'kpis',    label: 'KPIs' },
-  { id: 'carte',   label: 'Carte' },
-  // ... sections de la page
-]
-```
-
-Les sections utilisent `id="X" className="scroll-mt-20"` pour le scroll smooth.
+Sélecteur d'année animé avec pilules.
 
 ---
 
-## 4. Hook central : `useCartographieData`
+## 6. Hook central : `useCartographieData`
 
 ```typescript
 const { data, years, countries, loading, error } = useCartographieData(endpoint)
@@ -345,9 +331,9 @@ const { data, years, countries, loading, error } = useCartographieData(endpoint)
 
 ---
 
-## 5. Types de données (cartographie)
+## 7. Types de données (cartographie)
 
-### 5.1 `NonVieRow`
+### 7.1 `NonVieRow`
 
 ```typescript
 interface NonVieRow {
@@ -358,11 +344,13 @@ interface NonVieRow {
   taux_penetration_pct: number | null
   densite_assurance_usd: number | null
   croissance_primes_pct: number | null
-  sp_ratio_pct: number | null           // Sinistres/Primes
+  ratio_sp_pct: number | null           // Ratio Sinistres/Primes (anciennement sp_ratio_pct)
 }
 ```
 
-### 5.2 `VieRow`
+> **Note** : Le champ ratio S/P s'appelle `ratio_sp_pct` dans la version actuelle (CartographieNonVie.tsx), différent de `sp_ratio_pct` documenté dans les anciennes versions.
+
+### 7.2 `VieRow`
 
 ```typescript
 interface VieRow {
@@ -376,7 +364,7 @@ interface VieRow {
 }
 ```
 
-### 5.3 `MacroRow`
+### 7.3 `MacroRow`
 
 ```typescript
 interface MacroRow {
@@ -392,7 +380,7 @@ interface MacroRow {
 }
 ```
 
-### 5.4 `GouvRow`
+### 7.4 `GouvRow`
 
 ```typescript
 interface GouvRow {
@@ -402,142 +390,119 @@ interface GouvRow {
   political_stability: number | null      // WGI [-2.5, +2.5]
   regulatory_quality: number | null       // WGI [-2.5, +2.5]
   fdi_inflows_pct_gdp: number | null      // IDE en % du PIB
-  kaopen: number | null                    // Index Chinn-Ito [-2.5, +2.5]
+  kaopen: number | null                   // Index Chinn-Ito [-2.5, +2.5]
 }
 ```
 
 ---
 
-## 6. Page : Cartographie Non-Vie (`/modelisation/cartographie/non-vie`)
+## 8. Page : Cartographie Non-Vie (`/modelisation/cartographie/non-vie`)
 
-### 6.1 Description
+### 8.1 Description
 
-`CartographieNonVie.tsx` — Analyse complète du marché de l'assurance Non-Vie africain. Couverture : 34 pays, 2015–2024.
+`CartographieNonVie.tsx` — Analyse complète du marché de l'assurance Non-Vie africain. Architecture refactorisée en **9 onglets**.
 
-**Note** : L'Afrique du Sud est traitée comme une région distincte `'Afrique du Sud'` pour éviter les distorsions d'échelle (représente ~50% du marché continental).
+**Note** : L'Afrique du Sud est traitée comme une région distincte `'Afrique du Sud'` pour éviter les distorsions d'échelle (~50% du marché continental).
 
-### 6.2 KPIs (4 cartes)
+### 8.2 KPIs (4 cartes — onglet `kpis`)
 
 | KPI | Calcul | Accent |
 |---|---|---|
 | Primes Non-Vie totales | Σ primes année max, 34 pays | Navy |
 | Croissance médiane | Médiane des `croissance_primes_pct` | Green |
 | Pénétration moyenne | Moyenne des `taux_penetration_pct` | Olive |
-| Densité moyenne | Moyenne des `densite_assurance_usd` | Amber |
+| Ratio S/P médian | Médiane des `ratio_sp_pct` | Amber |
 
-### 6.3 Top 10 pays par primes
+### 8.3 Top 10 pays par primes (onglet `top10`)
 
 - BarChart horizontal — couleur par région
-- Sélecteur année/moyenne : `YearOrAvgNav` (boutons: chaque année + "Moy. 2015-2024")
+- `YearOrAvgNav` (boutons: chaque année + "Moy. 2015-2024")
 - **Mode moyenne** : agrégation pondérée sur toute la série
-- Insights dynamiques : `useNonVieTop10Insights(data, top10Year)`
+- Insights dynamiques : `useTop10Insights(data, top10Year)` (alias de `useNonVieTop10Insights`)
 
-### 6.4 Carte choroplèthe
+### 8.4 Carte choroplèthe (onglet `carte`)
 
 Indicateurs disponibles :
-- Primes Non-Vie (Mn USD) — scale logarithmique
+- Primes Émises (Mn USD) — scale logarithmique
+- Ratio S/P (%) — scale divergente (`sp`)
 - Pénétration (%) — scale power
 - Densité (USD/hab) — scale linéaire
 - Croissance (%) — scale divergente
-- S/P Ratio (%) — scale divergente
 
-**Carte interactive** : dropdown indicateur premium + sélecteur année intégrés dans le composant `AfricaMap`.
-
-Insights dynamiques : `useNonVieChoroplethInsights(data)`
-
-### 6.5 Scatter multi-axes (ConfigurableScatterBubble)
+### 8.5 Scatter multi-axes (onglet `scatter`)
 
 Axes disponibles :
 ```typescript
 const scatterMetrics: MetricDef[] = [
-  { key: 'penetration', label: 'Pénétration (%)', format: fmtPct2 },
+  { key: 'penetration', label: 'Pénétration (%)', format: fmtPct },
   { key: 'densite',     label: 'Densité (USD/hab)', format: fmtUsd },
-  { key: 'sp_ratio',   label: 'S/P Ratio (%)', format: fmtPct, ref: 100 },
-  { key: 'croissance', label: 'Croissance Primes (%)', format: fmtPct, ref: 0 },
+  { key: 'croissance',  label: 'Croissance Primes (%)', format: fmtPct, ref: 0 },
+  { key: 'sp',          label: 'Ratio S/P (%)', format: fmtPct, ref: 70 },
 ]
 ```
 
-- Taille bulle = Primes émises (Mn USD)
-- Option **"Exclure l'Afrique du Sud"** : toggle checkbox, retire ZAF du scatter et recalcule les axes automatiquement
-- Insights dynamiques recalculés à chaque changement d'axes : `computeNonVieScatterInsights(xKey, yKey, excludeSA, data)`
+- Option **"Exclure l'Afrique du Sud"** : toggle checkbox
+- `onAxesChange` → met à jour `scatterXKey`, `scatterYKey` → insights recalculés
 
-### 6.6 Évolution régionale (Stacked Area)
+### 8.6 Évolution régionale (onglet `evolution`)
 
-- ComposedChart stacked area — chaque région = une couleur de la palette `REGION_COLORS`
-- X=Année, Y=Primes (Mn USD) cumulées par région
-- Légende interactive
-- Insights dynamiques : `useNonVieEvolutionInsights(data)` → CAGR réels 2015-2024 + accélération post-2020
+- ComposedChart stacked area — toutes les régions + Line séparée pour ZAF sur axe droit
+- Barre régionale avec `AnimatedControls` + bouton "Moy. 2015–2024"
+- Insights dynamiques : `useEvolutionInsights(data)` + `useBarRegionalInsights(data, barYear, barShowAvg, years)`
 
-**Barre régionale** (accompagne le stacked area) :
-- BarChart vertical par région
-- Contrôles : `AnimatedControls` (par année) + bouton "Moy. 2015-2024"
-- Insights dynamiques : `useNonVieBarRegionalInsights(data, barYear, barShowAvg, years)`
-
-### 6.7 Structure du marché (RegionalDonutChart)
+### 8.7 Structure du marché (onglet `structure`)
 
 - Donut Plotly — répartition % des primes par région
-- **Afrique du Sud** : annotation côté droit (sa dominance ~50%)
 - Sélecteur année + bouton moyenne
-- Légende positionnée à l'extrême droite
-- Insights dynamiques : `useNonVieStructureInsights(data, year)`
+- Insights dynamiques : `useStructureInsights(data, year)`
 
-### 6.8 Distribution S/P (Box plot par région)
+### 8.8 Distribution S/P (onglet `distribution`)
 
-- ComposedChart simulant une boîte à moustaches
-  - `Bar q3` : tige supérieure
-  - `Bar q1` : tige intérieure (masquée en blanc)
-  - `Line median` : point médian (navy)
-  - `Line max` : point maximum (rouge)
-  - `Line min` : point minimum (gris)
-- Ligne de référence : `y=100` → seuil sinistralité
-- Tooltip personnalisé : région, min, Q1, médiane, Q3, max
-- Insights dynamiques : `useNonVieSPDistributionInsights(data)`
+- ComposedChart simulant une boîte à moustaches (Q1/Q3 + médiane + min/max)
+- Ligne de référence : `y=70` → seuil sinistralité
+- `YearOrAvgNav` (sélection année ou moyenne)
+- Insights dynamiques : `useSPDistributionInsights(data)`
 
-### 6.9 Détail pays
+### 8.9 Détail pays (onglet `detail`)
 
 - Sélecteur pays (select)
-- ComposedChart dual-axis :
-  - Axe gauche (Mn USD) : Bar `primes_emises_mn_usd`
-  - Axe droit (%) : Line `taux_penetration_pct` (amber) + Line `sp_ratio_pct` (rouge) + Line `croissance_primes_pct` (violet, pointillés)
-- Insights dynamiques : `useNonVieCountryInsights(data, pays)` → trend, CAGR, S/P diagnostic
+- ComposedChart dual-axis : Bar primes + Lines (pénétration, croissance, S/P coloré conditionnel)
+- Insights dynamiques : `useCountryInsights(data, pays)` → `{ cards, region, coverage }`
 
-### 6.10 Tableau Classement (CountryTable)
+### 8.10 Tableau Classement (onglet `tableau`)
 
-- Colonnes : `Pays | Région | Primes (Mn USD) | Croissance | S/P Ratio | Pénétration | Densité`
-- Badges colorés :
-  - **S/P Ratio** : vert ≤ 70%, orange 70-100%, rouge > 100%
-  - **Pénétration** : navy ≥ 2%, orange 0.5-2%, vert < 0.5%
+- `YearOrAvgNav` pour sélection période
+- `CountryTable` avec colonnes : `Pays | Région | Primes (Mn USD) | Croissance | Pénétration | Ratio S/P | Densité`
+- Badge S/P : vert < 70%, orange 70-90%, rouge > 90%
 - Tri initial : `primes` décroissant
-- `showRank = true`
-- Sélecteur année / moyenne
-- Insights dynamiques : `useNonVieRankingInsights(data)`
+- Insights dynamiques : `useRankingInsights(data)`
 
-### 6.11 Navigation interne (NAV_ITEMS)
+### 8.11 Hooks d'insights (noms à jour)
 
 ```typescript
-const NAV_ITEMS = [
-  { id: 'kpis',         label: 'KPIs' },
-  { id: 'carte',        label: 'Carte' },
-  { id: 'scatter',      label: 'Scatter multi-axes' },
-  { id: 'evolution',    label: 'Évolution régionale' },
-  { id: 'structure',    label: 'Structure' },
-  { id: 'distribution', label: 'Distribution S/P' },
-  { id: 'detail',       label: 'Détail Pays' },
-  { id: 'tableau',      label: 'Classement' },
-]
+// Imports depuis '../hooks/useNonVieInsights'
+useChoroplethInsights(data)                          // carte
+computeScatterInsights(xKey, yKey, data)             // scatter (pure function, pas hook)
+useTop10Insights(data, top10Year)                    // top 10
+useEvolutionInsights(data)                           // stacked area
+useBarRegionalInsights(data, barYear, barShowAvg, years) // barre régionale
+useStructureInsights(data, year)                     // donut
+useSPDistributionInsights(data)                      // box plot S/P
+useCountryInsights(data, pays)                       // détail pays
+useRankingInsights(data)                             // classement
 ```
 
 ---
 
-## 7. Page : Cartographie Vie (`/modelisation/cartographie/vie`)
+## 9. Page : Cartographie Vie (`/modelisation/cartographie/vie`)
 
-### 7.1 Description
+### 9.1 Description
 
-`CartographieVie.tsx` — Analyse du marché de l'assurance Vie africain. Couverture : 34 pays, 2015–2024.
+`CartographieVie.tsx` — Analyse du marché Vie africain. Architecture en onglets.
 
-**Note** : L'Afrique du Sud représente ~85% du marché vie continental. Elle apparaît dans la région `'Afrique du Sud'` (traitée séparément de `'Afrique Australe'` pour les graphiques).
+**Note** : L'Afrique du Sud représente ~85% du marché vie continental.
 
-### 7.2 KPIs
+### 9.2 KPIs
 
 | KPI | Calcul | Accent |
 |---|---|---|
@@ -546,121 +511,31 @@ const NAV_ITEMS = [
 | Pénétration moyenne | Moyenne `taux_penetration_pct` | Olive |
 | Densité moyenne | Moyenne `densite_assurance_usd` | Amber |
 
-### 7.3 Top 10 par primes vie émises
-
-- BarChart horizontal couleur par région
-- `YearOrAvgNav` (chaque année + "Moy. 2015-2024")
-- Insights dynamiques : `useVieTop10Insights(data, top10Year)`
-
-### 7.4 Carte choroplèthe
-
-Indicateurs :
-- Primes Vie (Mn USD)
-- Pénétration (%)
-- Densité (USD/hab)
-- Croissance (%)
-
-Insights dynamiques : `useVieChoroplethInsights(data)`
-
-### 7.5 Scatter multi-axes
-
-Axes disponibles :
-```typescript
-const scatterMetrics: MetricDef[] = [
-  { key: 'penetration', label: 'Pénétration (%)' },
-  { key: 'densite',     label: 'Densité (USD/hab)' },
-  { key: 'croissance',  label: 'Croissance Primes (%)', ref: 0 },
-]
-```
-
-- Option **"Exclure l'Afrique du Sud"** : toggle checkbox (similaire à Non-Vie)
-- Insights dynamiques recalculés : `computeVieScatterInsights(xKey, yKey, excludeSA, data)`
-
-### 7.6 Évolution régionale (Stacked Area)
-
-- ComposedChart dual-axis :
-  - Zones empilées (axe gauche) : toutes les régions hors ZAF
-  - Line séparée (axe droit) : `'Afrique du Sud'` avec sa propre échelle
-- Insights dynamiques : `useVieEvolutionInsights(data)` → CAGR + accélération post-2020
-
-**Barre régionale** :
-- BarChart vertical par région
-- Toggle "Moy. 2015-2024" + `AnimatedControls`
-- Insights dynamiques : `useVieBarRegionalInsights(data, barYear, barShowAvg, years)`
-
-### 7.7 Structure régionale (RegionalDonutChart)
-
-- Donut Plotly — répartition par région (hors ZAF optionnel)
-- Insights dynamiques : `useVieStructureInsights(data, year)`
-
-### 7.8 Distribution Pénétration (Box plot)
-
-- ComposedChart boîte à moustaches par région
-- Q1, médiane, Q3, min, max de `taux_penetration_pct`
-- Lignes de référence : `y=1%` (seuil marché développé, vert) + `y=0.5%` (orange)
-- Sélecteur année / moyenne
-- Insights dynamiques : `useViePenetrationDistributionInsights(data)`
-
-### 7.9 Détail pays
-
-- ComposedChart dual-axis :
-  - Axe gauche : Line `primes_emises_mn_usd` (navy)
-  - Axe droit : Line `taux_penetration_pct` (amber) + Line `densite_assurance_usd` (vert) + Line `croissance_primes_pct` (violet, pointillés)
-- Insights dynamiques : `useVieCountryInsights(data, pays)` → structure : `{ cards, region, coverage }`
-
-### 7.10 Tableau Classement
-
-- Colonnes : `Pays | Région | Primes (Mn USD) | Croissance | Pénétration | Densité`
-- Badge `Pénétration` : navy ≥ 2% / orange 0.5-2% / vert < 0.5%
-- Tri initial : `primes`
-- Insights dynamiques : `useVieRankingInsights(data)`
-
-### 7.11 Navigation interne
-
-```typescript
-const NAV_ITEMS = [
-  { id: 'kpis',         label: 'KPIs' },
-  { id: 'carte',        label: 'Carte' },
-  { id: 'scatter',      label: 'Scatter multi-axes' },
-  { id: 'evolution',    label: 'Évolution régionale' },
-  { id: 'structure',    label: 'Structure' },
-  { id: 'distribution', label: 'Distribution Pénétration' },
-  { id: 'detail',       label: 'Détail Pays' },
-  { id: 'tableau',      label: 'Classement' },
-]
-```
+(Structure des onglets identique à Non-Vie avec adaptations : distribution pénétration au lieu de S/P, NvVieStructure remplacé, etc.)
 
 ---
 
-## 8. Page : Cartographie Macroéconomie (`/modelisation/cartographie/macro`)
+## 10. Page : Cartographie Macroéconomie (`/modelisation/cartographie/macroeconomie`)
 
-### 8.1 Description
+### 10.1 Description
 
 `CartographieMacro.tsx` — Analyse macroéconomique des 34 pays africains. Sources : World Bank, IMF, UNCTAD.
 
-**Note** : L'Afrique du Sud est traitée comme un pays normal dans Macro → région `'Afrique Australe'`.
+**Route** : `/modelisation/cartographie/macroeconomie` (le préfixe est `macroeconomie` dans App.tsx, non `macro`).
 
-```typescript
-// Correction de région ZAF au chargement
-const macroData = useMemo(
-  () => data.map(r => r.pays === 'Afrique du Sud' && (r.region === 'Afrique du Sud' || r.region == null)
-    ? { ...r, region: 'Afrique Australe' }
-    : r),
-  [data]
-)
-```
+**Note** : L'Afrique du Sud → région `'Afrique Australe'` (correction useMemo au chargement).
 
-### 8.2 Indicateurs couverts (7)
+### 10.2 Indicateurs couverts (7)
 
-1. **PIB** (`gdp_mn`) — en Millions USD
-2. **PIB/habitant** (`gdp_per_capita`) — USD
-3. **Croissance PIB** (`gdp_growth_pct`) — %
-4. **Inflation** (`inflation_rate_pct`) — %
-5. **Compte courant** (`current_account_mn`) — Mn USD
-6. **Taux de change** (référencé)
-7. **Intégration régionale** (`integration_regionale_score`) — score normalisé
+1. PIB (`gdp_mn`)
+2. PIB/habitant (`gdp_per_capita`)
+3. Croissance PIB (`gdp_growth_pct`)
+4. Inflation (`inflation_rate_pct`)
+5. Compte courant (`current_account_mn`)
+6. Intégration régionale (`integration_regionale_score`)
+7. PIB (Mn USD) en plus
 
-### 8.3 KPIs
+### 10.3 KPIs
 
 | KPI | Calcul | Accent |
 |---|---|---|
@@ -669,13 +544,7 @@ const macroData = useMemo(
 | Inflation médiane | Médiane `inflation_rate_pct` | Amber |
 | Meilleure intégration | Top pays par `integration_regionale_score` | Olive |
 
-### 8.4 Top 10 PIB africains
-
-- BarChart horizontal vertical couleur par région
-- `YearOrAvgNav` (chaque année + "Moy.")
-- Insights dynamiques : `useMacroTop10Insights(macroData, top10Year)`
-
-### 8.5 Carte choroplèthe (6 indicateurs)
+### 10.4 Carte choroplèthe (6 indicateurs)
 
 | Clé | Label | Échelle |
 |---|---|---|
@@ -686,270 +555,71 @@ const macroData = useMemo(
 | `ca` | Compte courant (Mn USD) | `currentAcc` |
 | `integ` | Intégration régionale | `wgi` |
 
-`showZafBorder={false}` (pas de bordure spéciale)
+`showZafBorder={false}` (pas de bordure spéciale).
 
-Insights dynamiques : `useMacroChoroplethInsights(macroData)`
+### 10.5 Radar profil macro régional
 
-### 8.6 Scatter multi-axes macro
-
-Axes disponibles :
+RadarChart — 4 dimensions par région :
 ```typescript
-const scatterMetrics: MetricDef[] = [
-  { key: 'inflation',   label: 'Inflation (%)',       ref: 5  },
-  { key: 'growth',      label: 'Croissance PIB (%)',   ref: 0  },
-  { key: 'gdpCap',      label: 'PIB/hab (USD)'              },
-  { key: 'currentAcc',  label: 'Compte courant (Mn USD)', ref: 0 },
-  { key: 'gdp',         label: 'PIB (Mn USD)'               },
-]
+growthScore = min(100, max(0, 20 + avgGrow * 8))
+inflScore   = min(100, max(0, 100 - avgInfl * 5))
+gdpCapScore = min(100, avgGdpCap / 120)
+integScore  = avgInteg * 100 / 0.65
 ```
 
-Taille bulle = PIB (Mn USD).
-
-Insights dynamiques : `computeMacroScatterInsights(xKey, yKey, macroData)` — **9 combinaisons d'axes** avec insights distincts.
-
-### 8.7 Évolution PIB par région (2015–maxYear)
-
-- ComposedChart stacked area — régions africaines
-- Insights dynamiques : `useMacroEvolutionInsights(macroData)` → CAGR réels, "Afrique du Sud incluse dans Afrique Australe"
-
-**Barre PIB par région** :
-- BarChart vertical, couleur par région
-- `AnimatedControls` (par année) + bouton "Moy. 2015–2024"
-- Insights dynamiques : `useMacroBarRegionalInsights(macroData, barYear, barShowAvg, years)`
-
-### 8.8 Distribution Inflation (Heatmap + Box plot)
-
-**Heatmap historique** :
-- `HeatmapChart` avec `scale="inflation"` et `format=fmtPct`
-- Matrice : pays × années → `inflation_rate_pct`
-- Légende verticale intégrée à droite
-
-**Box plot par région** :
-- ComposedChart boîte à moustaches
-- Q1, médiane, Q3, min, max de `inflation_rate_pct` par région
-- Lignes de référence : `y=5%` (stable, vert) + `y=10%` (risque, rouge)
-- Tooltip personnalisé : région, médiane, Q1-Q3, min-max
-
-Insights dynamiques : `useMacroInflationDistributionInsights(macroData)`
-
-### 8.9 Intégration régionale + Radar
-
-**Bar chart classement** :
-- Meilleur score d'intégration par pays (valeur max sur toute la série)
-- BarChart horizontal (`layout="vertical"`)
-- Ligne de référence : `x=0.4` (seuil "bien intégré", vert)
-- Label "Seuil 0.4" positionné à la hauteur du dernier pays qui l'atteint (logique de positionnement précise via `viewBox`)
-
-**Radar profil macro régional** :
-- RadarChart — 4 dimensions par région :
-  - `growthScore = min(100, max(0, 20 + avgGrow * 8))`
-  - `inflScore = min(100, max(0, 100 - avgInfl * 5))`
-  - `gdpCapScore = min(100, avgGdpCap / 120)`
-  - `integScore = avgInteg * 100 / 0.65`
-
-Insights dynamiques : `useMacroIntegrationInsights(macroData)`
-
-### 8.10 Détail pays
-
-- Sélecteur pays (select)
-- ComposedChart dual-axis :
-  - Axe gauche : Bar `gdp_mn` (navy, opacité 0.6)
-  - Axe droit : Line `gdp_growth_pct` (vert) + Line `inflation_rate_pct` (amber) + Line `current_account_mn` (violet, pointillés)
-- Ligne de référence : `y=0` axe droit
-- Insights dynamiques : `useMacroCountryInsights(macroData, country)` → `{ cards, region, coverage }`
-
-### 8.11 Tableau Classement
-
-- Sélecteur année / moyenne (`YearOrAvgNav`)
-- Colonnes : `Pays | Région | PIB (Mn USD) | PIB/hab | Croissance | Inflation | Compte Courant | Intégration`
-- Badges colorés :
-  - **Croissance** : vert ≥ 5%, orange 0-5%, rouge < 0%
-  - **Inflation** : vert ≤ 5%, orange 5-10%, rouge > 10%
-- Tri initial : `gdp`
-- Insights dynamiques : `useMacroRankingInsights(macroData)`
-
-### 8.12 Navigation interne
+### 10.6 Hooks d'insights Macro
 
 ```typescript
-const NAV_ITEMS = [
-  { id: 'kpis',        label: 'KPIs' },
-  { id: 'carte',       label: 'Carte' },
-  { id: 'scatter',     label: 'Scatter multi-axes' },
-  { id: 'evolution',   label: 'Évolution PIB' },
-  { id: 'inflation',   label: 'Distribution Inflation' },
-  { id: 'integration', label: 'Intégration Régionale' },
-  { id: 'detail',      label: 'Détail Pays' },
-  { id: 'tableau',     label: 'Classement' },
-]
-```
-
-### 8.13 Helpers locaux
-
-```typescript
-median(arr: number[]): number           // Médiane statistique
-avgArr(arr: number[]): number           // Moyenne
-buildMatrix(rows, key)                  // → Record<annee, Record<pays, valeur>>
-buildHeatMatrix(rows, key)              // → Record<pays, Record<annee, valeur>>
-inflBoxByRegion(data: MacroRow[])       // → Box plot stats par région
-YearOrAvgNav(...)                       // Composant de sélection année/moy.
+// Imports depuis '../hooks/useMacroInsights'
+useMacroChoroplethInsights, computeMacroScatterInsights, useMacroEvolutionInsights
+useMacroTop10Insights, useMacroBarRegionalInsights, useMacroInflationDistributionInsights
+useMacroIntegrationInsights, useMacroCountryInsights, useMacroRankingInsights
 ```
 
 ---
 
-## 9. Page : Cartographie Gouvernance (`/modelisation/cartographie/gouvernance`)
+## 11. Page : Cartographie Gouvernance (`/modelisation/cartographie/gouvernance`)
 
-### 9.1 Description
+### 11.1 Description
 
-`CartographieGouvernance.tsx` — Analyse de la gouvernance et du risque politique pour 34 pays africains. Sources : World Bank WGI, Chinn-Ito Index, UNCTAD FDI.
+`CartographieGouvernance.tsx` — Analyse de la gouvernance et du risque politique. Sources : WGI, Chinn-Ito, UNCTAD FDI.
 
-**Note** : Afrique du Sud → région `'Afrique Australe'` (même correction que Macro).
+**Note** : Afrique du Sud → région `'Afrique Australe'`.
 
-### 9.2 Indicateurs couverts (4)
+### 11.2 Indicateurs couverts (4)
 
-1. **Stabilité politique** (`political_stability`) — WGI [-2.5, +2.5]
-2. **Qualité réglementaire** (`regulatory_quality`) — WGI [-2.5, +2.5]
-3. **Flux IDE** (`fdi_inflows_pct_gdp`) — % du PIB
-4. **KAOPEN** (`kaopen`) — Index Chinn-Ito [-2.5, +2.5]
+1. Stabilité politique (`political_stability`) — WGI [-2.5, +2.5]
+2. Qualité réglementaire (`regulatory_quality`) — WGI [-2.5, +2.5]
+3. Flux IDE (`fdi_inflows_pct_gdp`) — % du PIB
+4. KAOPEN (`kaopen`) — Index Chinn-Ito [-2.5, +2.5]
 
-### 9.3 KPIs
+### 11.3 Scatters gouvernance
 
-| KPI | Calcul | Accent |
-|---|---|---|
-| Stabilité politique moyenne | Moyenne `political_stability` + médiane | Navy |
-| Meilleur environnement politique | Top pays `political_stability` | Green |
-| IDE moyen (% PIB) | Moyenne `fdi_inflows_pct_gdp` | Amber |
-| Marchés financièrement ouverts | Count pays avec KAOPEN > 1 | Olive |
+**Scatter 1 : Stabilité vs Réglementation** — quadrants institutionnels  
+**Scatter 2 : KAOPEN vs IDE** — ouverture financière vs attractivité IDE
 
-### 9.4 Carte choroplèthe (4 indicateurs)
+> Le bouton "Inclure/Exclure Afrique du Sud" a été **retiré** des scatters gouvernance.
 
-| Clé | Label | Échelle |
-|---|---|---|
-| `stab` | Stabilité politique (WGI) | `wgi` |
-| `reg` | Qualité réglementaire (WGI) | `wgi` |
-| `fdi` | IDE (% PIB) | `penetration` |
-| `ka` | Ouverture financière KAOPEN | `wgi` |
+### 11.4 KaopenBadge
 
-Insights dynamiques : `useGouvChoroplethInsights(gouvData)`
+- `Ouvert` (vert, KAOPEN > 1)
+- `Partiel` (orange, -0.5 à 1)
+- `Fermé` (rouge, < -0.5)
 
-### 9.5 Scatter 1 : Stabilité vs Réglementation
-
-```
-X = political_stability (WGI)
-Y = regulatory_quality (WGI)
-Z = fdi_inflows_pct_gdp (taille bulle)
-xRef = 0   yRef = 0   (quadrants)
-showAvgButton = true  (afficher moyenne 2015-2024)
-```
-
-**4 quadrants** :
-- TL : "Instable mais bien régulé"
-- TR : "✓ Leaders : stable + régulé"
-- BL : "⚠ Double risque institutionnel"
-- BR : "Stable mais sous-régulé"
-
-Insights dynamiques : `useGouvScatterStabRegInsights(gouvData)`
-
-### 9.6 Scatter 2 : KAOPEN vs IDE
-
-```
-X = kaopen (Chinn-Ito)
-Y = fdi_inflows_pct_gdp (IDE % PIB)
-Z = (political_stability + regulatory_quality + 5) / 2  (score composite, taille bulle)
-xRef = 0   yRef = 3   (quadrants)
-showAvgButton = true
-```
-
-**4 quadrants** :
-- TL : "Fermé mais attractif (ressources)"
-- TR : "✓ Ouvert + attractif"
-- BL : "⚠ Fermé & peu attractif"
-- BR : "Ouvert mais peu de capitaux"
-
-Insights dynamiques : `useGouvScatterKaopenFdiInsights(gouvData)`
-
-**Note** : Le bouton "Inclure/Exclure Afrique du Sud" a été **retiré** de ce scatter.
-
-### 9.7 Évolution Stabilité politique par région
-
-- ComposedChart : Lines par région (`ALL_REGIONS`)
-- X=Année, Y=WGI stabilité (domaine [-2.5, 1.5])
-- `connectNulls = true`
-- Ligne de référence : `y=0` (neutre)
-- Insights dynamiques : `useGouvEvolutionInsights(gouvData)`
-
-**Heatmap Stabilité politique** :
-- `HeatmapChart` avec `scale="wgi"` et `format=fmtWgi`
-- Insights dynamiques : `useGouvHeatmapStabInsights(gouvData)` → anomalies temporelles, chocs géopolitiques, résilience
-
-### 9.8 Profil pays (Section 5)
-
-- Sélecteur pays (select)
-
-**Radar profil WGI** (4 axes normalisés 0-100) :
-```
-Stabilité pol.  = ((val + 2.5) / 5) * 100
-Qualité régl.   = ((val + 2.5) / 5) * 100
-KAOPEN          = ((val + 2.5) / 5) * 100
-IDE (% PIB)     = min(100, val * 6.67)
-```
-
-**KPI scorecard** (colonne droite) :
-- `KpiRow` : Stabilité pol. | Qualité régl. | KAOPEN | IDE % PIB
-- `KaopenBadge` : Ouvert (vert, KAOPEN > 1) / Partiel (orange, -0.5 à 1) / Fermé (rouge, < -0.5)
-
-**Timeline individuelle** (ComposedChart dual-axis) :
-- Axe gauche (WGI) : Line Stabilité (navy) + Line Qualité régl. (vert) + Line KAOPEN (violet, pointillés)
-- Axe droit : Line IDE % PIB (amber, pointillés)
-- Ligne de référence `y=0` (axe WGI)
-
-Insights dynamiques : `useGouvCountryInsights(gouvData, pays)`
-
-### 9.9 Distribution KAOPEN par région
-
-**Box plot KAOPEN** :
-- ComposedChart boîte à moustaches
-- Q1, médiane, Q3, min, max de `kaopen` par région
-- Lignes de référence : `y=0` (KAOPEN neutre, navy) + `y=1` (ouverture, vert) + `y=-1` (fermeture, rouge)
-- Tooltip : région, médiane, Q1-Q3, min-max
-
-Insights dynamiques : `useGouvKaopenDistribInsights(gouvData)`
-
-**Heatmap Qualité Réglementaire** :
-- `HeatmapChart` matrice pays × années pour `regulatory_quality`
-- Insights dynamiques : `useGouvHeatmapRegInsights(gouvData)` → "trajectoire réformiste, prévisibilité (σ), convergence intra-régionale"
-
-### 9.10 Tableau Classement
-
-- Sélecteur année / moyenne (`YearOrAvgNav`)
-- Colonnes : `Pays | Région | Stabilité pol. | Qualité régl. | KAOPEN | IDE (% PIB)`
-- Badges colorés :
-  - **Stabilité** : vert ≥ 0.5, orange -0.5 à 0.5, rouge < -0.5
-  - **Qualité régl.** : vert ≥ 0, orange -0.5 à 0, rouge < -0.5
-  - **KAOPEN** : vert > 1, orange -0.5 à 1, rouge ≤ -0.5
-  - **IDE** : vert ≥ 5%, orange 1-5%, rouge < 1%
-- Tri initial : `stab`
-- Insights dynamiques : `useGouvRankingInsights(gouvData)` → "Top pays stabilité · réglementation · KAOPEN · IDE"
-
-### 9.11 Navigation interne
+### 11.5 Hooks d'insights Gouvernance
 
 ```typescript
-const NAV_ITEMS = [
-  { id: 'kpis',       label: 'KPIs' },
-  { id: 'carte',      label: 'Carte' },
-  { id: 'scatter1',   label: 'Stab / Régl.' },
-  { id: 'scatter2',   label: 'KAOPEN / IDE' },
-  { id: 'evolution',  label: 'Évolution' },
-  { id: 'pays',       label: 'Détail pays' },
-  { id: 'kaopen',     label: 'KAOPEN' },
-  { id: 'classement', label: 'Classement' },
-]
+// Imports depuis '../hooks/useGouvInsights'
+useGouvChoroplethInsights, useGouvScatterStabRegInsights, useGouvScatterKaopenFdiInsights
+useGouvEvolutionInsights, useGouvCountryInsights, useGouvKaopenDistribInsights
+useGouvRankingInsights, useGouvHeatmapRegInsights, useGouvHeatmapStabInsights
 ```
 
 ---
 
-## 10. Système d'Insights Dynamiques
+## 12. Système d'Insights Dynamiques
 
-### 10.1 Principe d'architecture
+### 12.1 Principe d'architecture
 
 Chaque page cartographie a un fichier de hooks dédié :
 
@@ -959,27 +629,25 @@ hooks/
   useVieInsights.ts        → CartographieVie
   useMacroInsights.ts      → CartographieMacro
   useGouvInsights.ts       → CartographieGouvernance
+  useAnalyseInsights.ts    → AnalyseGlobale + AnalysePays
 ```
 
-### 10.2 Règle d'unicité des insights
+### 12.2 Règle d'unicité des insights
 
 **Contrainte absolue** : chaque insight dans un panel doit être **unique et non-redondant** par rapport aux autres panels de la même page. Chaque panel doit apporter une **valeur analytique distincte**.
 
-L'audit de gouvernance (conversation `8d2e1cb0`) a établi les règles de non-redondance qui s'appliquent à tous les modules.
-
-### 10.3 Structure d'un hook d'insight
+### 12.3 Structure d'un hook d'insight
 
 ```typescript
 export function useGouvChoroplethInsights(data: GouvRow[]): InsightCard[] {
   return useMemo(() => {
     if (!data.length) return []
     // Calculs statistiques sur data
-    // Retourne 3-4 InsightCard[]
     return [
       {
         label: 'LEADERS INSTITUTIONNELS',
         value: `${topCountries.slice(0, 3).join(' · ')}`,
-        text: `Ces pays combinent stabilité politique (WGI > 0.5) et qualité réglementaire positive...`,
+        text: `Ces pays combinent stabilité politique (WGI > 0.5)...`,
         accent: 'green',
       },
       // ...
@@ -988,38 +656,16 @@ export function useGouvChoroplethInsights(data: GouvRow[]): InsightCard[] {
 }
 ```
 
-### 10.4 Nomenclature des hooks
+### 12.4 `compute*` vs `use*` hooks
 
-**Non-Vie** :
-- `useNonVieChoroplethInsights(data)` — carte
-- `computeNonVieScatterInsights(xKey, yKey, excludeSA, data)` — scatter (recalculé à chaque changement d'axes)
-- `useNonVieEvolutionInsights(data)` — stacked area
-- `useNonVieBarRegionalInsights(data, barYear, barShowAvg, years)` — barre régionale
-- `useNonVieStructureInsights(data, year)` — donut
-- `useNonVieSPDistributionInsights(data)` — box plot S/P
-- `useNonVieCountryInsights(data, pays)` — détail pays
-- `useNonVieRankingInsights(data)` — classement
-
-**Vie** (mirrors Non-Vie) :
-- `useVieChoroplethInsights`, `computeVieScatterInsights`, `useVieEvolutionInsights`
-- `useVieBarRegionalInsights`, `useVieStructureInsights`, `useViePenetrationDistributionInsights`
-- `useVieCountryInsights`, `useVieRankingInsights`, `useVieTop10Insights`
-
-**Macro** :
-- `useMacroChoroplethInsights`, `computeMacroScatterInsights`, `useMacroEvolutionInsights`
-- `useMacroTop10Insights`, `useMacroBarRegionalInsights`, `useMacroInflationDistributionInsights`
-- `useMacroIntegrationInsights`, `useMacroCountryInsights`, `useMacroRankingInsights`
-
-**Gouvernance** :
-- `useGouvChoroplethInsights`, `useGouvScatterStabRegInsights`, `useGouvScatterKaopenFdiInsights`
-- `useGouvEvolutionInsights`, `useGouvCountryInsights`, `useGouvKaopenDistribInsights`
-- `useGouvRankingInsights`, `useGouvHeatmapRegInsights`, `useGouvHeatmapStabInsights`
+- Fonctions `compute*` : fonctions pures, appelées dans `useMemo` du composant parent, recalculées à chaque changement d'état (ex: axes scatter)
+- Hooks `use*` : hooks React standards (`useMemo` encapsulé), dépendent uniquement des données
 
 ---
 
-## 11. Constantes cartographie
+## 13. Constantes cartographie
 
-### 11.1 `cartographieConstants.ts`
+### 13.1 `cartographieConstants.ts`
 
 ```typescript
 export const REGION_COLORS: Record<string, string> = {
@@ -1044,9 +690,9 @@ export const ALL_REGIONS: string[] = [
 
 ---
 
-## 12. Design System (Axe 2)
+## 14. Design System (Axe 2)
 
-### 12.1 Palette de couleurs (thème Olive)
+### 14.1 Palette de couleurs (thème Olive)
 
 L'Axe 2 utilise une palette différente de l'Axe 1 (Olive/SCAR vs Navy/Dashboard) :
 
@@ -1065,28 +711,25 @@ L'Axe 2 utilise une palette différente de l'Axe 1 (Olive/SCAR vs Navy/Dashboard
 --zaf:      '#2C3E50'
 ```
 
-### 12.2 Formatters communs
+### 14.2 Formatters communs
 
 ```typescript
 // Non-Vie
-fmtMn(v)   = v >= 1000 ? `${(v/1000).toFixed(1)} Md$` : `${v.toFixed(0)} Mn$`
+fmtMn(v)   = v >= 1000 ? `${(v/1000).toFixed(1)} Mrd$` : `${v.toFixed(0)} Mn$`
 fmtPct(v)  = `${v.toFixed(1)}%`
 fmtUsd(v)  = `${v.toFixed(1)}$`
 
 // Macro
-fmtBn(v)   = v >= 1000 ? `$${(v/1000).toFixed(1)} Mrd` : `$${v.toFixed(0)}M`
+fmtBn(v)   = v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)} Bn$` : fmtMn(v)
 fmtPctSgn(v) = `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
-fmtUsd(v)  = `$${v.toFixed(0)}/hab`
+fmtUsd(v)  = `$${Math.round(v).toLocaleString()}/hab`
 fmtScore(v) = v.toFixed(3)
 
 // Gouvernance
-fmtWgi(v)    = v.toFixed(2)
-fmtWgiSgn(v) = `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+fmtWgi(v)    = `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
 ```
 
-### 12.3 `YearOrAvgNav` (composant local partagé)
-
-Commun à CartographieMacro et CartographieGouvernance :
+### 14.3 `YearOrAvgNav` (composant local partagé)
 
 ```typescript
 function YearOrAvgNav({ years, value, onChange }: {
@@ -1101,23 +744,23 @@ function YearOrAvgNav({ years, value, onChange }: {
 
 ---
 
-## 13. Page : Analyse Globale (`/modelisation/analyse`)
+## 15. Page : Analyse Globale (`/modelisation/analyse`)
 
-### 13.1 Description
+### 15.1 Description
 
-`AnalyseGlobale.tsx` — **Hub de navigation** vers les fiches pays individuelles. Présente une vue consolidée des 34 pays africains sur les 4 dimensions (Non-Vie, Vie, Macro, Gouvernance) et permet d'accéder à la fiche détaillée de n'importe quel pays.
+`AnalyseGlobale.tsx` — **Hub de navigation** vers les fiches pays individuelles. Présente une vue consolidée des 34 pays africains et permet d'accéder à la fiche détaillée ou à la **comparaison de deux pays**.
 
-### 13.2 Architecture de la page
+### 15.2 Architecture de la page
 
 ```
 [Sélecteur de pays] → Navigation vers /modelisation/analyse/:pays
 [KPI Cards globaux] → 4 indicateurs continentaux
-[Classements par indicateur] → 6 cartes Top-8
+[Classements par indicateur] → 6 cartes Top-8 (cliquables)
 [Tableau de synthèse] → 34 pays × 9 colonnes
 [Insights globaux] → useAnalyseGlobaleInsights
 ```
 
-### 13.3 Navigation interne (NAV_ITEMS)
+### 15.3 Navigation interne (NAV_ITEMS)
 
 ```typescript
 const NAV_ITEMS = [
@@ -1128,22 +771,7 @@ const NAV_ITEMS = [
 ]
 ```
 
-### 13.4 Section 0 : Sélecteur de pays
-
-- `react-select` avec les 34 pays africains (union des pays Non-Vie + Macro)
-- Sélection → `navigate('/modelisation/analyse/${encodeURIComponent(pays)}')`
-- Placeholder : "Rechercher un pays parmi les 34 marchés africains…"
-
-### 13.5 KPI Cards globaux (4 cartes)
-
-| KPI | Calcul | Accent |
-|---|---|---|
-| Pays couverts | Fixe : "34 pays · 4 dimensions" | Navy |
-| Pénétration NV médiane | Médiane des pénétrations par pays (filtré par année) | Olive |
-| PIB médian / habitant | Médiane des PIB/hab par pays (filtré par année) | Amber |
-| Stabilité politique moy. | Moyenne WGI des 34 pays | Green si ≥ 0, Navy sinon |
-
-### 13.6 Classements par indicateur (6 cartes)
+### 15.4 Classements par indicateur (6 cartes)
 
 `RankingCard` (sous-composant interne) — Top 8 pays avec badge région coloré et valeur. Chaque ligne est **cliquable** → navigate vers la fiche pays.
 
@@ -1156,12 +784,11 @@ const NAV_ITEMS = [
 | 🏛 Top Stabilité Politique | `political_stability` | `±X.XX` |
 | 🌍 Top Attractivité IDE | `fdi_inflows_pct_gdp` | `X.X% PIB` |
 
-### 13.7 Tableau de synthèse (`CountryTable`)
+### 15.5 Tableau de synthèse (`CountryTable`)
 
 - `34 lignes × 9 colonnes`
-- **Tri initial** : `primesNV` descendant
 - **Click sur ligne** → navigate vers la fiche pays
-- **Sélecteur année** : `YearOrAvgNav` (boutons pilules, inclut "Moy. 2015-2024")
+- **Sélecteur année** : `YearOrAvgNav`
 
 Colonnes avec badges colorés :
 
@@ -1172,15 +799,7 @@ Colonnes avec badges colorés :
 | `politStab` | Vert ≥ 0.5, Orange -0.5 à 0.5, Rouge < -0.5 |
 | `fdi` | Vert ≥ 5%, Orange 1-5%, Rouge < 1% |
 
-### 13.8 Insights globaux
-
-```typescript
-const insights = useAnalyseGlobaleInsights(nvData, vieData, macroData, gouvData)
-```
-
-Fournit des insights croisés consolidant les 4 dimensions d'analyse.
-
-### 13.9 Data flow
+### 15.6 Data flow
 
 ```typescript
 // 4 datasets chargés en parallèle
@@ -1188,42 +807,34 @@ const { data: nvData, years } = useCartographieData('non-vie')
 const { data: vieData }       = useCartographieData('vie')
 const { data: macroData }     = useCartographieData('macroeconomie')
 const { data: gouvData }      = useCartographieData('gouvernance')
-
-// Helper de consolidation
-function computeRanking<T>(data, field, year, descending): { pays, region, value }[]
-// Moyenne par pays sur la période sélectionnée
-function getCountryAvg<T>(data, pays, field): number | null
 ```
 
 ---
 
-## 14. Page : Analyse Pays (`/modelisation/analyse/:pays`)
+## 16. Page : Analyse Pays (`/modelisation/analyse/:pays`)
 
-### 14.1 Description
+### 16.1 Description
 
-`AnalysePays.tsx` — **Fiche pays complète** sur les 4 dimensions. Page la plus exhaustive de l'Axe 2 : agrège les données Non-Vie, Vie, Macro et Gouvernance en une fiche unifiée pour un pays sélectionné via l'URL (`:pays` encodé en URI).
+`AnalysePays.tsx` — **Fiche pays complète** sur les 4 dimensions. Page la plus exhaustive de l'Axe 2.
 
-**Architecture** : Système de 9 **tabs horizontaux** — chaque tab est une sous-page indépendante affichant uniquement son contenu. Toutes les données sont chargées une seule fois au niveau du composant parent.
+**Architecture** : Système de **9 tabs horizontaux** — similaire aux pages cartographie mais thème olive pour l'actif.
 
-**Source de données** : Axco Navigator · World Bank · IMF · WGI · Chinn-Ito
-
-### 14.2 Accès et navigation
+### 16.2 Accès et navigation
 
 - **Depuis** : `AnalyseGlobale` (clic sur un pays dans les classements ou le tableau)
-- **URL** : `/modelisation/analyse/:pays` (pays encodé en URI : `encodeURIComponent(pays)`)
-- **Changement de pays** : Dropdown `react-select` dans le tab Identité → `navigate('/modelisation/analyse/${encodeURIComponent(v.value)}')`
-- **Retour** : Bouton "← Retour à l'analyse globale" → `/modelisation/analyse`
-- **Pays introuvable** : Garde `notFound` → page d'erreur avec bouton retour
+- **URL** : `/modelisation/analyse/:pays` (pays encodé en URI)
+- **Changement de pays** : Dropdown `react-select` dans le tab Identité
 - **Reset automatique** : Changement de pays → retour automatique à l'onglet `identite`
+- **Bouton "Comparer"** : navigate vers `/modelisation/comparaison?a={pays}` pour déclencher la ComparaisonPays avec ce pays pré-sélectionné
 
-### 14.3 Système de tabs (TABS)
+### 16.3 Système de tabs (TABS)
 
 ```typescript
 type TabId =
   | 'identite' | 'kpis' | 'evolution' | 'radar'
   | 'non-vie' | 'vie' | 'macro' | 'gouvernance' | 'positionnement'
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
+const TABS = [
   { id: 'identite',       label: 'Identité',      icon: '🌍' },
   { id: 'kpis',           label: 'KPIs',           icon: '📊' },
   { id: 'evolution',      label: 'Évolution',      icon: '📈' },
@@ -1236,249 +847,56 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 ]
 ```
 
-**Composants de navigation** :
-- **`TabNav`** : Barre de tabs horizontale scrollable avec strip identité pays (couleur région), onglets avec icônes, état actif en olive.
-- **`TabProgress`** : Barre de progression horizontale (9 segments) — segment actif = olive, précédents = olive clair, suivants = gris.
-- **Boutons Précédent / Suivant** : En bas de chaque tab, navigation entre onglets avec label du tab cible.
-- **Compteur** : `X / 9` centré entre les boutons Préc/Suiv.
+**Navigation** : `TabNav` (barre scrollable), `TabProgress` (9 segments olive), boutons Précédent/Suivant, compteur `X / 9`.
 
-### 14.4 Sélecteur de période
+### 16.4 Sélecteur de période
 
-`YearOrAvgNav` — état `selectedYear: number | 'avg'` (défaut : `'avg'`). Affiché dans chaque tab qui nécessite un filtre d'année (KPIs, Radar, Macroéconomie, Gouvernance, Positionnement). **L'onglet Évolution** affiche toujours la série complète 2015–2024 (indépendante du sélecteur).
+`YearOrAvgNav` — état `selectedYear: number | 'avg'` (défaut : `'avg'`).
 
-### 14.5 Tab : Identité (`id='identite'`)
+L'onglet **Évolution** affiche toujours la série complète 2015–2024 (indépendante du sélecteur).
 
-- **Nom du pays** en `h1` avec badge région colorié
-- **Icône pays** (carré couleur région)
-- **Dropdown `react-select`** pour changer de pays
-- **Bouton retour** vers l'Analyse Globale
-- **`YearOrAvgNav`** (sélecteur de période global)
-- **4 cartes Overview** : Dimensions (4) · Période (2015–2024) · Périmètre (34 pays) · Sources (5+)
-- **Grille de raccourcis** : boutons cliquables vers chaque onglet thématique
+### 16.5 Tab : Identité
 
-### 14.6 Tab : KPIs (`id='kpis'`)
+- Nom du pays en `h1` avec badge région colorié
+- Dropdown `react-select` pour changer de pays
+- 4 cartes Overview : Dimensions (4) · Période (2015–2024) · Périmètre (34 pays) · Sources (5+)
+- Grille de raccourcis : boutons cliquables vers chaque onglet thématique
+
+### 16.6 Tab : KPIs
 
 `CartographieKPIGrid` — 8 cartes en grille :
 
-| KPI | Source | Format | Accent dynamique |
-|---|---|---|---|
-| Primes Non-Vie | `nvData` | `fmtMn` | Navy |
-| Pénétration NV | `nvData` | `fmtPct` | Olive |
-| Primes Vie | `vieData` | `fmtMn` | Green |
-| Pénétration Vie | `vieData` | `fmtPct` | Amber |
-| PIB | `macroData` | `fmtBn` | Navy |
-| PIB / habitant | `macroData` | `fmtUsd` | Olive |
-| Stabilité politique | `gouvData` | `fmtWgi` | Green/Amber/Red selon WGI |
-| IDE (% PIB) | `gouvData` | `fmtPct` | Green/Amber/Red selon valeur |
-
-Le KPI "Stabilité politique" affiche un sublabel dynamique : `'✓ Stable'` (WGI ≥ 0.5) / `'~ Modéré'` (-0.5 à 0.5) / `'⚠ Instable'` (< -0.5).
-
-### 14.7 Tab : Évolution (`id='evolution'`)
-
-**ComposedChart dual-axis** — série complète 2015–2024, ignore le sélecteur d'année :
-
-```
-Axe gauche (Mn USD) : Bar primes_nv (olive 0.7) + Bar primes_vie (vert 0.5)
-Axe droit (%) :       Line gdp_growth (navy) + Line inflation (amber, pointillés)
-```
-
-Donnée construite par `evoData` : union des années présentes dans nvRows ET macRows.
-
-### 14.8 Tab : Radar (`id='radar'`)
-
-`RadarChart` Recharts — **profil multidimensionnel** du pays vs la médiane continentale :
-
-| Dimension | Normalisation |
-|---|---|
-| Primes NV | `(valeur / max continental) × 100` |
-| Pénétration NV | `(valeur / max continental) × 100` |
-| Primes Vie | `(valeur / max continental) × 100` |
-| PIB/hab | `(valeur / max continental) × 100` |
-| Stabilité pol. | `((WGI + 2.5) / 5) × 100` |
-| Ouverture fin. | `((KAOPEN + 2.5) / 5) × 100` |
-
-- Série **pays** : `hsl(83,52%,42%)` — vert olive plein, opacity 0.3
-- Série **Médiane continentale** : `#1B3F6B` — navy, pointillés, opacity 0.1
-- Dépend de `selectedYear` — recalcule toutes les normalisations
-
-### 14.9 Tab : Non-Vie (`id='non-vie'`)
-
-**5a — Évolution NV** (série complète) :
-```
-Axe gauche : Bar primes_emises_mn_usd (olive 0.7)
-Axe droit  : Line taux_penetration_pct (navy) + Line densite_assurance_usd (amber)
-             Line croissance_primes_pct (vert, pointillés)
-```
-
-**5b — Rang continental NV** :
-- `BarChart layout="vertical"` horizontal
-- Top 10 pays par primes + le pays courant (ajouté avec préfixe `... Pays` s'il n'est pas dans le top 10)
-- **Highlight** : barre du pays courant en `hsl(83,52%,36%)` (olive), autres en `hsla(27,47%,37%,0.30)` (brun clair)
-- Sélecteur `YearOrAvgNav` pour le rang
-
-**5c — `NvTable`** (sous-composant) :
-Tableau série historique trié par année DESC :
-`Année | Primes (Mn$) | Pénétration (%) | Densité ($/hab) | Croissance (%) | S/P (%)`
-
-Badge coloré sur Croissance : Vert ≥ 0%, Rouge < 0%.
-
-**5d — InsightPanel NV** :
-```typescript
-<InsightPanel icon="🔵" title={`PROFIL NON-VIE — ${pays}`} cards={nvInsights} />
-// nvInsights = useCountryInsights(nvData, paysDecoded)  [alias de useNonVieInsights]
-```
-
-### 14.10 Tab : Vie (`id='vie'`)
-
-**6a — Évolution Vie** (série complète) :
-```
-Axe gauche : Bar primes_emises_mn_usd Vie (hsl(140,50%,40%) 0.7)
-Axe droit  : Line taux_penetration_pct (olive) + Line densite (amber)
-             Line croissance (vert, pointillés)
-```
-
-**6b — `NvVieStructure`** (sous-composant) :
-BarChart groupé NV vs Vie par année : côte-à-côte, permet de visualiser la structure du marché local.
-
-**6c — `VieTable`** :
-Tableau série historique :
-`Année | Primes (Mn$) | Pénétration (%) | Densité ($/hab) | Croissance (%)`
-
-**6d — InsightPanel Vie** :
-```typescript
-<InsightPanel icon="🟢" title={`PROFIL VIE — ${pays}`} cards={vieInsights} />
-// vieInsights = useVieCountryInsights(vieData, paysDecoded)
-```
-
-### 14.11 Tab : Macroéconomie (`id='macro'`)
-
-**7a — Évolution macro** (série complète) :
-```
-Axe gauche : Bar gdp_mn (hsl(209,42%,30%) 0.6)
-Axe droit  : Line gdp_growth_pct (vert) + Line inflation_rate_pct (amber, pointillés)
-```
-
-**7b — `MacroRadar`** (sous-composant) :
-RadarChart 4 axes — pays vs moyenne de sa région :
-
-| Axe | Normalisation |
-|---|---|
-| Croissance PIB | `min(100, max(0, 20 + growth × 8))` |
-| Stabilité prix | `min(100, max(0, 100 - infl × 5))` |
-| PIB/hab | `min(100, gdpCap / 120)` |
-| Intégration | `min(100, integ × 100 / 0.65)` |
-
-- Série pays : olive, opacity 0.3
-- Série `Moy. {région}` : navy, pointillés, opacity 0.1
-
-**7c — `MacroTable`** :
-Tableau série historique avec badges colorés :
-`Année | PIB (Mn$) | PIB/hab | Croissance | Inflation | Solde courant | Intégration`
-
-- Croissance : Vert ≥ 5%, Orange 0-5%, Rouge < 0%
-- Inflation : Vert ≤ 5%, Orange 5-10%, Rouge > 10%
-
-**7d — InsightPanel Macro** :
-```typescript
-<InsightPanel icon="📊" title={`PROFIL MACRO — ${pays}`} cards={macInsights} />
-// macInsights = useMacroCountryInsights(macroData, paysDecoded)
-```
-
-### 14.12 Tab : Gouvernance (`id='gouvernance'`)
-
-**8a — Évolution WGI** (série complète, dual-axis) :
-```
-Axe gauche [-2.5, +2.5] : Line political_stability (navy)
-                           Line regulatory_quality (vert)
-                           Line kaopen (violet, pointillés)
-Axe droit (%):             Line fdi_inflows_pct_gdp (amber)
-```
-
-Ligne de référence `y=0` axe gauche.
-
-**8b — `GouvRadar`** (sous-composant) :
-RadarChart 4 axes — pays vs **médiane continentale** :
-
-| Axe | Normalisation |
-|---|---|
-| Stabilité pol. | `((WGI + 2.5) / 5) × 100` |
-| Qualité régl. | `((WGI + 2.5) / 5) × 100` |
-| KAOPEN | `((val + 2.5) / 5) × 100` |
-| IDE (% PIB) | `min(100, val × 6.67)` |
-
-- Série pays : olive, opacity 0.3
-- Série "Médiane continentale" : navy, pointillés, opacity 0.1
-
-**8c — `GouvScorecard`** (sous-composant) :
-Grille `2×2` (xl: `4×1`) de 4 mini-cartes avec badges dynamiques :
-
-| Carte | Badge affiché |
-|---|---|
-| Stab. politique (moy. 2015-2024) | `StabBadge` (Stable / Modéré / Instable) |
-| Qualité réglementaire (moy.) | Favorable / Faible |
-| KAOPEN (moy.) | `KaopenBadge` (Ouvert / Partiel / Fermé) |
-| IDE % PIB (moy.) | `FdiBadge` (Attractif / Modéré / Faible) |
-
-**8d — `GouvTable`** :
-Tableau série historique :
-`Année | Stab. pol. (WGI) | Qualité régl. (WGI) | KAOPEN | IDE (% PIB)`
-
-Avec badges `StabBadge` et `KaopenBadge` et `FdiBadge` inline.
-
-**8e — InsightPanel Gouvernance** :
-```typescript
-<InsightPanel icon="🏛" title={`PROFIL GOUVERNANCE — ${pays}`} cards={gouvInsights} />
-// gouvInsights = useGouvCountryInsights(gouvData, paysDecoded)
-```
-
-### 14.13 Tab : Positionnement (`id='positionnement'`)
-
-**Grille `1×3` (desktop `3×1`)** — 3 blocs de comparaison :
-
-#### Bloc 1 — Rang continental (sur 34 pays)
-
-Tableau `Indicateur | Valeur | Rang` — 7 indicateurs :
-
-| Indicateur | Source | Badge rang |
+| KPI | Source | Accent dynamique |
 |---|---|---|
-| Primes NV | nvData | Vert si top 10 · Orange si 11-20 · Rouge si 21+ |
-| Pénétration NV | nvData | idem |
-| Primes Vie | vieData | idem |
-| PIB/hab | macroData | idem |
-| Croissance PIB | macroData | idem |
-| Stabilité pol. | gouvData | idem |
-| IDE (% PIB) | gouvData | idem |
+| Primes Non-Vie | `nvData` | Navy |
+| Pénétration NV | `nvData` | Olive |
+| Primes Vie | `vieData` | Green |
+| Pénétration Vie | `vieData` | Amber |
+| PIB | `macroData` | Navy |
+| PIB / habitant | `macroData` | Olive |
+| Stabilité politique | `gouvData` | Green/Amber/Red selon WGI |
+| IDE (% PIB) | `gouvData` | Green/Amber/Red selon valeur |
 
-Le rang est calculé dynamiquement selon `selectedYear` (ou moyenne toutes années).
+### 16.7 Tab : Évolution
 
-#### Bloc 2 — Vs moyenne de sa région
+ComposedChart dual-axis — série complète 2015–2024.
 
-`VsTable` (sous-composant) — `Indicateur | Valeur pays | Réf. (moy. région) | Écart` :
-5 lignes : Primes NV · Pénétration NV · PIB/hab · Stab. pol. · IDE
+### 16.8 Tab : Radar
 
-- Écart favorable (pays ≥ ref) : ↑ vert
-- Écart défavorable : ↓ rouge
+RadarChart Recharts — profil multidimensionnel 6 axes (pays vs médiane continentale).
 
-#### Bloc 3 — Vs médiane continentale
+### 16.9 Tabs : Non-Vie, Vie, Macro, Gouvernance
 
-Même `VsTable` mais référence = médiane des 34 pays.
+Chaque tab contient : évolution graphique + graphique spécifique (rang / structure / radar) + tableau historique + InsightPanel.
 
-### 14.14 Synthèse finale (InsightPanel)
+### 16.10 Tab : Positionnement
 
-```typescript
-<InsightPanel
-  icon="🎯"
-  title={`SYNTHÈSE — ${pays.toUpperCase()} · PERSPECTIVES ATLANTIC RE`}
-  cards={syntheseInsights}
-/>
-// syntheseInsights = useAnalysePaysInsights(
-//   paysDecoded, nvRows, vieRows, macRows, gouvRows, nvData, macroData, gouvData
-// )
-```
+**Bloc 1** — Rang continental (7 indicateurs), badge couleur top 10 / 11-20 / 21+  
+**Bloc 2** — Vs moyenne de sa région (`VsTable`)  
+**Bloc 3** — Vs médiane continentale (`VsTable`)  
+**Synthèse** — `useAnalysePaysInsights` — insights stratégiques orientés AtlanticRe
 
-Cet insight final est le plus stratégique : il croise les 4 dimensions et formule des perspectives directement orientées **Atlantic Re** (opportunités de souscription, risques identifiés).
-
-### 14.15 Sous-composants internes (`AnalysePays.tsx`)
+### 16.11 Sous-composants internes
 
 | Composant | Description |
 |---|---|
@@ -1494,10 +912,10 @@ Cet insight final est le plus stratégique : il croise les 4 dimensions et formu
 | `StabBadge` | Badge Stable / Modéré / Instable (WGI) |
 | `KaopenBadge` | Badge Ouvert / Partiel / Fermé (KAOPEN) |
 | `FdiBadge` | Badge Attractif / Modéré / Faible (IDE) |
-| `YearOrAvgNav` | Sélecteur d'année local (réutilisé depuis Macro/Gouv) |
+| `YearOrAvgNav` | Sélecteur d'année local |
 | `SectionTitle` | `<h2>` avec bordure olive stylisée |
 
-### 14.16 Helper clé : `getRowVal`
+### 16.12 Helper clé : `getRowVal`
 
 ```typescript
 function getRowVal<T>(rows: T[], field: keyof T, year: YearSel): number | null
@@ -1505,41 +923,151 @@ function getRowVal<T>(rows: T[], field: keyof T, year: YearSel): number | null
 // Sinon : valeur de l'année exacte
 ```
 
-Fonction utilitaire omniprésente dans la page, centralise la logique `année vs moyenne`.
+---
+
+## 17. Page : Comparaison de Pays (`/modelisation/comparaison`) ← NOUVELLE
+
+### 17.1 Description
+
+`ComparaisonPays.tsx` — **Analyse comparative côte-à-côte de deux pays africains** sur les 4 dimensions (Non-Vie, Vie, Macro, Gouvernance). Inspirée de `AnalysePays` (onglets) et de `Comparison` Axe 1.
+
+### 17.2 Accès
+
+- **Depuis `AnalyseGlobale`** : bouton "Comparer" sur un pays → navigate `/modelisation/comparaison?a={pays}`
+- **Depuis `AnalysePays`** : bouton "Comparer ce pays" → navigate `/modelisation/comparaison?a={pays}`
+- **Accès direct** : `/modelisation/comparaison` (pas de pré-sélection)
+
+**Pré-remplissage** via query param `?a=<pays>` : lu dans `useEffect` à l'initialisation, décode `decodeURIComponent(a)` et pré-sélectionne `paysA`.
+
+### 17.3 Système de Tabs (7 onglets)
+
+```typescript
+type TabId = 'kpis' | 'radar' | 'non-vie' | 'vie' | 'macro' | 'gouvernance' | 'positionnement'
+
+const TABS = [
+  { id: 'kpis',           label: 'KPIs & Évolution', icon: '📊' },
+  { id: 'radar',          label: 'Radar',             icon: '🎯' },
+  { id: 'non-vie',        label: 'Non-Vie',           icon: '🔵' },
+  { id: 'vie',            label: 'Vie',               icon: '🟢' },
+  { id: 'macro',          label: 'Macroéconomie',     icon: '💹' },
+  { id: 'gouvernance',    label: 'Gouvernance',       icon: '🏛' },
+  { id: 'positionnement', label: 'Positionnement',   icon: '🏆' },
+]
+```
+
+Navigation identique aux autres pages : `TabNav`, `TabProgress`, boutons Préc/Suiv, compteur `X / 7`.
+
+### 17.4 Header permanent (toujours visible)
+
+**Ligne 1** : Titre + sélecteurs A vs B
+- `Pays A` : react-select, filtré (exclut le pays B)
+- `Pays B` : react-select, filtré (exclut le pays A)
+- Badge VS centré avec gradient navy → olive
+- Changement de pays → reset vers onglet `kpis`
+
+**Ligne 2** : Sélecteur de période (`YearOrAvgNav`) + Pills pays sélectionnés (`CountryPill`)
+
+**Ligne 3** : `TabNav` (visible seulement si `ready = paysA && paysB && paysA !== paysB`)
+
+**Placeholder** : Si l'un des pays n'est pas sélectionné, affiche un état vide explicatif.
+
+### 17.5 Couleurs A vs B
+
+```typescript
+const COLOR_A = '#1B3F6B'          // navy (Pays A)
+const COLOR_B = 'hsl(83,52%,36%)' // olive (Pays B)
+```
+
+### 17.6 `KpiRow` — Ligne de comparaison KPI
+
+```typescript
+function KpiRow({ label, valA, valB, fmt, lowerIsBetter })
+// Grille 3 colonnes : [valeur A avec ✓ si gagnant] [label + DeltaBadge] [valeur B avec ✓ si gagnant]
+// DeltaBadge : calcul écart relatif (a-b)/|b| * 100, affiche ▲▼ en couleur
+```
+
+### 17.7 Tab : KPIs & Évolution
+
+- Tableau `KpiRow` avec 9 lignes (Primes NV, Pénétration NV, Primes Vie, Pénétration Vie, PIB, PIB/hab, Croiss. PIB, Stabilité pol., IDE)
+- Gradient de fond : `linear-gradient(to right, COLOR_A·10%, white 50%, COLOR_B·10%)`
+- **Évolution Primes** : BarChart + 4 séries (NV-A, NV-B, Vie-A, Vie-B) sur série 2015–2024
+- **Évolution Macro** : LineChart (Croiss. PIB A/B + Inflation A/B)
+
+### 17.8 Tab : Radar (6 dimensions)
+
+`RadarChart` Recharts avec **3 séries** : Pays A (navy), Pays B (olive), Médiane continentale (gris pointillés).
+
+6 dimensions normalisées [0-100] :
+- Primes NV, Pénétration NV, Primes Vie : `(valeur / max continental) × 100`
+- PIB/hab : `(valeur / max continental) × 100`
+- Stabilité pol., Ouverture fin. (KAOPEN) : `((WGI + 2.5) / 5) × 100`
+
+### 17.9 Tabs thématiques (Non-Vie, Vie, Macro, Gouvernance)
+
+Chaque tab contient :
+1. **Graphique comparatif** : BarChart ou LineChart avec séries A et B côte-à-côte
+2. **Tableau historique** (`HistoTable`) : toutes les années, colonnes A et B
+
+`HistoTable` (sous-composant interne) :
+```typescript
+function HistoTable({ rowsA, rowsB, fields })
+// En-têtes : [Année] [Label A | Label B] ...
+// Sous-en-têtes colorés (COLOR_A / COLOR_B) : A | B
+```
+
+### 17.10 Tab : Positionnement
+
+- **Rang continental** : pour chaque indicateur, calcul dynamique du rang (sur `selectedYear` ou moyenne) pour Pays A et Pays B simultanément
+- Tableau côte-à-côte : `Indicateur | Valeur A | Rang A/34 | Valeur B | Rang B/34`
+- Badge rang : Vert top 10 / Orange 11-20 / Rouge 21+
+
+### 17.11 Data flow
+
+```typescript
+// 4 datasets Axe 2 (même pattern qu'AnalysePays)
+const { data: nvData, years } = useCartographieData('non-vie')
+const { data: vieData }       = useCartographieData('vie')
+const { data: macroData }     = useCartographieData('macroeconomie')
+const { data: gouvData }      = useCartographieData('gouvernance')
+
+// Rows filtrés par pays
+const nvA    = nvData.filter(r => r.pays === paysA).sort(...)
+const nvB    = nvData.filter(r => r.pays === paysB).sort(...)
+// ... × 4 sources
+
+// evoData : union des années pour les graphiques d'évolution
+const evoData = useMemo(() => ...)  // combinaison nvA, nvB, macA, macB, vieA, vieB
+
+// radarData : 6 dimensions + médiane calculée sur les 34 pays
+const radarData = useMemo(() => ...)  // selon selectedYear
+```
+
+### 17.12 Route dans App.tsx
+
+```typescript
+const ComparaisonPays = lazy(() => import('./pages/ComparaisonPays'))
+// ...
+<Route path="/modelisation/comparaison" element={<ErrorBoundary><ComparaisonPays /></ErrorBoundary>} />
+// Intégrée dans le bloc <ScarLayout /> (public, pas besoin d'authentification)
+```
 
 ---
 
-## 15. Page : SCAR Scoring (`/modelisation/scar`)
+## 18. Page : SCAR Scoring (`/modelisation/scar`)
 
-### 13.1 Description
+### 18.1 Description
 
-Module de **scoring SCAR (Scoring des Capacités et Attractivité de Réassurance)** appliqué aux marchés africains d'un point de vue stratégique (différent du scoring opérationnel de l'Axe 1).
+Module de **scoring SCAR (Scoring des Capacités et Attractivité de Réassurance)** appliqué aux marchés africains d'un point de vue stratégique.
 
-### 13.2 Fonctionnalités (structure générale)
+### 18.2 Fonctionnalités (structure générale)
 
 - Tableau de scoring des pays africains selon des critères SCAR
 - Combinaison des dimensions non-vie, vie, macro et gouvernance
 - Visualisation radar par pays
-- Export / rapport
 
 ---
 
-## 16. Page : Projections ML (`/modelisation/projections`)
-
-### 16.1 Description
-
-Module de projections par machine learning des indicateurs clés à horizon 2030.
-
-### 16.2 Fonctionnalités (structure générale)
-
-- Projections de primes par pays/région
-- Intervalles de confiance
-- Scénarios (optimiste / central / pessimiste)
-- Visualisation temporelle 2015–2030
-
----
-
-## 17. Hooks d'insights : `useAnalyseInsights`
+## 19. Hooks d'insights : `useAnalyseInsights`
 
 ```typescript
 // Fichier : hooks/useAnalyseInsights.ts
@@ -1569,33 +1097,31 @@ export function useAnalysePaysInsights(
 
 ---
 
-## 18. Points d'attention et contraintes techniques (Axe 2)
+## 20. Points d'attention et contraintes techniques (Axe 2)
 
-> **Unicité des insights** : Règle absolue — chaque `InsightPanel` doit apporter une valeur analytique strictement différente des autres panels de la même page. Auditées régulièrement.
+> **Unicité des insights** : Règle absolue — chaque `InsightPanel` doit apporter une valeur analytique strictement différente des autres panels de la même page.
 
 > **Afrique du Sud — traitement différencié** :
 > - **Non-Vie / Vie** : ZAF dans sa propre région `'Afrique du Sud'` (évite distorsion ~85% du marché)
-> - **Macro / Gouvernance / Analyse Pays** : ZAF intégrée à `'Afrique Australe'` (pays normal)
+> - **Macro / Gouvernance / Analyse Pays / ComparaisonPays** : ZAF intégrée à `'Afrique Australe'` (pays normal)
 > - Correction via `useMemo` au chargement des données
 
-> **`useCartographieData`** : Hook central. Retourne `data`, `years`, `countries`. Dans `AnalysePays`, il est appelé **4 fois** (une fois par endpoint), ce qui est intentionnel car les 4 sources sont indépendantes.
+> **`useCartographieData`** : Hook central. Dans `AnalysePays` et `ComparaisonPays`, il est appelé **4 fois** (une fois par endpoint) — intentionnel, les 4 sources sont indépendantes.
 
-> **`computeScatterInsights` vs `useScatterInsights`** : Les fonctions de type `compute*` sont des fonctions pures (pas de hook), appelées dans `useMemo` directement dans le composant, ce qui permet le recalcul à chaque changement d'axes.
+> **Tabs refactorisés** : Les 4 pages cartographie (Non-Vie, Vie, Macro, Gouvernance) utilisent désormais un système de tabs horizontaux. La navigation par ancre (scroll) est abandonnée. `CartographieLayout` reçoit `navItems=[]` dans toutes ces pages.
+
+> **ComparaisonPays — Guard** : La page n'affiche les tabs que si `ready = paysA && paysB && paysA !== paysB`. Sinon, un placeholder est affiché.
+
+> **Pré-remplissage ComparaisonPays** : Le paramètre `?a=<pays>` (encodé URI) est lu dans `useEffect` et set `paysA`. Utilisé par `AnalysePays` et `AnalyseGlobale` pour pré-sélectionner le pays de contexte.
 
 > **Données manquantes** : Les colonnes peuvent être `null` pour certains pays/années. Toujours filtrer : `.filter((v): v is number => v != null)` avant les calculs statistiques.
 
-> **`scatter1` (Gouvernance)** : Le toggle "Inclure Afrique du Sud" a été **retiré** définitivement. La fonction `buildScatter` inclut désormais un mode `'avg'` (moyenne toutes années) accessible via `showAvgButton`.
+> **NonVieRow — champ ratio S/P** : Le champ s'appelle `ratio_sp_pct` dans le code actuel (buildMatrix, tableaux), pas `sp_ratio_pct`. Vérifier la cohérence avec le backend.
 
-> **Heatmap** : La légende de couleur verticale est positionnée à droite du composant (amélioration de la conversation `e11a05ea`).
+> **Code splitting** : Toutes les pages Axe 2 chargées via `React.lazy()` dans `App.tsx`. `ComparaisonPays` est également lazy-loadée.
 
-> **Intégration régionale (Macro)** : Le label "Seuil 0.4" de la `ReferenceLine` est positionné dynamiquement en calculant la hauteur de bande et l'index du dernier pays qui atteint le seuil (logique dans la prop `label` de Recharts).
+> **Navigation entre fiches pays** : La route `:pays` est encodée en URI. Toujours utiliser `encodeURIComponent(pays)` lors de la navigation et `decodeURIComponent(paysParam)` lors de la réception.
 
-> **Code splitting** : Toutes les pages Axe 2 chargées via `React.lazy()` dans `App.tsx`. `AnalyseGlobale` et `AnalysePays` sont également lazy-loadées.
+> **`getRowVal` et `getCountryAvg`** : Deux helpers similaires, `getRowVal` est omniprésent dans les composants, `getCountryAvg` est un helper de niveau supérieur. Ne pas les confondre.
 
-> **Navigation entre fiches pays** : La route `:pays` est encodée en URI. Toujours utiliser `encodeURIComponent(pays)` lors de la navigation et `decodeURIComponent(paysParam)` lors de la réception pour éviter les erreurs sur les pays avec des accents (ex: "Côte d'Ivoire").
-
-> **Rang continental dans `AnalysePays`** : La logique `nvPositionData` construit le Top 10 puis **appende le pays courant** avec le préfixe `... ` si celui-ci n'est pas dans le top 10. Cela garantit que le pays analysé est toujours visible dans le graphique de classement.
-
-> **`getRowVal` vs `getCountryAvg`** : Deux helpers similaires existent :
-> - `getRowVal(rows, field, year)` : utilisé dans `AnalysePays` (opère sur les `rows` du pays courant)
-> - `getCountryAvg(data, pays, field)` : utilisé dans `AnalyseGlobale` (opère sur le dataset complet)
+> **Rang continental dans `ComparaisonPays`** : La fonction `rank(data, field, pays, desc)` est définie inline dans le tab positionnement — elle calcule le classement en agrégeant par pays (moyenne si multi-années), puis trouve le rang du pays demandé.
