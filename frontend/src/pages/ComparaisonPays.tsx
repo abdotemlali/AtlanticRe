@@ -228,7 +228,7 @@ export default function ComparaisonPays() {
   useEffect(() => {
     const a = searchParams.get('a')
     if (a) setPaysA(decodeURIComponent(a))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Scroll to top on tab change
   useEffect(() => {

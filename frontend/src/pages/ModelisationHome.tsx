@@ -53,7 +53,7 @@ const navItems: NavItem[] = [
     label: 'Analyse', icon: Network,
     children: [
       { to: '/modelisation/analyse',     label: 'Analyse par Pays',    icon: Network,    enabled: true },
-      { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: TrendingUp },
+      { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Scale,       enabled: true },
       { to: '/modelisation/projections', label: 'Projections ML',      icon: Sparkles   },
     ],
   },
