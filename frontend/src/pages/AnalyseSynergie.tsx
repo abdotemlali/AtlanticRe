@@ -118,6 +118,8 @@ interface Classements {
   par_share_written: ClassementItem[]
   par_penetration_marche: ClassementItem[]
   par_rentabilite: ClassementItem[]
+  tableau_pays: TableauPaysRow[]
+  tableau_cedantes: TableauCedanteRow[]
 }
 
 interface EvolutionRow {
@@ -260,10 +262,6 @@ export default function AnalyseSynergie() {
 
   // ── Tab navigation ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<SynTabId>('kpis')
-  useEffect(() => {
-    const container = document.getElementById('scar-main-scroll')
-    if (container) container.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [activeTab])
   const currentTabIdx = SYN_TABS.findIndex(t => t.id === activeTab)
   const goPrev = () => { if (currentTabIdx > 0) setActiveTab(SYN_TABS[currentTabIdx - 1].id) }
   const goNext = () => { if (currentTabIdx < SYN_TABS.length - 1) setActiveTab(SYN_TABS[currentTabIdx + 1].id) }
@@ -281,7 +279,6 @@ export default function AnalyseSynergie() {
   const [loadingKpis, setLoadingKpis] = useState(true)
   const [loadingClass, setLoadingClass] = useState(true)
   const [loadingEvo, setLoadingEvo] = useState(true)
-  const [loadingTable, setLoadingTable] = useState(true)
 
   // ── Year ────────────────────────────────────────────────────────────────────
   const [selectedYear, setSelectedYear] = useState<string>('2024')
@@ -321,7 +318,7 @@ export default function AnalyseSynergie() {
     api.get('/synergie/pays-croises').then(r => setPaysCroises(r.data)).catch(() => { })
   }, [])
 
-  // ── Load evolution (once) ────────────────────────────────────────────────────
+  // ── Load evolution (once, deferred) ─────────────────────────────────────────
   useEffect(() => {
     setLoadingEvo(true)
     api.get('/synergie/evolution', { params: { usd_to_mad: rate } })
@@ -329,28 +326,25 @@ export default function AnalyseSynergie() {
       .finally(() => setLoadingEvo(false))
   }, [rate])
 
-  // ── Load year-dependent data ─────────────────────────────────────────────────
+  // ── Load all data at startup: KPIs + classements (includes tableau_pays + tableau_cedantes) ──
   const loadYearData = useCallback(() => {
     const p = { year: selectedYear, usd_to_mad: rate }
     setLoadingKpis(true)
     setLoadingClass(true)
-    setLoadingTable(true)
-
-    api.get('/synergie/kpis', { params: p })
-      .then(r => setKpis(r.data))
-      .finally(() => setLoadingKpis(false))
-
-    api.get('/synergie/classements', { params: p })
-      .then(r => setClassements(r.data))
-      .finally(() => setLoadingClass(false))
 
     Promise.all([
-      api.get('/synergie/tableau-pays', { params: p }),
-      api.get('/synergie/tableau-cedantes', { params: p }),
-    ]).then(([tp, tc]) => {
-      setTableauPays(tp.data)
-      setTableauCedantes(tc.data)
-    }).finally(() => setLoadingTable(false))
+      api.get('/synergie/kpis', { params: p }),
+      api.get('/synergie/classements', { params: p }),
+    ]).then(([kpisRes, classRes]) => {
+      setKpis(kpisRes.data)
+      setClassements(classRes.data)
+      // Both tableau_pays and tableau_cedantes are embedded in classements — no extra calls
+      setTableauPays(classRes.data.tableau_pays ?? [])
+      setTableauCedantes(classRes.data.tableau_cedantes ?? [])
+    }).finally(() => {
+      setLoadingKpis(false)
+      setLoadingClass(false)
+    })
   }, [selectedYear, rate])
 
   useEffect(() => { loadYearData() }, [loadYearData])
@@ -1018,7 +1012,7 @@ export default function AnalyseSynergie() {
                     style={{ padding: '6px 12px', border: `1px solid ${GOLD}`, borderRadius: 6, fontSize: 13, outline: 'none', width: 200 }}
                   />
                 </div>
-                {loadingTable ? (
+                {loadingClass ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
                 ) : (
                   <>
@@ -1127,7 +1121,7 @@ export default function AnalyseSynergie() {
                     style={{ padding: '6px 12px', border: `1px solid ${GOLD}`, borderRadius: 6, fontSize: 13, outline: 'none', width: 260 }}
                   />
                 </div>
-                {loadingTable ? (
+                {loadingClass ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
                 ) : (
                   <>

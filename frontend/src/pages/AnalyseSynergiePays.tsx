@@ -146,8 +146,14 @@ interface PaysKPIs {
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
   ulr_moyen: number
+  ulr_moyen_nonvie: number
+  ulr_moyen_vie: number
   nb_affaires: number
+  nb_affaires_nonvie: number
+  nb_affaires_vie: number
   nb_cedantes: number
+  nb_cedantes_nonvie: number
+  nb_cedantes_vie: number
   annees_disponibles: number[]
 }
 
@@ -173,9 +179,15 @@ interface EvolutionRow {
 interface CedanteDetail {
   cedante: string
   subject_premium: number
+  subject_nonvie: number
+  subject_vie: number
   written_premium: number
+  written_nonvie: number
+  written_vie: number
   share_written: number
   share_written_avg: number
+  share_written_avg_nonvie: number
+  share_written_avg_vie: number
   ulr: number
   ulr_moyen: number
   nb_affaires: number
@@ -266,11 +278,20 @@ const PARAM_LABELS: Record<keyof RapportParams, string> = {
 function buildDiagnostics(rapport: Rapport, params: RapportParams) {
   if (!rapport) return []
   const {
-    share_written_avg: sw, penetration_marche_pct: pen, ulr_moyen: ulr,
-    nb_cedantes, croissance_marche_cagr: cagr, croissance_written_cagr: wcagr,
-    primes_marche_total_mad: mkt, primes_vie_mad: vie,
-    cedantes_detail, branches_absentes, branches_presentes,
+    share_written_avg: sw_raw, penetration_marche_pct: pen_raw, ulr_moyen: ulr_raw,
+    nb_cedantes: nb_cedantes_raw, croissance_marche_cagr: cagr_raw, croissance_written_cagr: wcagr,
+    primes_marche_total_mad: mkt, primes_vie_mad: vie_raw,
+    cedantes_detail, branches_absentes: branches_absentes_raw, branches_presentes: branches_presentes_raw,
   } = rapport
+  // Defensive guards against undefined values
+  const sw = sw_raw ?? 0
+  const pen = pen_raw ?? 0
+  const ulr = ulr_raw ?? 0
+  const nb_cedantes = nb_cedantes_raw ?? 0
+  const cagr = cagr_raw ?? 0
+  const vie = vie_raw ?? 0
+  const branches_absentes = branches_absentes_raw ?? []
+  const branches_presentes = branches_presentes_raw ?? []
 
   const diags: { section: string; classe: string; text: string }[] = []
   const reco: { priority: string; text: string }[] = []
@@ -390,9 +411,12 @@ export default function AnalyseSynergiePays() {
   const [tableauCed, setTableauCed] = useState<TableauCedanteRow[]>([])
 
   const [loadingKpis, setLoadingKpis] = useState(true)
-  const [loadingEvo, setLoadingEvo] = useState(true)
+  const [loadingEvo, setLoadingEvo] = useState(false)
   const [loadingRapport, setLoadingRapport] = useState(true)
-  const [loadingCed, setLoadingCed] = useState(true)
+  const [loadingCed, setLoadingCed] = useState(false)
+  // Track which deferred tabs have been loaded
+  const [evoLoaded, setEvoLoaded] = useState(false)
+  const [cedLoaded, setCedLoaded] = useState(false)
 
   const [paramsOpen, setParamsOpen] = useState(false)
   const [rapportParams, setRapportParams] = useState<RapportParams>({ ...DEFAULT_PARAMS })
@@ -411,10 +435,6 @@ export default function AnalyseSynergiePays() {
 
   // ── Tab navigation ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<PaysTabId>('kpis')
-  useEffect(() => {
-    const container = document.getElementById('scar-main-scroll')
-    if (container) container.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [activeTab])
   const currentTabIdx = PAYS_TABS.findIndex(t => t.id === activeTab)
   const goPrev = () => { if (currentTabIdx > 0) setActiveTab(PAYS_TABS[currentTabIdx - 1].id) }
   const goNext = () => { if (currentTabIdx < PAYS_TABS.length - 1) setActiveTab(PAYS_TABS[currentTabIdx + 1].id) }
@@ -426,41 +446,104 @@ export default function AnalyseSynergiePays() {
     api.get('/synergie/settings').then(r => setRate(r.data.usd_to_mad)).catch(() => { })
   }, [])
 
-  // Load evolution
-  useEffect(() => {
-    if (!pays) return
-    setLoadingEvo(true)
-    api.get(`/synergie/pays/${encodeURIComponent(pays)}/evolution`, { params: { usd_to_mad: rate } })
-      .then(r => setEvolution(r.data))
-      .finally(() => setLoadingEvo(false))
-  }, [pays, rate])
-
-  // Load year-dependent data
+  // Load primary data: KPIs + rapport in parallel (fast — single DB query each)
   const loadData = useCallback(() => {
     if (!pays) return
     const p = { year: selectedYear, usd_to_mad: rate }
 
     setLoadingKpis(true)
-    api.get(`/synergie/pays/${encodeURIComponent(pays)}/kpis`, { params: p })
-      .then(r => setKpis(r.data))
-      .finally(() => setLoadingKpis(false))
-
     setLoadingRapport(true)
-    api.get(`/synergie/pays/${encodeURIComponent(pays)}/rapport`, { params: p })
-      .then(r => setRapport(r.data))
-      .finally(() => setLoadingRapport(false))
+    // Reset deferred states so they reload for new year/pays
+    setEvoLoaded(false)
+    setCedLoaded(false)
+    setEvolution([])
+    setTableauCed([])
 
-    setLoadingCed(true)
-    api.get(`/synergie/pays/${encodeURIComponent(pays)}/tableau-cedantes`, { params: p })
-      .then(r => setTableauCed(r.data))
-      .finally(() => setLoadingCed(false))
+    Promise.all([
+      api.get(`/synergie/pays/${encodeURIComponent(pays)}/kpis`, { params: p }),
+      api.get(`/synergie/pays/${encodeURIComponent(pays)}/rapport`, { params: p }),
+    ]).then(([kpisRes, rapportRes]) => {
+      setKpis(kpisRes.data)
+      setRapport(rapportRes.data)
+    }).finally(() => {
+      setLoadingKpis(false)
+      setLoadingRapport(false)
+    })
   }, [pays, selectedYear, rate])
 
   useEffect(() => { loadData() }, [loadData])
 
+  // Lazy-load evolution when evolution tab is first visited
+  useEffect(() => {
+    if (activeTab === 'evolution' && !evoLoaded && pays) {
+      setLoadingEvo(true)
+      api.get(`/synergie/pays/${encodeURIComponent(pays)}/evolution`, { params: { usd_to_mad: rate } })
+        .then(r => { setEvolution(r.data); setEvoLoaded(true) })
+        .finally(() => setLoadingEvo(false))
+    }
+  }, [activeTab, evoLoaded, pays, rate])
+
+  // Lazy-load tableau-cedantes when cedantes tab is first visited
+  useEffect(() => {
+    if (activeTab === 'cedantes' && !cedLoaded && pays) {
+      setLoadingCed(true)
+      api.get(`/synergie/pays/${encodeURIComponent(pays)}/tableau-cedantes`, { params: { year: selectedYear, usd_to_mad: rate } })
+        .then(r => { setTableauCed(r.data); setCedLoaded(true) })
+        .finally(() => setLoadingCed(false))
+    }
+  }, [activeTab, cedLoaded, pays, selectedYear, rate])
+
+  // Build a filtered version of rapport data for diagnostics
+  const rapportFiltered = useMemo(() => {
+    if (!rapport) return null
+    if (activeFilter === 'all') return rapport
+    // Override key fields with Vie/Non-Vie splits from kpis
+    if (!kpis) return rapport
+    if (activeFilter === 'nonvie') {
+      return {
+        ...rapport,
+        share_written_avg: kpis.share_written_avg_nonvie,
+        penetration_marche_pct: kpis.penetration_marche_pct_nonvie,
+        subject_premium: kpis.subject_premium_nonvie_total,
+        written_premium: kpis.written_premium_nonvie_total,
+        primes_marche_total_mad: kpis.primes_marche_nonvie_mad,
+        primes_nonvie_mad: kpis.primes_marche_nonvie_mad,
+        primes_vie_mad: 0,
+        // Filter cedantes_detail to only non-vie-having entries
+        cedantes_detail: rapport.cedantes_detail.map(c => ({
+          ...c,
+          subject_premium: c.subject_nonvie ?? c.subject_premium,
+          written_premium: c.written_nonvie ?? c.written_premium,
+          share_written: c.share_written_avg_nonvie ?? c.share_written_avg,
+          share_written_avg: c.share_written_avg_nonvie ?? c.share_written_avg,
+          pct_written_vs_pays: 0, // recalculated below
+        })),
+      }
+    }
+    // vie
+    return {
+      ...rapport,
+      share_written_avg: kpis.share_written_avg_vie,
+      penetration_marche_pct: kpis.penetration_marche_pct_vie,
+      subject_premium: kpis.subject_premium_vie_total,
+      written_premium: kpis.written_premium_vie_total,
+      primes_marche_total_mad: kpis.primes_marche_vie_mad,
+      primes_nonvie_mad: 0,
+      primes_vie_mad: kpis.primes_marche_vie_mad,
+      cedantes_detail: rapport.cedantes_detail.map(c => ({
+        ...c,
+        subject_premium: c.subject_vie ?? c.subject_premium,
+        written_premium: c.written_vie ?? c.written_premium,
+        share_written: c.share_written_avg_vie ?? c.share_written_avg,
+        share_written_avg: c.share_written_avg_vie ?? c.share_written_avg,
+        pct_written_vs_pays: 0,
+      })),
+    }
+  }, [rapport, activeFilter, kpis])
+
   const diagnostics = useMemo(
-    () => rapport ? buildDiagnostics(rapport, rapportParams) : [],
-    [rapport, rapportParams]
+    () => rapportFiltered ? buildDiagnostics(rapportFiltered, rapportParams) : [],
+    [rapportFiltered, rapportParams]
   )
 
   const evoChartData = useMemo(() => evolution.map(r => ({
@@ -490,17 +573,39 @@ export default function AnalyseSynergiePays() {
     { id: 'penetration_marche', label: 'Pénétration ⭐', icon: '⭐' },
   ]
 
+  // Map sort column to the correct filtered column
+  const effectiveSortCol = useMemo(() => {
+    if (activeFilter === 'nonvie') {
+      if (sortCed.col === 'subject_premium') return 'subject_nonvie'
+      if (sortCed.col === 'written_premium') return 'written_nonvie'
+      if (sortCed.col === 'share_written_avg') return 'share_written_avg_nonvie'
+      if (sortCed.col === 'penetration_marche_pct') return 'penetration_marche_pct_nonvie'
+    } else if (activeFilter === 'vie') {
+      if (sortCed.col === 'subject_premium') return 'subject_vie'
+      if (sortCed.col === 'written_premium') return 'written_vie'
+      if (sortCed.col === 'share_written_avg') return 'share_written_avg_vie'
+      if (sortCed.col === 'penetration_marche_pct') return 'penetration_marche_pct_vie'
+    }
+    return sortCed.col
+  }, [sortCed.col, activeFilter])
+
   const sortedCed = useMemo(() => {
-    let rows = tableauCed.filter(r =>
-      !searchCed || r.cedante.toLowerCase().includes(searchCed.toLowerCase())
-    )
+    let rows = tableauCed.filter(r => {
+      // Filter by search text
+      if (searchCed && !r.cedante.toLowerCase().includes(searchCed.toLowerCase())) return false
+      // Exclude rows with no activity in the selected segment
+      if (activeFilter === 'vie') return (r.written_vie ?? 0) > 0 || (r.subject_vie ?? 0) > 0
+      if (activeFilter === 'nonvie') return (r.written_nonvie ?? 0) > 0 || (r.subject_nonvie ?? 0) > 0
+      // 'all': keep all rows that have any data
+      return true
+    })
     rows = [...rows].sort((a, b) => {
-      const v = (a as any)[sortCed.col] ?? 0
-      const w = (b as any)[sortCed.col] ?? 0
+      const v = (a as any)[effectiveSortCol] ?? 0
+      const w = (b as any)[effectiveSortCol] ?? 0
       return sortCed.dir === 'asc' ? v - w : w - v
     })
     return rows
-  }, [tableauCed, sortCed, searchCed])
+  }, [tableauCed, sortCed, searchCed, effectiveSortCol, activeFilter])
 
   const paginatedCed = useMemo(
     () => sortedCed.slice((pageCed - 1) * PAGE_SIZE, pageCed * PAGE_SIZE),
@@ -509,7 +614,17 @@ export default function AnalyseSynergiePays() {
   const handleSortCed = (col: string) =>
     setSortCed(s => ({ col, dir: s.col === col && s.dir === 'desc' ? 'asc' : 'desc' }))
 
-  const totalWpCed = useMemo(() => tableauCed.reduce((s, r) => s + r.written_premium, 0), [tableauCed])
+  const totalWpCed = useMemo(() =>
+    tableauCed.reduce((s, r) =>
+      s + (activeFilter === 'nonvie' ? r.written_nonvie : activeFilter === 'vie' ? r.written_vie : r.written_premium),
+    0),
+  [tableauCed, activeFilter])
+
+  const totalSubjectCed = useMemo(() =>
+    tableauCed.reduce((s, r) =>
+      s + (activeFilter === 'nonvie' ? r.subject_nonvie : activeFilter === 'vie' ? r.subject_vie : r.subject_premium),
+    0),
+  [tableauCed, activeFilter])
 
   const kpiCards = kpis ? [
     {
@@ -536,7 +651,24 @@ export default function AnalyseSynergiePays() {
       sub: activeFilter === 'nonvie' ? 'SHARE_WRITTEN moyen — segment Non-Vie' : activeFilter === 'vie' ? 'SHARE_WRITTEN moyen — segment Vie' : 'SHARE_WRITTEN moyen',
       icon: <Percent size={18} style={{ color: GOLD }} />,
     },
-    { label: 'Marchés / Affaires / Cédantes', value: `${kpis.nb_affaires} aff. · ${kpis.nb_cedantes} céd.`, sub: `ULR moyen : ${kpis.ulr_moyen.toFixed(1)}%`, icon: <Globe size={18} style={{ color: GOLD }} /> },
+    {
+      label: 'Marchés / Affaires / Cédantes',
+      value: `${
+        activeFilter === 'nonvie' ? kpis.nb_affaires_nonvie
+        : activeFilter === 'vie' ? kpis.nb_affaires_vie
+        : kpis.nb_affaires
+      } aff. · ${
+        activeFilter === 'nonvie' ? kpis.nb_cedantes_nonvie
+        : activeFilter === 'vie' ? kpis.nb_cedantes_vie
+        : kpis.nb_cedantes
+      } céd.`,
+      sub: `ULR moyen${activeFilter !== 'all' ? ` (${activeFilter === 'vie' ? 'Vie' : 'Non-Vie'})` : ''} : ${(
+        activeFilter === 'nonvie' ? kpis.ulr_moyen_nonvie
+        : activeFilter === 'vie' ? kpis.ulr_moyen_vie
+        : kpis.ulr_moyen
+      ).toFixed(1)}%`,
+      icon: <Globe size={18} style={{ color: GOLD }} />,
+    },
     {
       label: 'Pénétration Réelle sur le Marché',
       value: `${(activeFilter === 'nonvie' ? kpis.penetration_marche_pct_nonvie : activeFilter === 'vie' ? kpis.penetration_marche_pct_vie : kpis.penetration_marche_pct).toFixed(3)}%`,
@@ -592,14 +724,53 @@ export default function AnalyseSynergiePays() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                     {kpis && (
                       <>
-                        <span className="badge-gold">{kpis.nb_affaires} affaire{kpis.nb_affaires > 1 ? 's' : ''}</span>
-                        <span className="badge-gold">{kpis.nb_cedantes} cédante{kpis.nb_cedantes > 1 ? 's' : ''}</span>
-                        <span style={{ background: ulrColor(kpis.ulr_moyen), color: 'white', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
-                          ULR: {kpis.ulr_moyen.toFixed(1)}%
+                        <span className="badge-gold">
+                          {activeFilter === 'nonvie' ? kpis.nb_affaires_nonvie
+                            : activeFilter === 'vie' ? kpis.nb_affaires_vie
+                            : kpis.nb_affaires} affaire{(
+                            activeFilter === 'nonvie' ? kpis.nb_affaires_nonvie
+                            : activeFilter === 'vie' ? kpis.nb_affaires_vie
+                            : kpis.nb_affaires
+                          ) > 1 ? 's' : ''}
+                          {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
                         </span>
-                        <span className="badge-gold">Part affaires: {kpis.share_written_avg.toFixed(1)}%</span>
+                        <span className="badge-gold">
+                          {activeFilter === 'nonvie' ? kpis.nb_cedantes_nonvie
+                            : activeFilter === 'vie' ? kpis.nb_cedantes_vie
+                            : kpis.nb_cedantes} cédante{(
+                            activeFilter === 'nonvie' ? kpis.nb_cedantes_nonvie
+                            : activeFilter === 'vie' ? kpis.nb_cedantes_vie
+                            : kpis.nb_cedantes
+                          ) > 1 ? 's' : ''}
+                          {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
+                        </span>
+                        <span style={{ background: ulrColor(
+                          activeFilter === 'nonvie' ? kpis.ulr_moyen_nonvie
+                          : activeFilter === 'vie' ? kpis.ulr_moyen_vie
+                          : kpis.ulr_moyen
+                        ), color: 'white', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                          ULR: {(
+                            activeFilter === 'nonvie' ? kpis.ulr_moyen_nonvie
+                            : activeFilter === 'vie' ? kpis.ulr_moyen_vie
+                            : kpis.ulr_moyen
+                          ).toFixed(1)}%
+                          {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
+                        </span>
+                        <span className="badge-gold">
+                          Part affaires: {(
+                            activeFilter === 'nonvie' ? kpis.share_written_avg_nonvie
+                            : activeFilter === 'vie' ? kpis.share_written_avg_vie
+                            : kpis.share_written_avg
+                          ).toFixed(1)}%
+                          {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
+                        </span>
                         <span style={{ background: GOLD, color: 'white', borderRadius: 6, padding: '4px 10px', fontWeight: 700, fontSize: 13 }} title={PENETRATION_TOOLTIP}>
-                          ⭐ Pénétration réelle: {kpis.penetration_marche_pct.toFixed(3)}%
+                          ⭐ Pénétration réelle: {(
+                            activeFilter === 'nonvie' ? kpis.penetration_marche_pct_nonvie
+                            : activeFilter === 'vie' ? kpis.penetration_marche_pct_vie
+                            : kpis.penetration_marche_pct
+                          ).toFixed(3)}%
+                          {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
                         </span>
                       </>
                     )}
@@ -885,6 +1056,17 @@ export default function AnalyseSynergiePays() {
                 </div>
                 {loadingCed ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+                ) : sortedCed.length === 0 ? (
+                  <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: '#9ca3af', marginBottom: 6 }}>
+                      {activeFilter === 'vie' ? '🚫 Aucune affaire Vie pour ce pays.' :
+                       activeFilter === 'nonvie' ? '🚫 Aucune affaire Non-Vie pour ce pays.' :
+                       '🚫 Aucune affaire disponible pour ce pays.'}
+                    </p>
+                    <p style={{ fontSize: 13, color: '#d1d5db' }}>
+                      {searchCed ? 'Essayez une autre recherche ou modifiez votre filtre.' : 'Aucune cédante active sur ce marché pour la période sélectionnée.'}
+                    </p>
+                  </div>
                 ) : (
                   <>
                     <div style={{ overflowX: 'auto' }}>
@@ -904,7 +1086,7 @@ export default function AnalyseSynergiePays() {
                             <SortHeader label="Part Affaires %" col="share_written_avg" sortCol={sortCed.col} sortDir={sortCed.dir} onSort={handleSortCed} />
                             <th className="px-3 py-2.5 text-left text-xs font-semibold whitespace-nowrap cursor-pointer select-none"
                               style={{ color: sortCed.col === 'penetration_marche_pct' ? GOLD : '#6b7280' }}
-                              onClick={() => handleSortCed('penetration_marche_pct')} title={PENETRATION_TOOLTIP}>
+                              onClick={() => handleSortCed('penetration_marche_pct')} title="= SHARE_WRITTEN × (Subject / Primes Marché Total) × 100">
                               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 ⭐ Pénétration Réelle %
                                 {sortCed.col === 'penetration_marche_pct' && (sortCed.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
@@ -928,34 +1110,37 @@ export default function AnalyseSynergiePays() {
                               <td className="px-3 py-2.5">
                                 {(activeFilter === 'nonvie' ? row.share_written_avg_nonvie : activeFilter === 'vie' ? row.share_written_avg_vie : row.share_written_avg).toFixed(1)}%
                               </td>
-                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title={PENETRATION_TOOLTIP}>
+                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title="= SHARE_WRITTEN × (Subject / Primes Marché Total) × 100">
                                 {(activeFilter === 'nonvie' ? row.penetration_marche_pct_nonvie : activeFilter === 'vie' ? row.penetration_marche_pct_vie : row.penetration_marche_pct).toFixed(3)}%
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 600, color: ulrColor(row.ulr_moyen) }}>{row.ulr_moyen.toFixed(1)}%</td>
                               <td className="px-3 py-2.5">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div className="progress-gold" style={{ width: 80, flexShrink: 0 }}>
-                                    <div className="progress-gold-fill" style={{ width: `${Math.min(row.pct_written_vs_pays, 100)}%` }} />
-                                  </div>
-                                  <span style={{ fontSize: 12, fontWeight: 600, color: GOLD_DARK }}>
-                                    {row.pct_written_vs_pays.toFixed(1)}%
-                                  </span>
-                                </div>
+                                {(() => {
+                                  const wpFiltered = activeFilter === 'nonvie' ? row.written_nonvie : activeFilter === 'vie' ? row.written_vie : row.written_premium
+                                  const pct = totalWpCed > 0 ? (wpFiltered / totalWpCed) * 100 : 0
+                                  return (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <div className="progress-gold" style={{ width: 80, flexShrink: 0 }}>
+                                        <div className="progress-gold-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                      </div>
+                                      <span style={{ fontSize: 12, fontWeight: 600, color: GOLD_DARK }}>
+                                        {pct.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  )
+                                })()}
                               </td>
                             </tr>
                           ))}
                           {/* Ligne total */}
-                          {tableauCed.length > 0 && (
+                          {sortedCed.length > 0 && (
                             <tr style={{ background: `hsla(43,96%,48%,0.08)`, borderTop: `2px solid ${GOLD}` }}>
                               <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>TOTAL</td>
-                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>{tableauCed.reduce((s, r) => s + r.nb_affaires, 0)}</td>
-                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>{formatMAD(tableauCed.reduce((s, r) => s + r.subject_premium, 0))}</td>
+                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>{sortedCed.reduce((s, r) => s + r.nb_affaires, 0)}</td>
+                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>{formatMAD(totalSubjectCed)}</td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD_DARK }}>{formatMAD(totalWpCed)}</td>
                               <td colSpan={4} />
                             </tr>
-                          )}
-                          {paginatedCed.length === 0 && (
-                            <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#9ca3af' }}>Aucune cédante trouvée</td></tr>
                           )}
                         </tbody>
                       </table>

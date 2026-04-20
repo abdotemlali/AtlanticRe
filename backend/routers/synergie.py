@@ -125,128 +125,139 @@ def _calc_cagr(values_by_year: dict[int, float]) -> float:
     return ((v_end / v_start) ** (1.0 / n) - 1) * 100.0
 
 
-def _get_ext_primes_for_pays(
-    nom_pays_ext: str, year: Optional[int], rate: float
-) -> dict[str, Any]:
+# ── Optimized ext data bulk loader ─────────────────────────────────────────────
+
+def _load_all_ext_data(rate: float) -> dict[str, dict]:
     """
-    Retourne {nonvie_mn_usd, vie_mn_usd, nonvie_mad, vie_mad, total_mad}
-    pour un pays externe et une année donnée.
-    Si year=None, moyenne sur toutes les années disponibles.
+    Charge TOUTES les données des marchés externes en 2 requêtes SQL
+    (une pour non-vie, une pour vie) et retourne un dict:
+      { nom_pays_ext: { year: {nonvie_mad, vie_mad} } }
+    + agrégats moyens (year=None key).
     """
-    db = SessionLocal()
-    try:
-        if year is not None:
-            nv_row = db.execute(
-                text(
-                    "SELECT primes_emises_mn_usd FROM ext_marche_non_vie"
-                    " WHERE pays = :p AND annee = :y"
-                ),
-                {"p": nom_pays_ext, "y": year},
-            ).fetchone()
-            v_row = db.execute(
-                text(
-                    "SELECT primes_emises_mn_usd FROM ext_marche_vie"
-                    " WHERE pays = :p AND annee = :y"
-                ),
-                {"p": nom_pays_ext, "y": year},
-            ).fetchone()
-            nonvie = _safe_float(nv_row[0]) if nv_row and nv_row[0] is not None else None
-            vie = _safe_float(v_row[0]) if v_row and v_row[0] is not None else None
-        else:
-            # Moyenne sur toutes les années disponibles
-            nv_rows = db.execute(
-                text(
-                    "SELECT AVG(primes_emises_mn_usd) FROM ext_marche_non_vie"
-                    " WHERE pays = :p AND primes_emises_mn_usd IS NOT NULL"
-                ),
-                {"p": nom_pays_ext},
-            ).fetchone()
-            v_rows = db.execute(
-                text(
-                    "SELECT AVG(primes_emises_mn_usd) FROM ext_marche_vie"
-                    " WHERE pays = :p AND primes_emises_mn_usd IS NOT NULL"
-                ),
-                {"p": nom_pays_ext},
-            ).fetchone()
-            nonvie = _safe_float(nv_rows[0]) if nv_rows and nv_rows[0] is not None else None
-            vie = _safe_float(v_rows[0]) if v_rows and v_rows[0] is not None else None
-    except Exception as exc:
-        logger.warning("Error fetching ext primes for %s: %s", nom_pays_ext, exc)
-        nonvie, vie = None, None
-    finally:
-        db.close()
-
-    nonvie_mad = (nonvie * 1_000_000 * rate) if nonvie is not None else 0.0
-    vie_mad = (vie * 1_000_000 * rate) if vie is not None else 0.0
-    return {
-        "nonvie_mn_usd": nonvie,
-        "vie_mn_usd": vie,
-        "nonvie_mad": nonvie_mad,
-        "vie_mad": vie_mad,
-        "total_mad": nonvie_mad + vie_mad,
-    }
-
-
-def _get_ext_timeseries(nom_pays_ext: str, rate: float) -> list[dict]:
-    """Série temporelle ext [2015..2024] pour un pays."""
     db = SessionLocal()
     try:
         nv_rows = db.execute(
-            text(
-                "SELECT annee, primes_emises_mn_usd FROM ext_marche_non_vie"
-                " WHERE pays = :p ORDER BY annee"
-            ),
-            {"p": nom_pays_ext},
+            text("SELECT pays, annee, primes_emises_mn_usd FROM ext_marche_non_vie WHERE primes_emises_mn_usd IS NOT NULL")
         ).fetchall()
         v_rows = db.execute(
-            text(
-                "SELECT annee, primes_emises_mn_usd FROM ext_marche_vie"
-                " WHERE pays = :p ORDER BY annee"
-            ),
-            {"p": nom_pays_ext},
+            text("SELECT pays, annee, primes_emises_mn_usd FROM ext_marche_vie WHERE primes_emises_mn_usd IS NOT NULL")
         ).fetchall()
     except Exception as exc:
-        logger.warning("Error fetching ext timeseries for %s: %s", nom_pays_ext, exc)
-        return []
+        logger.warning("Error loading ext data: %s", exc)
+        return {}
     finally:
         db.close()
 
-    nv_by_year = {
-        int(r[0]): _safe_float(r[1]) for r in nv_rows if r[1] is not None
-    }
-    v_by_year = {
-        int(r[0]): _safe_float(r[1]) for r in v_rows if r[1] is not None
-    }
+    # Build per-pays, per-year data
+    data: dict[str, dict] = {}
 
-    result = []
-    all_years = sorted(EXT_YEARS & (set(nv_by_year) | set(v_by_year)))
-    for yr in all_years:
-        nv = nv_by_year.get(yr, 0.0) or 0.0
-        v = v_by_year.get(yr, 0.0) or 0.0
-        result.append(
-            {
-                "year": yr,
-                "nonvie": nv * 1_000_000 * rate,
-                "vie": v * 1_000_000 * rate,
-                "total": (nv + v) * 1_000_000 * rate,
+    for pays, annee, primes in nv_rows:
+        p = pays.strip()
+        y = int(annee)
+        if p not in data:
+            data[p] = {}
+        if y not in data[p]:
+            data[p][y] = {"nonvie": 0.0, "vie": 0.0}
+        v = _safe_float(primes)
+        if v is not None:
+            data[p][y]["nonvie"] += v
+
+    for pays, annee, primes in v_rows:
+        p = pays.strip()
+        y = int(annee)
+        if p not in data:
+            data[p] = {}
+        if y not in data[p]:
+            data[p][y] = {"nonvie": 0.0, "vie": 0.0}
+        v = _safe_float(primes)
+        if v is not None:
+            data[p][y]["vie"] += v
+
+    # Convert raw (mn USD) to MAD, add total, compute averages
+    result: dict[str, dict] = {}
+    for pays, by_year in data.items():
+        result[pays] = {}
+        nv_vals, v_vals = [], []
+        for y, vals in by_year.items():
+            nv_mad = vals["nonvie"] * 1_000_000 * rate
+            v_mad = vals["vie"] * 1_000_000 * rate
+            result[pays][y] = {
+                "nonvie_mad": nv_mad,
+                "vie_mad": v_mad,
+                "total_mad": nv_mad + v_mad,
             }
-        )
+            nv_vals.append(vals["nonvie"])
+            v_vals.append(vals["vie"])
+        # Average (year=None)
+        avg_nv = (sum(nv_vals) / len(nv_vals)) if nv_vals else 0.0
+        avg_v = (sum(v_vals) / len(v_vals)) if v_vals else 0.0
+        result[pays][None] = {
+            "nonvie_mad": avg_nv * 1_000_000 * rate,
+            "vie_mad": avg_v * 1_000_000 * rate,
+            "total_mad": (avg_nv + avg_v) * 1_000_000 * rate,
+        }
+
     return result
 
+
+def _get_ext_primes_from_cache(
+    nom_pays_ext: str, year_int: Optional[int], ext_cache: dict
+) -> dict:
+    """Lookup dans le cache ext_data (chargé une fois par requête)."""
+    pays_data = ext_cache.get(nom_pays_ext, {})
+    yr_data = pays_data.get(year_int, pays_data.get(None, {}))
+    return {
+        "nonvie_mad": yr_data.get("nonvie_mad", 0.0),
+        "vie_mad": yr_data.get("vie_mad", 0.0),
+        "total_mad": yr_data.get("total_mad", 0.0),
+    }
+
+
+def _get_synergie_df() -> pd.DataFrame:
+    df = get_df()
+    if df is None or df.empty:
+        return pd.DataFrame()
+    # Cache heavy string transforms once
+    if "PAYS_RISQUE" in df.columns and "_PAYS_UPPER" not in df.columns:
+        df["_PAYS_UPPER"] = df["PAYS_RISQUE"].fillna("").astype(str).str.strip().str.upper()
+    if "INT_BRANCHE" in df.columns and "_BRANCHE_UPPER" not in df.columns:
+        df["_BRANCHE_UPPER"] = df["INT_BRANCHE"].fillna("").astype(str).str.strip().str.upper()
+    return df
+
+
+def _get_ext_timeseries_from_cache(nom_pays_ext: str, ext_cache: dict) -> list[dict]:
+    """Série temporelle ext [2015..2024] pour un pays depuis le cache."""
+    pays_data = ext_cache.get(nom_pays_ext, {})
+    result = []
+    for yr in sorted(EXT_YEARS):
+        yr_data = pays_data.get(yr)
+        if yr_data is None:
+            continue
+        result.append({
+            "year": yr,
+            "nonvie": yr_data["nonvie_mad"],
+            "vie": yr_data["vie_mad"],
+            "total": yr_data["total_mad"],
+        })
+    return result
+
+
+# ── Compute pays KPIs (uses pre-loaded ext cache) ──────────────────────────────
 
 def _compute_pays_kpis(
     df: pd.DataFrame,
     pays_risque: str,
     nom_pays_ext: str,
     year_int: Optional[int],
-    rate: float,
+    ext_cache: dict,
 ) -> Optional[dict]:
     """
     Calcule tous les KPIs pour un pays donné.
     Si year_int=None → agrège sur toutes les années croisées disponibles.
+    ext_cache: résultat de _load_all_ext_data(), chargé une seule fois par requête.
     """
     # Filtre interne
-    mask_pays = df["PAYS_RISQUE"].str.strip().str.upper() == pays_risque.upper()
+    mask_pays = df["_PAYS_UPPER"] == pays_risque.upper()
     df_pays_all = df[mask_pays & df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
 
     if df_pays_all.empty:
@@ -260,8 +271,8 @@ def _compute_pays_kpis(
         df_pays = df_pays_all
 
     # Split Vie / Non-Vie sur données internes (colonne INT_BRANCHE)
-    if "INT_BRANCHE" in df_pays.columns:
-        vie_mask = df_pays["INT_BRANCHE"].str.strip().str.upper() == "VIE"
+    if "_BRANCHE_UPPER" in df_pays.columns:
+        vie_mask = df_pays["_BRANCHE_UPPER"] == "VIE"
         df_vie = df_pays[vie_mask]
         df_nonvie = df_pays[~vie_mask]
     else:
@@ -284,16 +295,25 @@ def _compute_pays_kpis(
     share_written_avg_nonvie = float(sw_nonvie_vals.mean()) if not sw_nonvie_vals.empty else 0.0
     share_written_avg_vie = float(sw_vie_vals.mean()) if not sw_vie_vals.empty else 0.0
 
-    # ULR
+    # ULR — total + par segment
     ulr_col = _get_ulr_col(df_pays)
     ulr_vals = df_pays[ulr_col].dropna() if ulr_col else pd.Series(dtype=float)
     ulr_moyen = float(ulr_vals.mean()) if not ulr_vals.empty else 0.0
+    ulr_nonvie_vals = df_nonvie[ulr_col].dropna() if ulr_col and not df_nonvie.empty else pd.Series(dtype=float)
+    ulr_moyen_nonvie = float(ulr_nonvie_vals.mean()) if not ulr_nonvie_vals.empty else 0.0
+    ulr_vie_vals = df_vie[ulr_col].dropna() if ulr_col and not df_vie.empty else pd.Series(dtype=float)
+    ulr_moyen_vie = float(ulr_vie_vals.mean()) if not ulr_vie_vals.empty else 0.0
 
+    # Affaires + cédantes — total + par segment
     nb_affaires = int(len(df_pays))
+    nb_affaires_nonvie = int(len(df_nonvie))
+    nb_affaires_vie = int(len(df_vie))
     nb_cedantes = int(df_pays["INT_CEDANTE"].nunique()) if "INT_CEDANTE" in df_pays.columns else 0
+    nb_cedantes_nonvie = int(df_nonvie["INT_CEDANTE"].nunique()) if "INT_CEDANTE" in df_nonvie.columns and not df_nonvie.empty else 0
+    nb_cedantes_vie = int(df_vie["INT_CEDANTE"].nunique()) if "INT_CEDANTE" in df_vie.columns and not df_vie.empty else 0
 
-    # Primes marché externes
-    ext = _get_ext_primes_for_pays(nom_pays_ext, year_int, rate)
+    # Primes marché externes — depuis le cache (zéro requête DB)
+    ext = _get_ext_primes_from_cache(nom_pays_ext, year_int, ext_cache)
     primes_marche_total_mad = ext["total_mad"]
     primes_nonvie_mad = ext["nonvie_mad"]
     primes_vie_mad = ext["vie_mad"]
@@ -321,43 +341,29 @@ def _compute_pays_kpis(
         "penetration_marche_pct_nonvie": penetration_nonvie,
         "penetration_marche_pct_vie": penetration_vie,
         "ulr_moyen": ulr_moyen,
+        "ulr_moyen_nonvie": ulr_moyen_nonvie,
+        "ulr_moyen_vie": ulr_moyen_vie,
         "nb_affaires": nb_affaires,
+        "nb_affaires_nonvie": nb_affaires_nonvie,
+        "nb_affaires_vie": nb_affaires_vie,
         "nb_cedantes": nb_cedantes,
+        "nb_cedantes_nonvie": nb_cedantes_nonvie,
+        "nb_cedantes_vie": nb_cedantes_vie,
     }
 
 
-def _get_pays_croises_cached() -> list[dict]:
+def _get_pays_croises(df: pd.DataFrame, mapping: dict, ext_cache: dict) -> list[dict]:
     """
     Retourne la liste des pays présents dans les données internes ET dans
-    les données externes (ext_marche_non_vie ou ext_marche_vie).
+    les données externes. Utilise le cache ext pré-chargé (sans requête DB).
     """
-    df = get_df()
     if df is None or df.empty:
         return []
     if "PAYS_RISQUE" not in df.columns or "UNDERWRITING_YEAR" not in df.columns:
         return []
 
-    mapping = _get_mapping()
-    if not mapping:
-        return []
-
-    db = SessionLocal()
-    try:
-        ext_pays_rows = db.execute(
-            text(
-                "SELECT DISTINCT pays FROM ext_marche_non_vie"
-                " UNION SELECT DISTINCT pays FROM ext_marche_vie"
-            )
-        ).fetchall()
-        ext_pays_set = {r[0].strip() for r in ext_pays_rows}
-    except Exception as exc:
-        logger.warning("Error fetching ext pays list: %s", exc)
-        return []
-    finally:
-        db.close()
-
-    df_ext = df[df["UNDERWRITING_YEAR"].isin(EXT_YEARS)].copy()
-    df_ext["_PAYS_UPPER"] = df_ext["PAYS_RISQUE"].str.strip().str.upper()
+    ext_pays_set = set(ext_cache.keys())
+    df_ext = df[df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
 
     result = []
     for pays_risque_up, nom_pays_ext in mapping.items():
@@ -411,7 +417,10 @@ def put_settings(
 @router.get("/pays-croises")
 def pays_croises(_: dict = Depends(get_current_user)):
     """Liste des pays présents dans les données internes ET les données de marché externe."""
-    return _get_pays_croises_cached()
+    df = _get_synergie_df()
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(9.5)  # rate doesn't matter for just the list
+    return _get_pays_croises(df, mapping, ext_cache)
 
 
 @router.get("/kpis")
@@ -424,12 +433,14 @@ def kpis_global(
     KPIs agrégés sur tous les pays croisés.
     year = année entière (ex: "2024") ou "moyenne".
     """
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return _empty_global_kpis()
 
     year_int = None if year == "moyenne" else int(year)
-    pays_list = _get_pays_croises_cached()
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
 
     totals = {
         "nb_pays_croises": len(pays_list),
@@ -451,7 +462,7 @@ def kpis_global(
     }
 
     for pc in pays_list:
-        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, usd_to_mad)
+        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, ext_cache)
         if not kpis:
             continue
         totals["primes_marche_total_mad"] += kpis["primes_marche_total_mad"]
@@ -560,20 +571,31 @@ def classements_global(
     _: dict = Depends(get_current_user),
 ):
     """Classements Top-15 par indicateur, sur tous les pays croisés."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return _empty_classements()
 
     year_int = None if year == "moyenne" else int(year)
-    pays_list = _get_pays_croises_cached()
-    ulr_col = _get_ulr_col(df)
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
 
     rows = []
+    tableau_cedantes_out = []  # computed here — zero extra DB calls
     for pc in pays_list:
-        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, usd_to_mad)
+        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, ext_cache)
         if not kpis:
             continue
         rows.append(kpis)
+        # Cedantes for this pays — computed inline (same df + ext_cache, no extra DB)
+        ced_rows = _tableau_cedantes_for_pays(
+            df, pc["pays_interne"], pc["pays_externe"], year_int, ext_cache
+        )
+        total_wp = sum(r["written_premium"] for r in ced_rows)
+        for r in ced_rows:
+            r["pct_written_vs_pays"] = (r["written_premium"] / total_wp * 100.0) if total_wp else 0.0
+        tableau_cedantes_out.extend(ced_rows)
+    tableau_cedantes_out = sorted(tableau_cedantes_out, key=lambda x: x["written_premium"], reverse=True)
 
     def top15(data, key, reverse=True):
         return sorted(
@@ -593,6 +615,36 @@ def classements_global(
         }
         for r in par_primes
     ]
+
+    # Build tableau_pays inline (data already computed — zero extra cost)
+    tableau_pays_out = sorted(
+        [
+            {
+                "pays": r["pays"],
+                "primes_marche_total_mad": r["primes_marche_total_mad"],
+                "primes_nonvie_mad": r["primes_marche_nonvie_mad"],
+                "primes_vie_mad": r["primes_marche_vie_mad"],
+                "subject_premium": r["subject_premium"],
+                "subject_nonvie": r["subject_premium_nonvie"],
+                "subject_vie": r["subject_premium_vie"],
+                "written_premium": r["written_premium"],
+                "written_nonvie": r["written_premium_nonvie"],
+                "written_vie": r["written_premium_vie"],
+                "share_written_avg": r["share_written_avg"],
+                "share_written_avg_nonvie": r["share_written_avg_nonvie"],
+                "share_written_avg_vie": r["share_written_avg_vie"],
+                "penetration_marche_pct": r["penetration_marche_pct"],
+                "penetration_marche_pct_nonvie": r["penetration_marche_pct_nonvie"],
+                "penetration_marche_pct_vie": r["penetration_marche_pct_vie"],
+                "nb_affaires": r["nb_affaires"],
+                "nb_cedantes": r["nb_cedantes"],
+                "ulr_moyen": r["ulr_moyen"],
+            }
+            for r in rows
+        ],
+        key=lambda x: x["written_premium"],
+        reverse=True,
+    )
 
     return {
         "par_primes_marche": par_primes_out,
@@ -640,6 +692,8 @@ def classements_global(
                 key=lambda x: x.get("ulr_moyen", 0),
             )[:15]
         ],
+        "tableau_pays": tableau_pays_out,
+        "tableau_cedantes": tableau_cedantes_out,
     }
 
 
@@ -651,6 +705,8 @@ def _empty_classements():
         "par_share_written": [],
         "par_penetration_marche": [],
         "par_rentabilite": [],
+        "tableau_pays": [],
+        "tableau_cedantes": [],
     }
 
 
@@ -660,18 +716,20 @@ def evolution_global(
     _: dict = Depends(get_current_user),
 ):
     """Évolution annuelle sur toutes les années croisées (agrégat tous pays croisés)."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return []
 
-    pays_list = _get_pays_croises_cached()
-    mapping = {pc["pays_interne"]: pc["pays_externe"] for pc in pays_list}
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
+    pays_map = {pc["pays_interne"]: pc["pays_externe"] for pc in pays_list}
 
     # Collect data by year
     by_year: dict[int, dict] = {}
 
-    for pays_risque_up, nom_pays_ext in mapping.items():
-        mask = df["PAYS_RISQUE"].str.strip().str.upper() == pays_risque_up
+    for pays_risque_up, nom_pays_ext in pays_map.items():
+        mask = df["_PAYS_UPPER"] == pays_risque_up
         df_pays = df[mask & df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
         if df_pays.empty:
             continue
@@ -698,8 +756,8 @@ def evolution_global(
             wp = _safe_float(grp["WRITTEN_PREMIUM"].sum()) or 0.0
             sw_vals = grp["SHARE_WRITTEN"].dropna().tolist()
             # Split Vie / Non-Vie
-            if "INT_BRANCHE" in grp.columns:
-                vie_m = grp["INT_BRANCHE"].str.strip().str.upper() == "VIE"
+            if "_BRANCHE_UPPER" in grp.columns:
+                vie_m = grp["_BRANCHE_UPPER"] == "VIE"
                 grp_vie = grp[vie_m]
                 grp_nv = grp[~vie_m]
             else:
@@ -715,8 +773,8 @@ def evolution_global(
             by_year[yr_int]["share_written_values_nonvie"].extend(grp_nv["SHARE_WRITTEN"].dropna().tolist())
             by_year[yr_int]["share_written_values_vie"].extend(grp_vie["SHARE_WRITTEN"].dropna().tolist())
 
-        # External per-year
-        ext_ts = _get_ext_timeseries(nom_pays_ext, usd_to_mad)
+        # External per-year — from cache (no DB)
+        ext_ts = _get_ext_timeseries_from_cache(nom_pays_ext, ext_cache)
         for ext_row in ext_ts:
             yr_int = ext_row["year"]
             if yr_int not in by_year:
@@ -777,16 +835,18 @@ def tableau_pays(
     _: dict = Depends(get_current_user),
 ):
     """Tableau de synthèse par pays croisé."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return []
 
     year_int = None if year == "moyenne" else int(year)
-    pays_list = _get_pays_croises_cached()
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
 
     rows = []
     for pc in pays_list:
-        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, usd_to_mad)
+        kpis = _compute_pays_kpis(df, pc["pays_interne"], pc["pays_externe"], year_int, ext_cache)
         if not kpis:
             continue
         rows.append(
@@ -822,17 +882,19 @@ def tableau_cedantes_global(
     _: dict = Depends(get_current_user),
 ):
     """Tableau détaillé par cédante, sur tous les pays croisés."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return []
 
     year_int = None if year == "moyenne" else int(year)
-    pays_list = _get_pays_croises_cached()
+    mapping = _get_mapping()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
 
     result = []
     for pc in pays_list:
         rows = _tableau_cedantes_for_pays(
-            df, pc["pays_interne"], pc["pays_externe"], year_int, usd_to_mad
+            df, pc["pays_interne"], pc["pays_externe"], year_int, ext_cache
         )
         result.extend(rows)
 
@@ -851,7 +913,7 @@ def kpis_pays(
     _: dict = Depends(get_current_user),
 ):
     """KPIs pour un seul pays."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return _empty_global_kpis()
 
@@ -862,10 +924,11 @@ def kpis_pays(
         return _empty_global_kpis()
 
     year_int = None if year == "moyenne" else int(year)
-    pays_list = _get_pays_croises_cached()
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
     pc = next((p for p in pays_list if p["pays_interne"] == pays_up), None)
 
-    kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, year_int, usd_to_mad)
+    kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, year_int, ext_cache)
     if not kpis:
         return _empty_global_kpis()
 
@@ -889,8 +952,14 @@ def kpis_pays(
         "penetration_marche_pct_nonvie": kpis["penetration_marche_pct_nonvie"],
         "penetration_marche_pct_vie": kpis["penetration_marche_pct_vie"],
         "ulr_moyen": kpis["ulr_moyen"],
+        "ulr_moyen_nonvie": kpis["ulr_moyen_nonvie"],
+        "ulr_moyen_vie": kpis["ulr_moyen_vie"],
         "nb_affaires": kpis["nb_affaires"],
+        "nb_affaires_nonvie": kpis["nb_affaires_nonvie"],
+        "nb_affaires_vie": kpis["nb_affaires_vie"],
         "nb_cedantes": kpis["nb_cedantes"],
+        "nb_cedantes_nonvie": kpis["nb_cedantes_nonvie"],
+        "nb_cedantes_vie": kpis["nb_cedantes_vie"],
         "annees_disponibles": pc["annees_disponibles"] if pc else [],
     }
 
@@ -902,7 +971,7 @@ def evolution_pays(
     _: dict = Depends(get_current_user),
 ):
     """Évolution annuelle pour un seul pays."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return []
 
@@ -912,10 +981,12 @@ def evolution_pays(
     if not nom_pays_ext:
         return []
 
-    mask = df["PAYS_RISQUE"].str.strip().str.upper() == pays_up
+    ext_cache = _load_all_ext_data(usd_to_mad)
+
+    mask = df["_PAYS_UPPER"] == pays_up
     df_pays = df[mask & df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
 
-    ext_ts = _get_ext_timeseries(nom_pays_ext, usd_to_mad)
+    ext_ts = _get_ext_timeseries_from_cache(nom_pays_ext, ext_cache)
     ext_by_year = {r["year"]: r for r in ext_ts}
 
     by_year: dict[int, dict] = {}
@@ -926,8 +997,8 @@ def evolution_pays(
         wp = _safe_float(grp["WRITTEN_PREMIUM"].sum()) or 0.0
         sw_vals = grp["SHARE_WRITTEN"].dropna().tolist()
         # Split Vie / Non-Vie
-        if "INT_BRANCHE" in grp.columns:
-            vie_m = grp["INT_BRANCHE"].str.strip().str.upper() == "VIE"
+        if "_BRANCHE_UPPER" in grp.columns:
+            vie_m = grp["_BRANCHE_UPPER"] == "VIE"
             grp_vie = grp[vie_m]
             grp_nv = grp[~vie_m]
         else:
@@ -994,7 +1065,7 @@ def rapport_pays(
     _: dict = Depends(get_current_user),
 ):
     """Rapport détaillé pour un pays : données de positionnement, CAGR, cédantes, branches."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return {}
 
@@ -1005,21 +1076,23 @@ def rapport_pays(
         return {}
 
     year_int = None if year == "moyenne" else int(year)
-    kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, year_int, usd_to_mad)
+    ext_cache = _load_all_ext_data(usd_to_mad)
+
+    kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, year_int, ext_cache)
     if not kpis:
         return {}
 
-    pays_list = _get_pays_croises_cached()
+    pays_list = _get_pays_croises(df, mapping, ext_cache)
     pc = next((p for p in pays_list if p["pays_interne"] == pays_up), None)
     annees_dispo = pc["annees_disponibles"] if pc else []
 
-    # CAGR marché externe
-    ext_ts = _get_ext_timeseries(nom_pays_ext, usd_to_mad)
+    # CAGR marché externe — from cache
+    ext_ts = _get_ext_timeseries_from_cache(nom_pays_ext, ext_cache)
     ext_total_by_year = {r["year"]: r["total"] for r in ext_ts if r["total"] > 0}
     croissance_marche_cagr = _calc_cagr(ext_total_by_year)
 
     # CAGR Atlantic Re (WRITTEN_PREMIUM par année)
-    mask = df["PAYS_RISQUE"].str.strip().str.upper() == pays_up
+    mask = df["_PAYS_UPPER"] == pays_up
     df_pays_all = df[mask & df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
     wp_by_year = {}
     for yr, grp in df_pays_all.groupby("UNDERWRITING_YEAR"):
@@ -1030,7 +1103,7 @@ def rapport_pays(
 
     # Cédantes détail
     cedantes_detail = _tableau_cedantes_for_pays(
-        df, pays_up, nom_pays_ext, year_int, usd_to_mad
+        df, pays_up, nom_pays_ext, year_int, ext_cache
     )
     total_wp_pays = sum(c["written_premium"] for c in cedantes_detail)
     for c in cedantes_detail:
@@ -1045,21 +1118,21 @@ def rapport_pays(
         df_pays_yr = df_pays_all
 
     branches_presentes = sorted(
-        df_pays_yr["INT_BRANCHE"].dropna().str.strip().str.upper().unique().tolist()
-    ) if "INT_BRANCHE" in df_pays_yr.columns else []
+        df_pays_yr["_BRANCHE_UPPER"].dropna().unique().tolist()
+    ) if "_BRANCHE_UPPER" in df_pays_yr.columns else []
 
     branches_all_global = sorted(
-        df["INT_BRANCHE"].dropna().str.strip().str.upper().unique().tolist()
-    ) if "INT_BRANCHE" in df.columns else []
+        df["_BRANCHE_UPPER"].dropna().unique().tolist()
+    ) if "_BRANCHE_UPPER" in df.columns else []
 
     branches_absentes = sorted(
         set(branches_all_global) - set(branches_presentes)
     )
 
-    # Évolution Atlantic Re (per year)
+    # Évolution Atlantic Re (per year) — uses cache, no additional DB calls
     evo_atlantic = []
     for yr in sorted(annees_dispo):
-        yr_kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, yr, usd_to_mad)
+        yr_kpis = _compute_pays_kpis(df, pays_up, nom_pays_ext, yr, ext_cache)
         if yr_kpis:
             evo_atlantic.append(
                 {
@@ -1103,7 +1176,7 @@ def tableau_cedantes_pays(
     _: dict = Depends(get_current_user),
 ):
     """Tableau des cédantes pour un seul pays."""
-    df = get_df()
+    df = _get_synergie_df()
     if df is None or df.empty:
         return []
 
@@ -1114,7 +1187,8 @@ def tableau_cedantes_pays(
         return []
 
     year_int = None if year == "moyenne" else int(year)
-    rows = _tableau_cedantes_for_pays(df, pays_up, nom_pays_ext, year_int, usd_to_mad)
+    ext_cache = _load_all_ext_data(usd_to_mad)
+    rows = _tableau_cedantes_for_pays(df, pays_up, nom_pays_ext, year_int, ext_cache)
 
     total_wp = sum(r["written_premium"] for r in rows)
     for r in rows:
@@ -1123,16 +1197,16 @@ def tableau_cedantes_pays(
     return sorted(rows, key=lambda x: x["written_premium"], reverse=True)
 
 
-# ── Helper: tableau cédantes pour un pays ────────────────────────────────────
+# ── Helper: tableau cédantes pour un pays ─────────────────────────────────────
 
 def _tableau_cedantes_for_pays(
     df: pd.DataFrame,
     pays_risque: str,
     nom_pays_ext: str,
     year_int: Optional[int],
-    rate: float,
+    ext_cache: dict,
 ) -> list[dict]:
-    mask_pays = df["PAYS_RISQUE"].str.strip().str.upper() == pays_risque.upper()
+    mask_pays = df["_PAYS_UPPER"] == pays_risque.upper()
     df_pays_all = df[mask_pays & df["UNDERWRITING_YEAR"].isin(EXT_YEARS)]
 
     if df_pays_all.empty:
@@ -1147,7 +1221,7 @@ def _tableau_cedantes_for_pays(
         return []
 
     ulr_col = _get_ulr_col(df_pays)
-    ext = _get_ext_primes_for_pays(nom_pays_ext, year_int, rate)
+    ext = _get_ext_primes_from_cache(nom_pays_ext, year_int, ext_cache)
     primes_marche_total_mad = ext["total_mad"]
 
     cedante_col = "INT_CEDANTE" if "INT_CEDANTE" in df_pays.columns else None
@@ -1168,8 +1242,8 @@ def _tableau_cedantes_for_pays(
         branches = sorted(grp["INT_BRANCHE"].dropna().str.strip().str.upper().unique().tolist()) if "INT_BRANCHE" in grp.columns else []
         penet = _calc_penetration(sw_avg, sp, primes_marche_total_mad)
         # Split Vie / Non-Vie
-        if "INT_BRANCHE" in grp.columns:
-            vie_m = grp["INT_BRANCHE"].str.strip().str.upper() == "VIE"
+        if "_BRANCHE_UPPER" in grp.columns:
+            vie_m = grp["_BRANCHE_UPPER"] == "VIE"
             grp_vie = grp[vie_m]
             grp_nv = grp[~vie_m]
         else:
@@ -1183,8 +1257,10 @@ def _tableau_cedantes_for_pays(
         sw_vie_vals = grp_vie["SHARE_WRITTEN"].dropna()
         sw_avg_nonvie = float(sw_nonvie_vals.mean()) if not sw_nonvie_vals.empty else 0.0
         sw_avg_vie = float(sw_vie_vals.mean()) if not sw_vie_vals.empty else 0.0
-        penet_nonvie = _calc_penetration(sw_avg_nonvie, sp_nonvie, ext["nonvie_mad"])
-        penet_vie = _calc_penetration(sw_avg_vie, sp_vie, ext["vie_mad"])
+        # Utilise le même dénominateur (marché total) pour les trois variantes de pénétration
+        # afin que si les primes Vie = 0, penet_total == penet_nonvie (cohérence filtre Tout vs Non-Vie)
+        penet_nonvie = _calc_penetration(sw_avg_nonvie, sp_nonvie, primes_marche_total_mad)
+        penet_vie = _calc_penetration(sw_avg_vie, sp_vie, primes_marche_total_mad)
 
         result.append(
             {
