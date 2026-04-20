@@ -2,7 +2,7 @@
  * Page principale — Analyse Synergique
  * Vue croisée Portefeuille Interne (Axe 1) × Marchés Africains (Axe 2)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Select from 'react-select'
 import {
@@ -14,7 +14,7 @@ import {
   Loader2, Percent, Target, TrendingUp,
 } from 'lucide-react'
 import api from '../utils/api'
-import { formatMAD } from '../utils/formatters'
+import { formatPrime } from '../utils/formatters'
 
 // ── Tab definitions ─────────────────────────────────────────────────────────
 type SynTabId = 'kpis' | 'classement' | 'evolution' | 'synthese' | 'cedantes'
@@ -104,6 +104,9 @@ interface GlobalKPIs {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number
+  part_affaires_pct_nonvie: number
+  part_affaires_pct_vie: number
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -112,6 +115,8 @@ interface GlobalKPIs {
 
 interface ClassementItem { pays: string;[key: string]: any }
 interface Classements {
+  kpis?: GlobalKPIs
+  evolution?: EvolutionRow[]
   par_primes_marche: ClassementItem[]
   par_subject_premium: ClassementItem[]
   par_written_premium: ClassementItem[]
@@ -155,6 +160,9 @@ interface TableauPaysRow {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number
+  part_affaires_pct_nonvie: number
+  part_affaires_pct_vie: number
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -176,6 +184,9 @@ interface TableauCedanteRow {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number
+  part_affaires_pct_nonvie: number
+  part_affaires_pct_vie: number
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -198,7 +209,8 @@ function ulrColor(v: number) {
 }
 
 // ── Tooltip pénétration ───────────────────────────────────────────────────────
-const PENETRATION_TOOLTIP = '= SHARE_WRITTEN × (Subject Premium / Primes Marché) × 100'
+const PENETRATION_TOOLTIP = '= Primes Totales Atlantic Re / Primes Totales du Marché × 100'
+const PART_AFFAIRES_TOOLTIP = '= Primes Totales Atlantic Re / Primes des Affaires Souscrites × 100'
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 function Spinner() {
@@ -250,6 +262,7 @@ export default function AnalyseSynergie() {
 
   // ── Settings (taux de change) ───────────────────────────────────────────────
   const [rate, setRate] = useState(9.5)
+  const rateRef = useRef(9.5)  // ref pour eviter re-render dans loadYearData
   const [rateInput, setRateInput] = useState('9.5')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [rateSaved, setRateSaved] = useState(false)
@@ -260,25 +273,61 @@ export default function AnalyseSynergie() {
   const activeFilter: 'all' | 'vie' | 'nonvie' =
     filterVie === filterNonVie ? 'all' : filterVie ? 'vie' : 'nonvie'
 
+  // ── Exclure le Maroc ────────────────────────────────────────────────────────
+  const [excludeMaroc, setExcludeMaroc] = useState(true)
+  const isMaroc = (pays: string) =>
+    pays?.trim().toUpperCase() === 'MAROC' ||
+    pays?.trim().toLowerCase() === 'maroc' ||
+    pays?.trim().toLowerCase() === 'morocco'
+
   // ── Tab navigation ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<SynTabId>('kpis')
   const currentTabIdx = SYN_TABS.findIndex(t => t.id === activeTab)
-  const goPrev = () => { if (currentTabIdx > 0) setActiveTab(SYN_TABS[currentTabIdx - 1].id) }
-  const goNext = () => { if (currentTabIdx < SYN_TABS.length - 1) setActiveTab(SYN_TABS[currentTabIdx + 1].id) }
+  // goPrev/goNext : définis après handleTabChange (voir plus bas)
 
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const [paysCroises, setPaysCroises] = useState<PaysCroise[]>([])
   const [kpis, setKpis] = useState<GlobalKPIs | null>(null)
   const [classements, setClassements] = useState<Classements | null>(null)
-  const [evolution, setEvolution] = useState<EvolutionRow[]>([])
+  const [evolutionRaw, setEvolutionRaw] = useState<EvolutionRow[]>([])
   const [tableauPays, setTableauPays] = useState<TableauPaysRow[]>([])
   const [tableauCedantes, setTableauCedantes] = useState<TableauCedanteRow[]>([])
+  // ── Lazy loading état cédantes ──────────────────────────────────────────────
+  const [loadingCedantes, setLoadingCedantes] = useState(false)
+  const [cedantesLoaded, setCedantesLoaded] = useState(false)
+
+
+  // handleTabChange : utilise des refs pour eviter la TDZ avec selectedYear
+  const cedantesLoadedRef = useRef(false)
+  const loadingCedantesRef = useRef(false)
+  const handleTabChange = (tab: SynTabId) => {
+    setActiveTab(tab)
+    if (tab === 'cedantes' && !cedantesLoadedRef.current && !loadingCedantesRef.current) {
+      loadingCedantesRef.current = true
+      setLoadingCedantes(true)
+      api.get('/synergie/classements/cedantes', { params: { year: selectedYear, usd_to_mad: rateRef.current } })
+        .then(res => {
+          setTableauCedantes(res.data.tableau_cedantes ?? [])
+          setCedantesLoaded(true)
+          cedantesLoadedRef.current = true
+        })
+        .catch(() => {})
+        .finally(() => {
+          setLoadingCedantes(false)
+          loadingCedantesRef.current = false
+        })
+    }
+  }
+  const goPrev = () => { if (currentTabIdx > 0) handleTabChange(SYN_TABS[currentTabIdx - 1].id) }
+  const goNext = () => { if (currentTabIdx < SYN_TABS.length - 1) handleTabChange(SYN_TABS[currentTabIdx + 1].id) }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
-  const [loadingKpis, setLoadingKpis] = useState(true)
-  const [loadingClass, setLoadingClass] = useState(true)
-  const [loadingEvo, setLoadingEvo] = useState(true)
+  const [loading, setLoading] = useState(true)
+  // Convenience aliases for loading indicators used in JSX
+  const loadingKpis = loading
+  const loadingClass = loading
+  const loadingEvo = loading
 
   // ── Year ────────────────────────────────────────────────────────────────────
   const [selectedYear, setSelectedYear] = useState<string>('2024')
@@ -311,41 +360,42 @@ export default function AnalyseSynergie() {
   // ── Load settings ────────────────────────────────────────────────────────────
   useEffect(() => {
     api.get('/synergie/settings').then(r => {
-      setRate(r.data.usd_to_mad)
-      setRateInput(String(r.data.usd_to_mad))
+      const fetchedRate = r.data.usd_to_mad
+      rateRef.current = fetchedRate
+      setRate(fetchedRate)
+      setRateInput(String(fetchedRate))
     }).catch(() => { })
 
-    api.get('/synergie/pays-croises').then(r => setPaysCroises(r.data)).catch(() => { })
+    // pays_croises est desormais embarque dans la reponse /classements
   }, [])
 
-  // ── Load evolution (once, deferred) ─────────────────────────────────────────
-  useEffect(() => {
-    setLoadingEvo(true)
-    api.get('/synergie/evolution', { params: { usd_to_mad: rate } })
-      .then(r => setEvolution(r.data))
-      .finally(() => setLoadingEvo(false))
-  }, [rate])
-
-  // ── Load all data at startup: KPIs + classements (includes tableau_pays + tableau_cedantes) ──
+  // ── Load everything in one single API call ────────────────────────────────
   const loadYearData = useCallback(() => {
-    const p = { year: selectedYear, usd_to_mad: rate }
-    setLoadingKpis(true)
-    setLoadingClass(true)
-
-    Promise.all([
-      api.get('/synergie/kpis', { params: p }),
-      api.get('/synergie/classements', { params: p }),
-    ]).then(([kpisRes, classRes]) => {
-      setKpis(kpisRes.data)
-      setClassements(classRes.data)
-      // Both tableau_pays and tableau_cedantes are embedded in classements — no extra calls
-      setTableauPays(classRes.data.tableau_pays ?? [])
-      setTableauCedantes(classRes.data.tableau_cedantes ?? [])
-    }).finally(() => {
-      setLoadingKpis(false)
-      setLoadingClass(false)
-    })
-  }, [selectedYear, rate])
+    const p = { year: selectedYear, usd_to_mad: rateRef.current }
+    setLoading(true)
+    // Reset cedantes state + refs pour forcer un re-fetch sur le prochain acces
+    setCedantesLoaded(false)
+    cedantesLoadedRef.current = false
+    setTableauCedantes([])
+    loadingCedantesRef.current = false
+    setLoadingCedantes(false)
+    api.get('/synergie/classements', { params: p })
+      .then(res => {
+        const data = res.data
+        // Extract pays_croises (embarqués - supprime l'appel séparé /pays-croises)
+        if (data.pays_croises) setPaysCroises(data.pays_croises)
+        // Extract KPIs
+        setKpis(data.kpis ?? null)
+        // Extract evolution
+        setEvolutionRaw(data.evolution ?? [])
+        // Extract classements (keep existing fields expected by the UI)
+        setClassements(data)
+        setTableauPays(data.tableau_pays ?? [])
+        // Tableau cédantes : lazy-loaded via /classements/cedantes (non inclus ici)
+      })
+      .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear])  // rateRef est un ref stable, pas besoin dans les deps
 
   useEffect(() => { loadYearData() }, [loadYearData])
 
@@ -354,6 +404,7 @@ export default function AnalyseSynergie() {
     const v = parseFloat(rateInput)
     if (!isNaN(v) && v > 0) {
       api.put('/synergie/settings', { usd_to_mad: v }).then(() => {
+        rateRef.current = v
         setRate(v)
         setRateSaved(true)
         setTimeout(() => setRateSaved(false), 2500)
@@ -361,9 +412,127 @@ export default function AnalyseSynergie() {
     }
   }
 
+  // ── Evolution filtrée côté client (Maroc exclusion) ─────────────────────────
+  const evolution = useMemo(() => {
+    if (!excludeMaroc) return evolutionRaw
+    // Soustraire la contribution Maroc de chaque ligne d'évolution
+    return evolutionRaw.map(row => {
+      const r = row as any
+      // Primes internes sans Maroc
+      const wp    = (r.written_premium  ?? 0) - (r.maroc_written_premium  ?? 0)
+      const wp_nv = (r.written_nonvie   ?? 0) - (r.maroc_written_nonvie   ?? 0)
+      const wp_v  = (r.written_vie      ?? 0) - (r.maroc_written_vie      ?? 0)
+      const sp    = (r.subject_premium  ?? 0) - (r.maroc_subject_premium  ?? 0)
+      const sp_nv = (r.subject_nonvie   ?? 0) - (r.maroc_subject_nonvie   ?? 0)
+      const sp_v  = (r.subject_vie      ?? 0) - (r.maroc_subject_vie      ?? 0)
+      // Primes marché sans Maroc
+      const pm    = (r.primes_marche_total_mad  ?? 0) - (r.maroc_primes_marche_total_mad  ?? 0)
+      const pm_nv = (r.primes_marche_nonvie_mad ?? 0) - (r.maroc_primes_marche_nonvie_mad ?? 0)
+      const pm_v  = (r.primes_marche_vie_mad    ?? 0) - (r.maroc_primes_marche_vie_mad    ?? 0)
+      // Recalcul des ratios
+      const partAff   = sp    > 0 ? (wp    / sp   ) * 100 : 0
+      const partAffNv = sp_nv > 0 ? (wp_nv / sp_nv) * 100 : 0
+      const partAffV  = sp_v  > 0 ? (wp_v  / sp_v ) * 100 : 0
+      const pen    = pm    > 0 ? (wp    / pm   ) * 100 : 0
+      const pen_nv = pm_nv > 0 ? (wp_nv / pm_nv) * 100 : 0
+      const pen_v  = pm_v  > 0 ? (wp_v  / pm_v ) * 100 : 0
+      return {
+        ...row,
+        written_premium:  wp,
+        written_nonvie:   wp_nv,
+        written_vie:      wp_v,
+        subject_premium:  sp,
+        subject_nonvie:   sp_nv,
+        subject_vie:      sp_v,
+        primes_marche_total_mad:  pm,
+        primes_marche_nonvie_mad: pm_nv,
+        primes_marche_vie_mad:    pm_v,
+        part_affaires_pct:        partAff,
+        part_affaires_pct_nonvie: partAffNv,
+        part_affaires_pct_vie:    partAffV,
+        penetration_marche_pct:        pen,
+        penetration_marche_pct_nonvie: pen_nv,
+        penetration_marche_pct_vie:    pen_v,
+      }
+    })
+  }, [evolutionRaw, excludeMaroc])
+
+  // ── Maroc-excluded derived data ───────────────────────────────────────────────
+  const filteredTableauPays = useMemo(() =>
+    excludeMaroc ? tableauPays.filter(r => !isMaroc(r.pays)) : tableauPays
+  , [tableauPays, excludeMaroc])
+
+  const filteredTableauCedantes = useMemo(() =>
+    excludeMaroc ? tableauCedantes.filter(r => !isMaroc(r.pays_risque)) : tableauCedantes
+  , [tableauCedantes, excludeMaroc])
+
+  // Recompute KPIs client-side when excluding Maroc (sum from tableauPays)
+  const effectiveKpis = useMemo(() => {
+    if (!kpis) return null
+    if (!excludeMaroc) return kpis
+    // Sum all rows except Maroc
+    const rows = filteredTableauPays
+    if (!rows.length) return kpis
+    const wp = rows.reduce((s, r) => s + (r.written_premium ?? 0), 0)
+    const wpNv = rows.reduce((s, r) => s + (r.written_nonvie ?? 0), 0)
+    const wpVie = rows.reduce((s, r) => s + (r.written_vie ?? 0), 0)
+    const sp = rows.reduce((s, r) => s + (r.subject_premium ?? 0), 0)
+    const spNv = rows.reduce((s, r) => s + (r.subject_nonvie ?? 0), 0)
+    const spVie = rows.reduce((s, r) => s + (r.subject_vie ?? 0), 0)
+    const pm = rows.reduce((s, r) => s + (r.primes_marche_total_mad ?? 0), 0)
+    const pmNv = rows.reduce((s, r) => s + (r.primes_nonvie_mad ?? 0), 0)
+    const pmVie = rows.reduce((s, r) => s + (r.primes_vie_mad ?? 0), 0)
+    const partAff = sp > 0 ? (wp / sp) * 100 : 0
+    const partAffNv = spNv > 0 ? (wpNv / spNv) * 100 : 0
+    const partAffVie = spVie > 0 ? (wpVie / spVie) * 100 : 0
+    const pen = pm > 0 ? (wp / pm) * 100 : 0
+    const penNv = pmNv > 0 ? (wpNv / pmNv) * 100 : 0
+    const penVie = pmVie > 0 ? (wpVie / pmVie) * 100 : 0
+    const nbNv = rows.filter(r => (r.subject_nonvie ?? 0) > 0 && (r.primes_nonvie_mad ?? 0) > 0).length
+    const nbVie = rows.filter(r => (r.subject_vie ?? 0) > 0 && (r.primes_vie_mad ?? 0) > 0).length
+    return {
+      ...kpis,
+      nb_pays_croises: rows.length,
+      nb_pays_croises_nonvie: nbNv,
+      nb_pays_croises_vie: nbVie,
+      primes_marche_total_mad: pm,
+      primes_marche_nonvie_mad: pmNv,
+      primes_marche_vie_mad: pmVie,
+      subject_premium_total: sp,
+      subject_premium_nonvie_total: spNv,
+      subject_premium_vie_total: spVie,
+      written_premium_total: wp,
+      written_premium_nonvie_total: wpNv,
+      written_premium_vie_total: wpVie,
+      part_affaires_pct: partAff,
+      part_affaires_pct_nonvie: partAffNv,
+      part_affaires_pct_vie: partAffVie,
+      penetration_marche_pct: pen,
+      penetration_marche_pct_nonvie: penNv,
+      penetration_marche_pct_vie: penVie,
+    }
+  }, [kpis, filteredTableauPays, excludeMaroc])
+
+  // Filter classements client-side when excluding Maroc
+  const filteredClassements = useMemo(() => {
+    if (!classements || !excludeMaroc) return classements
+    const excl = (arr: any[]) => arr.filter(r => !isMaroc(r.pays))
+    return {
+      ...classements,
+      par_primes_marche: excl(classements.par_primes_marche),
+      par_subject_premium: excl(classements.par_subject_premium),
+      par_written_premium: excl(classements.par_written_premium),
+      par_share_written: excl(classements.par_share_written),
+      par_penetration_marche: excl(classements.par_penetration_marche),
+      par_rentabilite: excl(classements.par_rentabilite),
+      tableau_pays: excl(classements.tableau_pays),
+      tableau_cedantes: classements.tableau_cedantes.filter(r => !isMaroc(r.pays_risque)),
+    }
+  }, [classements, excludeMaroc])
+
   // ── Sort helpers ─────────────────────────────────────────────────────────────
   const sortedPays = useMemo(() => {
-    let rows = tableauPays.filter(r =>
+    let rows = filteredTableauPays.filter(r =>
       !searchPays || r.pays.toLowerCase().includes(searchPays.toLowerCase())
     )
     rows = [...rows].sort((a, b) => {
@@ -372,7 +541,7 @@ export default function AnalyseSynergie() {
       return sortPays.dir === 'asc' ? v - w : w - v
     })
     return rows
-  }, [tableauPays, sortPays, searchPays])
+  }, [filteredTableauPays, sortPays, searchPays])
 
   const paginatedPays = useMemo(
     () => sortedPays.slice((pagePays - 1) * PAGE_SIZE, pagePays * PAGE_SIZE),
@@ -380,7 +549,7 @@ export default function AnalyseSynergie() {
   )
 
   const sortedCed = useMemo(() => {
-    let rows = tableauCedantes.filter(r =>
+    let rows = filteredTableauCedantes.filter(r =>
       !searchCed || r.cedante.toLowerCase().includes(searchCed.toLowerCase()) ||
       r.pays_risque.toLowerCase().includes(searchCed.toLowerCase())
     )
@@ -390,7 +559,7 @@ export default function AnalyseSynergie() {
       return sortCed.dir === 'asc' ? v - w : w - v
     })
     return rows
-  }, [tableauCedantes, sortCed, searchCed])
+  }, [filteredTableauCedantes, sortCed, searchCed])
 
   const paginatedCed = useMemo(
     () => sortedCed.slice((pageCed - 1) * PAGE_SIZE, pageCed * PAGE_SIZE),
@@ -419,6 +588,9 @@ export default function AnalyseSynergie() {
       share: r.share_written_avg,
       share_nonvie: r.share_written_avg_nonvie,
       share_vie: r.share_written_avg_vie,
+      part_affaires: (r as any).part_affaires_pct ?? 0,
+      part_affaires_nonvie: (r as any).part_affaires_pct_nonvie ?? 0,
+      part_affaires_vie: (r as any).part_affaires_pct_vie ?? 0,
       penetration: r.penetration_marche_pct,
       penetration_nonvie: r.penetration_marche_pct_nonvie,
       penetration_vie: r.penetration_marche_pct_vie,
@@ -426,14 +598,14 @@ export default function AnalyseSynergie() {
   }, [evolution])
 
   // ── KPI cards data ────────────────────────────────────────────────────────
-  const kpiCards = kpis ? [
+  const kpiCards = effectiveKpis ? [
     {
       label: 'Marchés Africains Communs',
       value: (activeFilter === 'nonvie'
-        ? kpis.nb_pays_croises_nonvie
+        ? effectiveKpis.nb_pays_croises_nonvie
         : activeFilter === 'vie'
-          ? kpis.nb_pays_croises_vie
-          : kpis.nb_pays_croises
+          ? effectiveKpis.nb_pays_croises_vie
+          : effectiveKpis.nb_pays_croises
       ).toString(),
       sub: activeFilter === 'nonvie'
         ? 'pays avec activité Non-Vie en intersection'
@@ -445,115 +617,115 @@ export default function AnalyseSynergie() {
     {
       label: 'Primes Totales du Marché',
       value: activeFilter === 'vie'
-        ? formatMAD(kpis.primes_marche_vie_mad)
+        ? formatPrime(effectiveKpis.primes_marche_vie_mad)
         : activeFilter === 'nonvie'
-          ? formatMAD(kpis.primes_marche_nonvie_mad)
-          : formatMAD(kpis.primes_marche_total_mad),
+          ? formatPrime(effectiveKpis.primes_marche_nonvie_mad)
+          : formatPrime(effectiveKpis.primes_marche_total_mad),
       sub: activeFilter === 'vie'
         ? 'Segment Vie uniquement'
         : activeFilter === 'nonvie'
           ? 'Segment Non-Vie uniquement'
-          : `dont Non-Vie ${formatMAD(kpis.primes_marche_nonvie_mad)} · Vie ${formatMAD(kpis.primes_marche_vie_mad)}`,
+          : `dont Non-Vie ${formatPrime(effectiveKpis.primes_marche_nonvie_mad)} · Vie ${formatPrime(effectiveKpis.primes_marche_vie_mad)}`,
       icon: <TrendingUp size={20} style={{ color: GOLD }} />,
     },
     {
       label: 'Primes des Affaires Souscrites',
       value: activeFilter === 'vie'
-        ? formatMAD(kpis.subject_premium_vie_total)
+        ? formatPrime(effectiveKpis.subject_premium_vie_total)
         : activeFilter === 'nonvie'
-          ? formatMAD(kpis.subject_premium_nonvie_total)
-          : formatMAD(kpis.subject_premium_total),
+          ? formatPrime(effectiveKpis.subject_premium_nonvie_total)
+          : formatPrime(effectiveKpis.subject_premium_total),
       sub: activeFilter === 'vie'
         ? 'Segment Vie uniquement'
         : activeFilter === 'nonvie'
           ? 'Segment Non-Vie uniquement'
-          : `Non-Vie ${formatMAD(kpis.subject_premium_nonvie_total)} · Vie ${formatMAD(kpis.subject_premium_vie_total)}`,
+          : `Non-Vie ${formatPrime(effectiveKpis.subject_premium_nonvie_total)} · Vie ${formatPrime(effectiveKpis.subject_premium_vie_total)}`,
       icon: <FileText size={20} style={{ color: GOLD }} />,
     },
     {
       label: 'Primes Totales Atlantic Re',
       value: activeFilter === 'vie'
-        ? formatMAD(kpis.written_premium_vie_total)
+        ? formatPrime(effectiveKpis.written_premium_vie_total)
         : activeFilter === 'nonvie'
-          ? formatMAD(kpis.written_premium_nonvie_total)
-          : formatMAD(kpis.written_premium_total),
+          ? formatPrime(effectiveKpis.written_premium_nonvie_total)
+          : formatPrime(effectiveKpis.written_premium_total),
       sub: activeFilter === 'vie'
         ? 'Segment Vie uniquement'
         : activeFilter === 'nonvie'
           ? 'Segment Non-Vie uniquement'
-          : `Non-Vie ${formatMAD(kpis.written_premium_nonvie_total)} · Vie ${formatMAD(kpis.written_premium_vie_total)}`,
+          : `Non-Vie ${formatPrime(effectiveKpis.written_premium_nonvie_total)} · Vie ${formatPrime(effectiveKpis.written_premium_vie_total)}`,
       icon: <Banknote size={20} style={{ color: GOLD }} />,
     },
     {
       label: 'Part sur les Affaires',
       value: `${(activeFilter === 'nonvie'
-        ? kpis.share_written_avg_nonvie
+        ? (effectiveKpis.part_affaires_pct_nonvie ?? effectiveKpis.share_written_avg_nonvie)
         : activeFilter === 'vie'
-          ? kpis.share_written_avg_vie
-          : kpis.share_written_avg
+          ? (effectiveKpis.part_affaires_pct_vie ?? effectiveKpis.share_written_avg_vie)
+          : (effectiveKpis.part_affaires_pct ?? effectiveKpis.share_written_avg)
       ).toFixed(1)}%`,
       sub: activeFilter === 'nonvie'
-        ? 'SHARE_WRITTEN moyen — segment Non-Vie uniquement'
+        ? 'Primes Atl. Re / Primes Affaires Souscrites (Non-Vie) × 100'
         : activeFilter === 'vie'
-          ? 'SHARE_WRITTEN moyen — segment Vie uniquement'
-          : 'SHARE_WRITTEN moyen — fraction souscrite sur les affaires participées',
+          ? 'Primes Atl. Re / Primes Affaires Souscrites (Vie) × 100'
+          : 'Primes Atl. Re / Primes Affaires Souscrites × 100',
       icon: <Percent size={20} style={{ color: GOLD }} />,
     },
     {
       label: 'Pénétration Réelle sur le Marché',
       value: `${(activeFilter === 'nonvie'
-        ? kpis.penetration_marche_pct_nonvie
+        ? effectiveKpis.penetration_marche_pct_nonvie
         : activeFilter === 'vie'
-          ? kpis.penetration_marche_pct_vie
-          : kpis.penetration_marche_pct
+          ? effectiveKpis.penetration_marche_pct_vie
+          : effectiveKpis.penetration_marche_pct
       ).toFixed(3)}%`,
       sub: activeFilter === 'nonvie'
-        ? '= SHARE_WRITTEN(NV) × (Subject NV / Primes Marché NV) — pénétration Non-Vie'
+        ? '= Primes Atl. Re (NV) / Primes Totales Marché (NV) × 100'
         : activeFilter === 'vie'
-          ? '= SHARE_WRITTEN(V) × (Subject V / Primes Marché V) — pénétration Vie'
-          : '= SHARE_WRITTEN × (Subject Premium / Primes Marché) — part d\'Atlantic Re dans le marché total',
+          ? '= Primes Atl. Re (Vie) / Primes Totales Marché (Vie) × 100'
+          : '= Primes Totales Atl. Re / Primes Totales du Marché × 100',
       icon: <Target size={20} style={{ color: 'white' }} />,
       highlighted: true,
     },
   ] : []
 
   // ── Classements config ────────────────────────────────────────────────────
-  const classConfig = classements ? [
+  const classConfig = filteredClassements ? [
     {
       titre: '🏆 Primes de Marché',
       desc: 'Total Vie + Non-Vie par pays (données externes converties MAD)',
-      data: classements.par_primes_marche.map(r => ({ pays: r.pays, value: r.primes_marche_total_mad, nonvie: r.primes_nonvie_mad, vie: r.primes_vie_mad })),
+      data: filteredClassements.par_primes_marche.map(r => ({ pays: r.pays, value: r.primes_marche_total_mad, nonvie: r.primes_nonvie_mad, vie: r.primes_vie_mad })),
       stacked: true,
-      fmt: formatMAD,
+      fmt: formatPrime,
     },
     {
       titre: '📋 Primes des Affaires Souscrites',
       desc: 'SUBJECT_PREMIUM — Non-Vie (toutes branches sauf Vie) + Vie',
-      data: classements.par_subject_premium.map(r => ({ pays: r.pays, value: r.subject_premium, nonvie: r.subject_nonvie, vie: r.subject_vie })),
+      data: filteredClassements.par_subject_premium.map(r => ({ pays: r.pays, value: r.subject_premium, nonvie: r.subject_nonvie, vie: r.subject_vie })),
       stacked: true,
-      fmt: formatMAD,
+      fmt: formatPrime,
     },
     {
       titre: '💼 Primes Atlantic Re',
       desc: 'WRITTEN_PREMIUM — Non-Vie (toutes branches sauf Vie) + Vie',
-      data: classements.par_written_premium.map(r => ({ pays: r.pays, value: r.written_premium, nonvie: r.written_nonvie, vie: r.written_vie })),
+      data: filteredClassements.par_written_premium.map(r => ({ pays: r.pays, value: r.written_premium, nonvie: r.written_nonvie, vie: r.written_vie })),
       stacked: true,
-      fmt: formatMAD,
+      fmt: formatPrime,
     },
     {
       titre: '📊 Part sur les Affaires',
       desc: activeFilter === 'nonvie'
-        ? 'SHARE_WRITTEN moyen par pays — segment Non-Vie'
+        ? 'Primes Atl. Re / Primes Affaires Souscrites × 100 — segment Non-Vie'
         : activeFilter === 'vie'
-          ? 'SHARE_WRITTEN moyen par pays — segment Vie'
-          : 'SHARE_WRITTEN moyen par pays (%)',
-      data: classements.par_share_written.map(r => ({
+          ? 'Primes Atl. Re / Primes Affaires Souscrites × 100 — segment Vie'
+          : 'Primes Atl. Re / Primes Affaires Souscrites × 100 (%)',
+      data: filteredClassements.par_share_written.map(r => ({
         pays: r.pays,
         value: activeFilter === 'nonvie'
-          ? (r.share_nonvie || 0)
+          ? (r.part_affaires_nonvie || 0)
           : activeFilter === 'vie'
-            ? (r.share_vie || 0)
-            : r.share_written_avg,
+            ? (r.part_affaires_vie || 0)
+            : (r.part_affaires_pct || r.share_written_avg || 0),
       })),
       color: 'hsl(43,80%,55%)',
       fmt: (v: number) => `${v.toFixed(1)}%`,
@@ -561,11 +733,11 @@ export default function AnalyseSynergie() {
     {
       titre: '⭐ Pénétration Réelle sur le Marché',
       desc: activeFilter === 'nonvie'
-        ? 'Pénétration Non-Vie = SHARE_WRITTEN(NV) × (Subject NV / Primes Marché NV)'
+        ? 'Pénétration Non-Vie = Primes Atl. Re (NV) / Primes Totales Marché (NV) × 100'
         : activeFilter === 'vie'
-          ? 'Pénétration Vie = SHARE_WRITTEN(V) × (Subject V / Primes Marché V)'
-          : 'Part d\'Atlantic Re dans le marché total = SHARE_WRITTEN × (Subject Premium / Primes Marché)',
-      data: classements.par_penetration_marche.map(r => ({
+          ? 'Pénétration Vie = Primes Atl. Re (Vie) / Primes Totales Marché (Vie) × 100'
+          : 'Part d\'Atlantic Re dans le marché = Primes Atl. Re / Primes Totales du Marché × 100',
+      data: filteredClassements.par_penetration_marche.map(r => ({
         pays: r.pays,
         value: activeFilter === 'nonvie'
           ? (r.penetration_nonvie || 0)
@@ -580,7 +752,7 @@ export default function AnalyseSynergie() {
     {
       titre: '📉 Sinistralité (ULR)',
       desc: 'ULR moyen par pays — vert < 70% · orange 70-100% · rouge > 100%',
-      data: classements.par_rentabilite.map(r => ({ pays: r.pays, value: r.ulr_moyen })),
+      data: filteredClassements.par_rentabilite.map(r => ({ pays: r.pays, value: r.ulr_moyen })),
       dynamicColor: true,
       fmt: (v: number) => `${v.toFixed(1)}%`,
     },
@@ -610,7 +782,8 @@ export default function AnalyseSynergie() {
               </div>
               <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">
                 Vue croisée Portefeuille Interne × Marchés Africains
-                {kpis && ` — ${kpis.nb_pays_croises} marchés en commun`}
+                {effectiveKpis && ` — ${effectiveKpis.nb_pays_croises} marchés en commun`}
+                {excludeMaroc && <span style={{ marginLeft: 6, color: 'hsl(358,66%,54%)', fontSize: 11, fontWeight: 600 }}>· Maroc exclu</span>}
               </p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -693,31 +866,54 @@ export default function AnalyseSynergie() {
           )}
         </div>
 
-        {/* ── Year Selector ────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Année :</span>
-          {allYears.map(y => (
+        {/* ── Year Selector + Exclure Maroc ───────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Année :</span>
+            {allYears.map(y => (
+              <button
+                key={y}
+                onClick={() => setSelectedYear(String(y))}
+                style={{
+                  padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: selectedYear === String(y) ? `linear-gradient(135deg, ${GOLD}, ${AMBER})` : 'white',
+                  color: selectedYear === String(y) ? 'white' : GOLD_DARK,
+                  border: `1px solid ${selectedYear === String(y) ? 'transparent' : GOLD}`,
+                  transition: 'all 0.15s',
+                }}
+              >{y}</button>
+            ))}
             <button
-              key={y}
-              onClick={() => setSelectedYear(String(y))}
+              onClick={() => setSelectedYear('moyenne')}
               style={{
                 padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                background: selectedYear === String(y) ? `linear-gradient(135deg, ${GOLD}, ${AMBER})` : 'white',
-                color: selectedYear === String(y) ? 'white' : GOLD_DARK,
-                border: `1px solid ${selectedYear === String(y) ? 'transparent' : GOLD}`,
-                transition: 'all 0.15s',
+                background: selectedYear === 'moyenne' ? `linear-gradient(135deg, ${GOLD}, ${AMBER})` : 'white',
+                color: selectedYear === 'moyenne' ? 'white' : GOLD_DARK,
+                border: `1px solid ${selectedYear === 'moyenne' ? 'transparent' : GOLD}`,
               }}
-            >{y}</button>
-          ))}
-          <button
-            onClick={() => setSelectedYear('moyenne')}
+            >Moyenne</button>
+          </div>
+          {/* ── Exclure le Maroc ────── */}
+          <label
+            id="toggle-exclure-maroc"
             style={{
-              padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              background: selectedYear === 'moyenne' ? `linear-gradient(135deg, ${GOLD}, ${AMBER})` : 'white',
-              color: selectedYear === 'moyenne' ? 'white' : GOLD_DARK,
-              border: `1px solid ${selectedYear === 'moyenne' ? 'transparent' : GOLD}`,
+              display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+              padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+              background: excludeMaroc ? 'hsla(358,66%,54%,0.10)' : 'white',
+              color: excludeMaroc ? 'hsl(358,66%,44%)' : '#6b7280',
+              border: `1px solid ${excludeMaroc ? 'hsla(358,66%,54%,0.45)' : 'hsl(0,0%,85%)'}`,
+              transition: 'all 0.15s',
+              userSelect: 'none',
             }}
-          >Moyenne</button>
+          >
+            <input
+              type="checkbox"
+              checked={excludeMaroc}
+              onChange={e => setExcludeMaroc(e.target.checked)}
+              style={{ accentColor: 'hsl(358,66%,54%)', width: 14, height: 14, cursor: 'pointer' }}
+            />
+            🇲🇦 Exclure le Maroc
+          </label>
         </div>
 
         {/* ── Country Selector ─────────────────────────────────────────────── */}
@@ -740,7 +936,7 @@ export default function AnalyseSynergie() {
         </div>
 
         {/* ── Tab Navigation ───────────────────────────────────────────────── */}
-        <SynTabNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <SynTabNav activeTab={activeTab} onTabChange={handleTabChange} />
         <SynTabProgress activeTab={activeTab} />
 
         {/* ── Tab Content ─────────────────────────────────────────────────── */}
@@ -858,9 +1054,9 @@ export default function AnalyseSynergie() {
                               style={{ cursor: 'pointer' }}
                             >
                               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                              <XAxis type="number" tickFormatter={v => formatMAD(v)} tick={{ fontSize: 10 }} />
+                              <XAxis type="number" tickFormatter={v => formatPrime(v)} tick={{ fontSize: 10 }} />
                               <YAxis dataKey="pays" type="category" tick={{ fontSize: 10 }} width={65} interval={0} />
-                              <Tooltip content={<GoldTooltip formatter={formatMAD} />} />
+                              <Tooltip content={<GoldTooltip formatter={formatPrime} />} />
                               {activeFilter !== 'vie' && <Bar dataKey="nonvie" stackId="a" fill={GOLD_DARK} name="Non-Vie" radius={activeFilter === 'nonvie' ? [0, 3, 3, 0] : [0, 0, 0, 0]} />}
                               {activeFilter !== 'nonvie' && <Bar dataKey="vie" stackId="a" fill={GOLD_LIGHT} name="Vie" radius={[0, 2, 2, 0]} />}
                             </BarChart>
@@ -906,7 +1102,10 @@ export default function AnalyseSynergie() {
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid hsl(0,0%,95%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1f2937' }}>Évolution Temporelle</h2>
-                    <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>Tous les pays croisés — 2015–2024</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+                      Tous les pays croisés — 2015–2024
+                      {excludeMaroc && <span style={{ marginLeft: 6, color: 'hsl(358,66%,54%)', fontWeight: 600 }}>· Maroc exclu</span>}
+                    </p>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {evoNavOptions.map(opt => (
@@ -932,8 +1131,8 @@ export default function AnalyseSynergie() {
                         <ComposedChart data={evoChartData} margin={{ top: 20, right: 20, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                          <YAxis tickFormatter={v => formatMAD(v)} tick={{ fontSize: 11 }} width={90} />
-                          <Tooltip content={<GoldTooltip formatter={formatMAD} />} />
+                          <YAxis tickFormatter={v => formatPrime(v)} tick={{ fontSize: 11 }} width={90} />
+                          <Tooltip content={<GoldTooltip formatter={formatPrime} />} />
                           {activeFilter !== 'vie' && <Bar dataKey="nonvie" stackId="a" fill={GOLD_DARK} name="Non-Vie" />}
                           {activeFilter !== 'nonvie' && <Bar dataKey="vie" stackId="a" fill={GOLD_LIGHT} name="Vie" />}
                           {activeFilter === 'all' && <Line dataKey="total" stroke={AMBER} strokeWidth={2} dot={{ r: 3 }} name="Total" />}
@@ -942,8 +1141,8 @@ export default function AnalyseSynergie() {
                         <ComposedChart data={evoChartData} margin={{ top: 20, right: 20, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                          <YAxis tickFormatter={v => formatMAD(v)} tick={{ fontSize: 11 }} width={90} />
-                          <Tooltip content={<GoldTooltip formatter={formatMAD} />} />
+                          <YAxis tickFormatter={v => formatPrime(v)} tick={{ fontSize: 11 }} width={90} />
+                          <Tooltip content={<GoldTooltip formatter={formatPrime} />} />
                           {activeFilter !== 'vie' && <Bar dataKey="subject_nonvie" stackId="a" fill={GOLD_DARK} name="Non-Vie" />}
                           {activeFilter !== 'nonvie' && <Bar dataKey="subject_vie" stackId="a" fill={GOLD_LIGHT} name="Vie" />}
                           {activeFilter === 'all' && <Line dataKey="subject" stroke={AMBER} strokeWidth={2} dot={{ r: 3 }} name="Total" />}
@@ -952,8 +1151,8 @@ export default function AnalyseSynergie() {
                         <ComposedChart data={evoChartData} margin={{ top: 20, right: 20, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                          <YAxis tickFormatter={v => formatMAD(v)} tick={{ fontSize: 11 }} width={90} />
-                          <Tooltip content={<GoldTooltip formatter={formatMAD} />} />
+                          <YAxis tickFormatter={v => formatPrime(v)} tick={{ fontSize: 11 }} width={90} />
+                          <Tooltip content={<GoldTooltip formatter={formatPrime} />} />
                           {activeFilter !== 'vie' && <Bar dataKey="written_nonvie" stackId="a" fill={GOLD_DARK} name="Non-Vie" />}
                           {activeFilter !== 'nonvie' && <Bar dataKey="written_vie" stackId="a" fill={GOLD_LIGHT} name="Vie" />}
                           {activeFilter === 'all' && <Line dataKey="written" stroke={AMBER} strokeWidth={2} dot={{ r: 3 }} name="Total" />}
@@ -981,9 +1180,9 @@ export default function AnalyseSynergie() {
                           />
                           <Tooltip content={<GoldTooltip formatter={(v: number) => `${v.toFixed(1)}%`} />} />
                           <Bar
-                            dataKey={activeFilter === 'nonvie' ? 'share_nonvie' : activeFilter === 'vie' ? 'share_vie' : 'share'}
+                            dataKey={activeFilter === 'nonvie' ? 'part_affaires_nonvie' : activeFilter === 'vie' ? 'part_affaires_vie' : 'part_affaires'}
                             fill={GOLD}
-                            name={activeFilter === 'nonvie' ? 'Part Non-Vie (%)' : activeFilter === 'vie' ? 'Part Vie (%)' : evoNavOptions.find(o => o.id === evoMetric)?.label}
+                            name={activeFilter === 'nonvie' ? 'Part Affaires Non-Vie (%)' : activeFilter === 'vie' ? 'Part Affaires Vie (%)' : 'Part sur les Affaires (%)'}
                           />
                         </ComposedChart>
                       )}
@@ -1063,18 +1262,18 @@ export default function AnalyseSynergie() {
                             >
                               <td className="px-3 py-2.5" style={{ fontWeight: 600, color: '#1f2937' }}>{row.pays}</td>
                               <td className="px-3 py-2.5" style={{ color: '#374151' }}>
-                                {formatMAD(activeFilter === 'vie' ? row.primes_vie_mad : activeFilter === 'nonvie' ? row.primes_nonvie_mad : row.primes_marche_total_mad)}
+                                {formatPrime(activeFilter === 'vie' ? row.primes_vie_mad : activeFilter === 'nonvie' ? row.primes_nonvie_mad : row.primes_marche_total_mad)}
                               </td>
-                              {activeFilter !== 'vie' && <td className="px-3 py-2.5 text-gray-500">{formatMAD(row.primes_nonvie_mad)}</td>}
-                              {activeFilter !== 'nonvie' && <td className="px-3 py-2.5 text-gray-500">{formatMAD(row.primes_vie_mad)}</td>}
+                              {activeFilter !== 'vie' && <td className="px-3 py-2.5 text-gray-500">{formatPrime(row.primes_nonvie_mad)}</td>}
+                              {activeFilter !== 'nonvie' && <td className="px-3 py-2.5 text-gray-500">{formatPrime(row.primes_vie_mad)}</td>}
                               <td className="px-3 py-2.5" style={{ color: '#374151' }}>
-                                {formatMAD(activeFilter === 'vie' ? row.subject_vie : activeFilter === 'nonvie' ? row.subject_nonvie : row.subject_premium)}
+                                {formatPrime(activeFilter === 'vie' ? row.subject_vie : activeFilter === 'nonvie' ? row.subject_nonvie : row.subject_premium)}
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 600, color: GOLD_DARK }}>
-                                {formatMAD(activeFilter === 'vie' ? row.written_vie : activeFilter === 'nonvie' ? row.written_nonvie : row.written_premium)}
+                                {formatPrime(activeFilter === 'vie' ? row.written_vie : activeFilter === 'nonvie' ? row.written_nonvie : row.written_premium)}
                               </td>
                               <td className="px-3 py-2.5">
-                                {(activeFilter === 'nonvie' ? row.share_written_avg_nonvie : activeFilter === 'vie' ? row.share_written_avg_vie : row.share_written_avg).toFixed(1)}%
+                                {(activeFilter === 'nonvie' ? row.part_affaires_pct_nonvie : activeFilter === 'vie' ? row.part_affaires_pct_vie : row.part_affaires_pct).toFixed(1)}%
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title={PENETRATION_TOOLTIP}>
                                 {(activeFilter === 'nonvie' ? row.penetration_marche_pct_nonvie : activeFilter === 'vie' ? row.penetration_marche_pct_vie : row.penetration_marche_pct).toFixed(3)}%
@@ -1121,8 +1320,11 @@ export default function AnalyseSynergie() {
                     style={{ padding: '6px 12px', border: `1px solid ${GOLD}`, borderRadius: 6, fontSize: 13, outline: 'none', width: 260 }}
                   />
                 </div>
-                {loadingClass ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+                {loadingCedantes ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 60, gap: 16 }}>
+                    <Spinner />
+                    <p style={{ fontSize: 13, color: '#9ca3af' }}>Chargement du détail par cédante…</p>
+                  </div>
                 ) : (
                   <>
                     <div style={{ overflowX: 'auto' }}>
@@ -1169,13 +1371,13 @@ export default function AnalyseSynergie() {
                               </td>
                               <td className="px-3 py-2.5 text-gray-500">{row.nb_affaires}</td>
                               <td className="px-3 py-2.5">
-                                {formatMAD(activeFilter === 'vie' ? row.subject_vie : activeFilter === 'nonvie' ? row.subject_nonvie : row.subject_premium)}
+                                {formatPrime(activeFilter === 'vie' ? row.subject_vie : activeFilter === 'nonvie' ? row.subject_nonvie : row.subject_premium)}
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 600, color: GOLD_DARK }}>
-                                {formatMAD(activeFilter === 'vie' ? row.written_vie : activeFilter === 'nonvie' ? row.written_nonvie : row.written_premium)}
+                                {formatPrime(activeFilter === 'vie' ? row.written_vie : activeFilter === 'nonvie' ? row.written_nonvie : row.written_premium)}
                               </td>
                               <td className="px-3 py-2.5">
-                                {(activeFilter === 'nonvie' ? row.share_written_avg_nonvie : activeFilter === 'vie' ? row.share_written_avg_vie : row.share_written_avg).toFixed(1)}%
+                                {(activeFilter === 'nonvie' ? row.part_affaires_pct_nonvie : activeFilter === 'vie' ? row.part_affaires_pct_vie : row.part_affaires_pct).toFixed(1)}%
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title={PENETRATION_TOOLTIP}>
                                 {(activeFilter === 'nonvie' ? row.penetration_marche_pct_nonvie : activeFilter === 'vie' ? row.penetration_marche_pct_vie : row.penetration_marche_pct).toFixed(3)}%
@@ -1246,4 +1448,3 @@ export default function AnalyseSynergie() {
     </div>
   )
 }
-

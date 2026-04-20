@@ -86,7 +86,8 @@ const GOLD_DARK = 'hsl(35,88%,38%)'
 const GOLD_LIGHT = 'hsl(48,96%,65%)'
 const AMBER = 'hsl(35,88%,50%)'
 const GOLD_FILL = 'hsla(43,96%,48%,0.15)'
-const PENETRATION_TOOLTIP = '= SHARE_WRITTEN × (Subject Premium / Primes Marché) × 100'
+const PENETRATION_TOOLTIP = '= Primes Totales Atlantic Re / Primes Totales du Marché × 100'
+const PART_AFFAIRES_TOOLTIP = '= Primes Totales Atlantic Re / Primes des Affaires Souscrites × 100'
 
 function ulrColor(v: number) {
   if (v < 70) return 'hsl(152,56%,39%)'
@@ -142,6 +143,9 @@ interface PaysKPIs {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number
+  part_affaires_pct_nonvie: number
+  part_affaires_pct_vie: number
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -229,6 +233,9 @@ interface TableauCedanteRow {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number
+  part_affaires_pct_nonvie: number
+  part_affaires_pct_vie: number
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -560,6 +567,9 @@ export default function AnalyseSynergiePays() {
     share: r.share_written_avg,
     share_nonvie: r.share_written_avg_nonvie,
     share_vie: r.share_written_avg_vie,
+    part_affaires: (r as any).part_affaires_pct ?? 0,
+    part_affaires_nonvie: (r as any).part_affaires_pct_nonvie ?? 0,
+    part_affaires_vie: (r as any).part_affaires_pct_vie ?? 0,
     penetration: r.penetration_marche_pct,
     penetration_nonvie: r.penetration_marche_pct_nonvie,
     penetration_vie: r.penetration_marche_pct_vie,
@@ -647,8 +657,8 @@ export default function AnalyseSynergiePays() {
     },
     {
       label: 'Part sur les Affaires',
-      value: `${(activeFilter === 'nonvie' ? kpis.share_written_avg_nonvie : activeFilter === 'vie' ? kpis.share_written_avg_vie : kpis.share_written_avg).toFixed(1)}%`,
-      sub: activeFilter === 'nonvie' ? 'SHARE_WRITTEN moyen — segment Non-Vie' : activeFilter === 'vie' ? 'SHARE_WRITTEN moyen — segment Vie' : 'SHARE_WRITTEN moyen',
+      value: `${(activeFilter === 'nonvie' ? (kpis.part_affaires_pct_nonvie ?? kpis.share_written_avg_nonvie) : activeFilter === 'vie' ? (kpis.part_affaires_pct_vie ?? kpis.share_written_avg_vie) : (kpis.part_affaires_pct ?? kpis.share_written_avg)).toFixed(1)}%`,
+      sub: activeFilter === 'nonvie' ? 'Primes Atl. Re / Primes Affaires Souscrites (Non-Vie) × 100' : activeFilter === 'vie' ? 'Primes Atl. Re / Primes Affaires Souscrites (Vie) × 100' : 'Primes Atl. Re / Primes Affaires Souscrites × 100',
       icon: <Percent size={18} style={{ color: GOLD }} />,
     },
     {
@@ -672,7 +682,7 @@ export default function AnalyseSynergiePays() {
     {
       label: 'Pénétration Réelle sur le Marché',
       value: `${(activeFilter === 'nonvie' ? kpis.penetration_marche_pct_nonvie : activeFilter === 'vie' ? kpis.penetration_marche_pct_vie : kpis.penetration_marche_pct).toFixed(3)}%`,
-      sub: activeFilter === 'nonvie' ? '= SHARE_WRITTEN(NV) × (Subject NV / Primes Marché NV)' : activeFilter === 'vie' ? '= SHARE_WRITTEN(V) × (Subject V / Primes Marché V)' : PENETRATION_TOOLTIP,
+      sub: activeFilter === 'nonvie' ? '= Primes Atl. Re (NV) / Primes Totales Marché (NV) × 100' : activeFilter === 'vie' ? '= Primes Atl. Re (Vie) / Primes Totales Marché (Vie) × 100' : PENETRATION_TOOLTIP,
       icon: <Target size={18} style={{ color: 'white' }} />,
       highlighted: true,
     },
@@ -756,11 +766,11 @@ export default function AnalyseSynergiePays() {
                           ).toFixed(1)}%
                           {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
                         </span>
-                        <span className="badge-gold">
+                        <span className="badge-gold" title={PART_AFFAIRES_TOOLTIP}>
                           Part affaires: {(
-                            activeFilter === 'nonvie' ? kpis.share_written_avg_nonvie
-                            : activeFilter === 'vie' ? kpis.share_written_avg_vie
-                            : kpis.share_written_avg
+                            activeFilter === 'nonvie' ? (kpis.part_affaires_pct_nonvie ?? kpis.share_written_avg_nonvie)
+                            : activeFilter === 'vie' ? (kpis.part_affaires_pct_vie ?? kpis.share_written_avg_vie)
+                            : (kpis.part_affaires_pct ?? kpis.share_written_avg)
                           ).toFixed(1)}%
                           {activeFilter !== 'all' && <em style={{ fontWeight: 400, marginLeft: 4 }}>({activeFilter === 'vie' ? 'Vie' : 'NV'})</em>}
                         </span>
@@ -943,9 +953,9 @@ export default function AnalyseSynergiePays() {
                           <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} width={55} />
                           <Tooltip content={<GoldTooltip formatter={(v: number) => `${v.toFixed(1)}%`} />} />
                           <Bar
-                            dataKey={activeFilter === 'nonvie' ? 'share_nonvie' : activeFilter === 'vie' ? 'share_vie' : 'share'}
+                            dataKey={activeFilter === 'nonvie' ? 'part_affaires_nonvie' : activeFilter === 'vie' ? 'part_affaires_vie' : 'part_affaires'}
                             fill={GOLD}
-                            name={activeFilter === 'nonvie' ? 'Part Non-Vie (%)' : activeFilter === 'vie' ? 'Part Vie (%)' : evoNavOptions.find(o => o.id === evoMetric)?.label}
+                            name={activeFilter === 'nonvie' ? 'Part Affaires Non-Vie (%)' : activeFilter === 'vie' ? 'Part Affaires Vie (%)' : 'Part sur les Affaires (%)'}
                           />
                         </ComposedChart>
                       )}
@@ -1086,7 +1096,7 @@ export default function AnalyseSynergiePays() {
                             <SortHeader label="Part Affaires %" col="share_written_avg" sortCol={sortCed.col} sortDir={sortCed.dir} onSort={handleSortCed} />
                             <th className="px-3 py-2.5 text-left text-xs font-semibold whitespace-nowrap cursor-pointer select-none"
                               style={{ color: sortCed.col === 'penetration_marche_pct' ? GOLD : '#6b7280' }}
-                              onClick={() => handleSortCed('penetration_marche_pct')} title="= SHARE_WRITTEN × (Subject / Primes Marché Total) × 100">
+                              onClick={() => handleSortCed('penetration_marche_pct')} title={PENETRATION_TOOLTIP}>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 ⭐ Pénétration Réelle %
                                 {sortCed.col === 'penetration_marche_pct' && (sortCed.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
@@ -1108,9 +1118,9 @@ export default function AnalyseSynergiePays() {
                                 {formatMAD(activeFilter === 'vie' ? row.written_vie : activeFilter === 'nonvie' ? row.written_nonvie : row.written_premium)}
                               </td>
                               <td className="px-3 py-2.5">
-                                {(activeFilter === 'nonvie' ? row.share_written_avg_nonvie : activeFilter === 'vie' ? row.share_written_avg_vie : row.share_written_avg).toFixed(1)}%
+                                {(activeFilter === 'nonvie' ? row.part_affaires_pct_nonvie : activeFilter === 'vie' ? row.part_affaires_pct_vie : row.part_affaires_pct).toFixed(1)}%
                               </td>
-                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title="= SHARE_WRITTEN × (Subject / Primes Marché Total) × 100">
+                              <td className="px-3 py-2.5" style={{ fontWeight: 700, color: GOLD }} title={PENETRATION_TOOLTIP}>
                                 {(activeFilter === 'nonvie' ? row.penetration_marche_pct_nonvie : activeFilter === 'vie' ? row.penetration_marche_pct_vie : row.penetration_marche_pct).toFixed(3)}%
                               </td>
                               <td className="px-3 py-2.5" style={{ fontWeight: 600, color: ulrColor(row.ulr_moyen) }}>{row.ulr_moyen.toFixed(1)}%</td>
