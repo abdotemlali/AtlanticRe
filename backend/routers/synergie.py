@@ -373,7 +373,7 @@ def _get_pays_croises(df: pd.DataFrame, mapping: dict, ext_cache: dict) -> list[
         if not mask.any():
             continue
         years_internal = set(
-            df_ext[mask]["UNDERWRITING_YEAR"].dropna().astype(int).unique()
+            int(x) for x in df_ext[mask]["UNDERWRITING_YEAR"].dropna().unique()
         )
         annees_dispo = sorted(years_internal & EXT_YEARS)
         if not annees_dispo:
@@ -382,7 +382,7 @@ def _get_pays_croises(df: pd.DataFrame, mapping: dict, ext_cache: dict) -> list[
             {
                 "pays_interne": pays_risque_up,
                 "pays_externe": nom_pays_ext,
-                "annees_disponibles": annees_dispo,
+                "annees_disponibles": [int(y) for y in annees_dispo],
             }
         )
 
