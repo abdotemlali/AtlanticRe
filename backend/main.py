@@ -162,6 +162,25 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Impossible de seeder les données externes au démarrage : {exc}")
 
+    # ── Init table synergie_settings ────────────────────────────────────────
+    try:
+        from sqlalchemy import text as _sql_text2
+        with database.engine.connect() as _conn:
+            _conn.execute(_sql_text2(
+                "CREATE TABLE IF NOT EXISTS synergie_settings ("
+                "  `key` VARCHAR(100) PRIMARY KEY,"
+                "  value TEXT"
+                ")"
+            ))
+            _conn.execute(_sql_text2(
+                "INSERT IGNORE INTO synergie_settings (`key`, value)"
+                " VALUES ('usd_to_mad', '9.5')"
+            ))
+            _conn.commit()
+        logger.info("Table synergie_settings initialisée")
+    except Exception as exc:
+        logger.warning("Impossible d'initialiser synergie_settings : %s", exc)
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -212,4 +231,7 @@ app.include_router(external_data_router, prefix="/api", tags=["Market Context"])
 
 from routers.public_overview import router as public_overview_router
 app.include_router(public_overview_router, prefix="/api/public", tags=["Public"])
+
+from routers.synergie import router as synergie_router
+app.include_router(synergie_router, prefix="/api", tags=["Synergie"])
 

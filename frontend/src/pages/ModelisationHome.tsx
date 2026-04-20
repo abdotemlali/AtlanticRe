@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft,
   ChevronDown,
+  Combine,
   Compass,
   Database,
   Globe2,
@@ -26,7 +27,7 @@ import {
 } from 'react-simple-maps'
 
 // ─── Nav types ───────────────────────────────────────────────────────────────
-type NavChild  = { to: string; label: string; icon: React.ElementType; enabled?: boolean }
+type NavChild  = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
 type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
 type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
 type NavItem   = NavDirect | NavGroup
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
     children: [
       { to: '/modelisation/analyse',     label: 'Analyse par Pays',    icon: Network,    enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Scale,       enabled: true },
+      { to: '/analyse-synergie',         label: 'Analyse Synergie',    icon: Combine,    enabled: true, gold: true },
       { to: '/modelisation/projections', label: 'Projections ML',      icon: Sparkles   },
     ],
   },
@@ -110,14 +112,25 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
                 onClick={() => navigate(child.to)}
                 className={[
                   'w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200',
-                  isActive ? 'text-white' : 'text-white/70 hover:text-white',
+                  isActive 
+                    ? child.gold ? 'text-white' : 'text-white' 
+                    : child.gold ? 'hover:bg-[hsla(0,0%,100%,0.07)]' : 'text-white/70 hover:text-white',
                 ].join(' ')}
-                style={isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = isActive ? 'hsla(83,52%,50%,0.22)' : '' }}
+                style={child.gold 
+                  ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', background: isActive ? 'hsla(43,96%,48%,0.25)' : undefined }
+                  : isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined
+                }
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = child.gold ? 'hsla(43,96%,48%,0.15)' : 'hsla(0,0%,100%,0.07)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = isActive ? (child.gold ? 'hsla(43,96%,48%,0.25)' : 'hsla(83,52%,50%,0.22)') : '' }}
               >
-                <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
+                <ChildIcon size={13} className="flex-shrink-0" style={child.gold ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', opacity: 1 } : { color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
                 <span>{child.label}</span>
+                {child.gold && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
+                    Axe 1x2
+                  </span>
+                )}
               </button>
             )
           }
@@ -1021,6 +1034,59 @@ export default function ModelisationHome() {
                   <span className="text-gray-700 font-semibold">85% du PIB africain</span> et plus de{' '}
                   <span className="text-gray-700 font-semibold">90% du volume total de primes</span> d'assurance du continent.
                 </p>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Section 3b : Analyse Synergique — module card ── */}
+          <section>
+            <div
+              className="bg-white rounded-xl p-6 flex items-start gap-5"
+              style={{
+                border: '2px solid hsl(43,96%,48%)',
+                background: 'hsla(43,96%,48%,0.03)',
+                boxShadow: '0 4px 20px hsla(43,96%,48%,0.10)',
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, hsl(43,96%,48%), hsl(35,88%,50%))', boxShadow: '0 4px 12px hsla(43,96%,48%,0.35)' }}
+              >
+                <Combine size={22} style={{ color: 'white' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h2 className="text-lg font-bold" style={{ color: 'hsl(35,88%,38%)' }}>
+                    Analyse Synergique
+                  </h2>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(43,96%,48%,0.15)', color: 'hsl(35,88%,38%)', border: '1px solid hsla(43,96%,48%,0.35)' }}
+                  >
+                    Axe 1 × Axe 2
+                  </span>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(43,96%,48%,0.10)', color: 'hsl(43,96%,48%)', border: '1px solid hsla(43,96%,48%,0.25)' }}
+                  >
+                    NOUVEAU
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                  Vue croisée Portefeuille Interne × Marchés Africains. Mesurez la pénétration réelle
+                  d'Atlantic Re dans chaque marché africain en croisant les données internes de souscription
+                  avec les volumes de primes de marché externes.
+                </p>
+                <button
+                  onClick={() => navigate('/analyse-synergie')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, hsl(43,96%,48%), hsl(35,88%,50%))', boxShadow: '0 2px 12px hsla(43,96%,48%,0.35)' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px hsla(43,96%,48%,0.45)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 12px hsla(43,96%,48%,0.35)' }}
+                >
+                  <Combine size={15} />
+                  Accéder à l'Analyse Synergique →
+                </button>
               </div>
             </div>
           </section>
