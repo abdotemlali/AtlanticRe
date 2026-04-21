@@ -303,6 +303,15 @@ export default function WorldMap({
       map[d.pays.toLowerCase()] = d
     })
 
+    // Le Sahara Occidental hérite des données du Maroc (même couleur et tooltip)
+    // world-atlas l'appelle "W. Sahara" (Natural Earth), parfois "Western Sahara"
+    const moroccoData = map['morocco'] ?? map['maroc']
+    if (moroccoData) {
+      map['western sahara'] = moroccoData
+      map['w. sahara'] = moroccoData
+      map['western sahara (disputed)'] = moroccoData
+    }
+
     return map
   }, [countryData])
 
@@ -368,14 +377,22 @@ export default function WorldMap({
             {({ geographies }) =>
               geographies.map((geo) => {
                 const name = geo.properties.name || ''
-                const d = dataByTopoName[name.toLowerCase()]
+                const numericId = parseInt(geo.id, 10)
+                // Sahara Occidental (ISO 732) → traité comme Maroc
+                const isWesternSahara = numericId === 732
+                const d = isWesternSahara
+                  ? (dataByTopoName['morocco'] ?? dataByTopoName['maroc'])
+                  : dataByTopoName[name.toLowerCase()]
                 const highlighted = isCountryHighlighted(d)
                 const fillOpacity = hasHighlight ? (highlighted ? 1 : 0.3) : 1
+                const fillColor = isWesternSahara
+                  ? (getColor('morocco') !== '#1a1a3a' ? getColor('morocco') : getColor('maroc'))
+                  : getColor(name)
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={getColor(name)}
+                    fill={fillColor}
                     fillOpacity={fillOpacity}
                     stroke="#0d0d1a"
                     strokeWidth={highlighted ? 0.8 : 0.3}

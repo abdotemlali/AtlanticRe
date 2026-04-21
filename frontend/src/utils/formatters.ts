@@ -31,6 +31,35 @@ export function formatMAD(value: number | null | undefined, unit: 'MAD' | 'MDH' 
   return `${sign}${new Intl.NumberFormat('fr-MA').format(abs)} ${unit}`
 }
 
+/**
+ * Formate un montant monétaire (primes) avec suffixes compacts lisibles,
+ * sans suffixe de devise (la devise est implicite dans le contexte).
+ *
+ * Règles :
+ *   0 – 999          → nombre tel quel  (ex: 450)
+ *   1 000 – 999 999  → K avec 2 déc. max si nécessaire (ex: 1K, 12.5K, 999.99K)
+ *   1 M – 999.99 M   → Mn avec 2 déc. max si nécessaire (ex: 1Mn, 3.75Mn, 999.99Mn)
+ *   ≥ 1 Md           → Md avec 2 déc. max si nécessaire (ex: 1Md, 2.5Md)
+ */
+export function formatPrime(value: number | null | undefined): string {
+  if (value === null || value === undefined || isNaN(value)) return '—'
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+
+  const fmt2 = (n: number) => {
+    // Arrondi à 2 décimales, supprime les zéros inutiles
+    const rounded = Math.round(n * 100) / 100
+    return rounded % 1 === 0
+      ? rounded.toFixed(0)
+      : rounded.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  if (abs >= 1_000_000_000) return `${sign}${fmt2(abs / 1_000_000_000)}Md`
+  if (abs >= 1_000_000)     return `${sign}${fmt2(abs / 1_000_000)}Mn`
+  if (abs >= 1_000)         return `${sign}${fmt2(abs / 1_000)}K`
+  return `${sign}${Math.round(abs)}`
+}
+
 /** Format as percentage */
 export function formatPercent(value: number | null | undefined, decimals = 1): string {
   if (value === null || value === undefined || isNaN(value)) return '—'

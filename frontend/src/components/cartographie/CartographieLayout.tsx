@@ -7,7 +7,7 @@ export interface NavSection {
 
 interface Props {
   title: string
-  subtitle: string
+  subtitle: ReactNode
   dataSource: string
   navItems: NavSection[]
   children: ReactNode
@@ -35,7 +35,7 @@ export default function CartographieLayout({ title, subtitle, dataSource, navIte
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
               </div>
-              <p className="text-sm text-gray-500 max-w-3xl leading-relaxed">{subtitle}</p>
+              <div className="text-sm text-gray-500 max-w-3xl leading-relaxed">{subtitle}</div>
             </div>
             {dataSource && (
               <span

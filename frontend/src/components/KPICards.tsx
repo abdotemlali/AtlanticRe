@@ -106,8 +106,8 @@ function KPICard({ label, rawValue, formatFn, sub, icon, accentColor, glowColor,
 
       {/* Main value — count-up */}
       <p
-        className="font-bold text-navy tabular-nums truncate leading-none mb-1.5 font-mono"
-        style={{ fontSize: 'clamp(1.4rem, 2vw, 1.8rem)', letterSpacing: '-0.01em' }}
+        className="font-bold text-navy tabular-nums leading-tight mb-1.5 font-mono break-words"
+        style={{ fontSize: 'clamp(1.1rem, 1.5vw, 1.45rem)', letterSpacing: '-0.01em' }}
       >
         {displayValue}
       </p>

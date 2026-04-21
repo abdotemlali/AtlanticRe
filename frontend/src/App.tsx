@@ -44,8 +44,10 @@ const CartographieGouvernance = lazy(() => import('./pages/CartographieGouvernan
 const AnalyseGlobale      = lazy(() => import('./pages/AnalyseGlobale'))
 const AnalysePays         = lazy(() => import('./pages/AnalysePays'))
 const ComparaisonPays     = lazy(() => import('./pages/ComparaisonPays'))
-const AnalyseSynergie     = lazy(() => import('./pages/AnalyseSynergie'))
-const AnalyseSynergiePays = lazy(() => import('./pages/AnalyseSynergiePays'))
+const AnalyseSynergie        = lazy(() => import('./pages/AnalyseSynergie'))
+const AnalyseSynergiePays    = lazy(() => import('./pages/AnalyseSynergiePays'))
+const AnalyseCompagnie       = lazy(() => import('./pages/AnalyseCompagnie'))
+const AnalyseCompagnieDetail = lazy(() => import('./pages/AnalyseCompagnieDetail'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -96,9 +98,11 @@ function AppRoutes() {
           <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/macroeconomie" element={<ErrorBoundary><CartographieMacro /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/gouvernance" element={<ErrorBoundary><CartographieGouvernance /></ErrorBoundary>} />
-          <Route path="/modelisation/analyse"           element={<ErrorBoundary><AnalyseGlobale /></ErrorBoundary>} />
-          <Route path="/modelisation/analyse/:pays"     element={<ErrorBoundary><AnalysePays /></ErrorBoundary>} />
-          <Route path="/modelisation/comparaison"       element={<ErrorBoundary><ComparaisonPays /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse"                        element={<ErrorBoundary><AnalyseGlobale /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse/:pays"               element={<ErrorBoundary><AnalysePays /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse-compagnie"           element={<ErrorBoundary><AnalyseCompagnie /></ErrorBoundary>} />
+          <Route path="/modelisation/analyse-compagnie/:company"  element={<ErrorBoundary><AnalyseCompagnieDetail /></ErrorBoundary>} />
+          <Route path="/modelisation/comparaison"                 element={<ErrorBoundary><ComparaisonPays /></ErrorBoundary>} />
           <Route path="/analyse-synergie"              element={<ErrorBoundary><AnalyseSynergie /></ErrorBoundary>} />
           <Route path="/analyse-synergie/:pays"        element={<ErrorBoundary><AnalyseSynergiePays /></ErrorBoundary>} />
         </Route>

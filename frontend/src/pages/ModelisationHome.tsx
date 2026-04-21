@@ -604,6 +604,8 @@ const NUMERIC_TO_ISO3: Record<number, string> = {
   480: 'MUS', 478: 'MRT', 508: 'MOZ', 516: 'NAM', 562: 'NER', 566: 'NGA',
   800: 'UGA', 180: 'COD', 686: 'SEN', 834: 'TZA', 148: 'TCD', 768: 'TGO',
   788: 'TUN', 894: 'ZMB', 818: 'EGY', 231: 'ETH',
+  // Sahara Occidental → traité comme Maroc (même couleur et tooltip)
+  732: 'MAR',
 }
 
 // Tous les ISO3 africains (hors périmètre, pour les colorer en gris)
@@ -611,7 +613,7 @@ const AFRICA_NUMERIC = new Set([
   12, 24, 72, 204, 72, 854, 108, 120, 132, 140, 148, 174, 178, 180, 204,
   231, 232, 262, 266, 270, 288, 324, 328, 384, 404, 426, 430, 434, 450,
   454, 466, 478, 480, 504, 508, 516, 562, 566, 646, 686, 694, 706, 710,
-  716, 724, 728, 736, 748, 768, 788, 800, 818, 834, 854, 894,
+  716, 724, 728, 732, 736, 748, 768, 788, 800, 818, 834, 854, 894,
   // Petits territoires/îles
   174, 175, 638,
 ])
@@ -645,6 +647,7 @@ const ISO3_REGION: Record<string, string> = {
 
 function AfriqueMap() {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string; region: string } | null>(null)
+  const [zoom, setZoom] = useState(1)
 
   return (
     <div className="relative" style={{ background: 'hsl(83,15%,12%)', borderRadius: 16, overflow: 'hidden' }}>
@@ -653,7 +656,12 @@ function AfriqueMap() {
         projectionConfig={{ scale: 380, center: [20, 2] }}
         style={{ width: '100%', height: 520 }}
       >
-        <ZoomableGroup zoom={1} minZoom={0.8} maxZoom={4}>
+        <ZoomableGroup
+          zoom={zoom}
+          minZoom={0.8}
+          maxZoom={4}
+          onMoveEnd={({ zoom: newZoom }) => setZoom(newZoom)}
+        >
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map(geo => {
@@ -705,6 +713,58 @@ function AfriqueMap() {
           </Geographies>
         </ZoomableGroup>
       </ComposableMap>
+
+      {/* Zoom buttons */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 z-10">
+        <button
+          onClick={() => setZoom(z => Math.min(z + 0.5, 4))}
+          title="Zoom +"
+          style={{
+            width: 28, height: 28,
+            background: 'hsla(83,30%,12%,0.90)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid hsla(83,52%,50%,0.30)',
+            borderRadius: 6,
+            color: 'hsl(83,60%,85%)',
+            fontWeight: 700,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'hsla(83,30%,18%,0.95)'; e.currentTarget.style.borderColor = 'hsla(83,52%,50%,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'hsla(83,30%,12%,0.90)'; e.currentTarget.style.borderColor = 'hsla(83,52%,50%,0.30)'; }}
+        >+</button>
+        <button
+          onClick={() => setZoom(z => Math.max(z - 0.5, 0.8))}
+          title="Zoom -"
+          style={{
+            width: 28, height: 28,
+            background: 'hsla(83,30%,12%,0.90)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid hsla(83,52%,50%,0.30)',
+            borderRadius: 6,
+            color: 'hsl(83,60%,85%)',
+            fontWeight: 700,
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'hsla(83,30%,18%,0.95)'; e.currentTarget.style.borderColor = 'hsla(83,52%,50%,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'hsla(83,30%,12%,0.90)'; e.currentTarget.style.borderColor = 'hsla(83,52%,50%,0.30)'; }}
+        >−</button>
+      </div>
 
       {/* Légende */}
       <div className="absolute bottom-4 left-4 flex items-center gap-5 px-4 py-2.5 rounded-lg"
@@ -787,7 +847,7 @@ export default function ModelisationHome() {
           </div>
           <div className="flex flex-col justify-center">
             <span className="text-[1.05rem] font-bold tracking-[0.01em] text-white leading-tight">
-              Reach<span style={{ color: 'hsl(83,60%,70%)' }}>2030</span>
+              Target<span style={{ color: 'hsl(83,60%,70%)' }}>BD</span>
             </span>
             <span className="text-[0.59rem] font-medium tracking-[0.18em] uppercase mt-px" style={{ color: 'hsla(0,0%,100%,0.40)' }}>
               Modélisation Stratégique

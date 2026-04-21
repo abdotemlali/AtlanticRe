@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
     label: 'Analyse', icon: Network,
     children: [
       { to: '/modelisation/analyse', label: 'Analyse par Pays', icon: BarChart2, enabled: true },
+      { to: '/modelisation/analyse-compagnie', label: 'Analyse Compagnie', icon: Building2, enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Network, enabled: true },
       { to: '/analyse-synergie', label: 'Analyse Synergie', icon: Combine, enabled: true, gold: true },
       { to: '/modelisation/projections', label: 'Projections ML', icon: TrendingUp },
@@ -173,7 +174,7 @@ export default function ScarLayout() {
           </div>
           <div className="flex flex-col justify-center cursor-pointer" onClick={() => navigate('/modelisation')}>
             <span className="text-[1.05rem] font-bold tracking-[0.01em] text-white leading-tight">
-              Reach<span style={{ color: 'hsl(83,60%,70%)' }}>2030</span>
+              Target<span style={{ color: 'hsl(83,60%,70%)' }}>BD</span>
             </span>
             <span className="text-[0.59rem] font-medium tracking-[0.18em] uppercase mt-px" style={{ color: 'hsla(0,0%,100%,0.40)' }}>
               Modélisation Stratégique
