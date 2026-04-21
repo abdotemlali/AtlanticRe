@@ -266,26 +266,49 @@ export default function BrokerAnalysis() {
         </div>
 
         {/* Role Pie */}
-        <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.grayLight}` }}>
+        <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.grayLight}`, display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, marginBottom: 16 }}>
             Répartition par Rôle
           </h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie data={rolePie} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={4} dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                {rolePie.map((d, i) => <Cell key={i} fill={d.color} />)}
-              </Pie>
-              <Tooltip formatter={(v: number) => `${v} courtiers`} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-            {rolePie.map(r => (
-              <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', color: C.gray }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.color, display: 'inline-block' }} />
-                <span style={{ fontWeight: 600 }}>{r.name}</span>
-              </div>
-            ))}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={rolePie} cx="50%" cy="50%" innerRadius={60} outerRadius={105} paddingAngle={4} dataKey="value"
+                  labelLine={false}
+                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                    const RADIAN = Math.PI / 180;
+                    if (percent < 0.05) return null;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    return (
+                      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize="0.75rem" fontWeight={800}>
+                        {`${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    );
+                  }}>
+                  {rolePie.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip 
+                  formatter={(v: number) => [`${v} courtiers`, 'Valeur']}
+                  contentStyle={{ borderRadius: 10, border: `1px solid ${C.grayLight}`, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+                  itemStyle={{ fontSize: '0.75rem', fontWeight: 600, color: C.navy }}
+                  labelStyle={{ display: 'none' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+            {rolePie.map(r => {
+              const total = rolePie.reduce((acc, curr) => acc + curr.value, 0);
+              const pct = total > 0 ? ((r.value / total) * 100).toFixed(0) : 0;
+              return (
+                <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: C.gray }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, display: 'inline-block' }} />
+                  <span style={{ fontWeight: 600 }}>{r.name} <span style={{ color: C.navy, fontWeight: 800 }}>({pct}%)</span></span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

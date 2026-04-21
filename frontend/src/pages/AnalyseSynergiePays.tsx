@@ -244,6 +244,115 @@ interface TableauCedanteRow {
   pct_written_vs_pays: number
 }
 
+interface CedanteInfoKPIs {
+  company: string
+  type: string
+  lob: string[]
+  pays: string[]
+  kpis: {
+    total_primes_mn_usd: number | null
+    avg_croissance_pct: number | null
+    avg_part_marche_pct: number | null
+    nb_pays: number
+    nb_annees: number
+    derniere_annee: number | null
+    primes_derniere_annee: number | null
+    meilleure_croissance_pays: string | null
+    max_croissance_pct: number | null
+  }
+}
+
+// ── CedanteDrawer ─────────────────────────────────────────────────────────────
+function fmtUSD(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return '—'
+  if (v >= 1_000) return `${(v / 1_000).toFixed(2)} Md USD`
+  return `${v.toFixed(0)} mn USD`
+}
+
+function CedanteDrawer({
+  info, loading, onClose, onDetail,
+}: {
+  info: CedanteInfoKPIs | null
+  loading: boolean
+  onClose: () => void
+  onDetail: () => void
+}) {
+  const isReass = info?.type === 'Reinsurance'
+  const typeColor = isReass ? 'hsl(213,60%,27%)' : 'hsl(83,52%,36%)'
+  const typeLabel = isReass ? 'Réassurance' : 'Assurance'
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 49, backdropFilter: 'blur(2px)' }} />
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: `3px solid ${GOLD}`, borderRadius: '16px 16px 0 0', boxShadow: '0 -8px 32px rgba(0,0,0,0.18)', zIndex: 50, padding: '20px 24px 28px', maxHeight: '55vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Loader2 size={18} className="animate-spin" style={{ color: GOLD }} />
+                <span style={{ color: '#6b7280', fontSize: 14 }}>Chargement…</span>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>{info?.company}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ background: `${typeColor}22`, color: typeColor, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{typeLabel}</span>
+                  {info?.lob?.map(l => (
+                    <span key={l} style={{ background: 'hsla(43,96%,48%,0.10)', color: GOLD_DARK, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{l}</span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: 'hsl(0,0%,95%)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Fermer">×</button>
+        </div>
+
+        {!loading && info && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 20 }}>
+              {[
+                { label: 'Primes totales', value: fmtUSD(info.kpis.total_primes_mn_usd), icon: '💰' },
+                { label: `Primes ${info.kpis.derniere_annee ?? ''}`, value: fmtUSD(info.kpis.primes_derniere_annee), icon: '📅' },
+                { label: 'Croissance moy.', value: info.kpis.avg_croissance_pct != null ? `${info.kpis.avg_croissance_pct.toFixed(1)}%` : '—', icon: '📈' },
+                { label: 'Part de marché moy.', value: info.kpis.avg_part_marche_pct != null ? `${info.kpis.avg_part_marche_pct.toFixed(2)}%` : '—', icon: '🥧' },
+                { label: 'Pays couverts', value: `${info.kpis.nb_pays}`, icon: '🌍' },
+                { label: 'Années de données', value: `${info.kpis.nb_annees}`, icon: '🗓️' },
+              ].map(k => (
+                <div key={k.label} style={{ background: 'hsl(0,0%,98%)', border: '1px solid hsl(0,0%,92%)', borderRadius: 10, padding: '10px 14px' }}>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>{k.icon} {k.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1f2937' }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+            {(info.pays?.length ?? 0) > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Présence géographique</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {info.pays?.map(p => (
+                    <span key={p} style={{ background: 'hsla(213,60%,27%,0.08)', color: 'hsl(213,60%,27%)', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 500 }}>{p}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {info.kpis.meilleure_croissance_pays && (
+              <div style={{ marginBottom: 20, padding: '10px 14px', background: 'hsla(43,96%,48%,0.06)', borderRadius: 10, border: `1px solid hsla(43,96%,48%,0.25)`, fontSize: 13, color: GOLD_DARK }}>
+                <span style={{ fontWeight: 700 }}>Meilleure croissance :</span>{' '}
+                {info.kpis.meilleure_croissance_pays}
+                {info.kpis.max_croissance_pct != null && ` (${info.kpis.max_croissance_pct.toFixed(1)}%)`}
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid hsl(0,0%,88%)', background: 'white', color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
+          <button onClick={onDetail} disabled={loading || !info} style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: GOLD_DARK, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: loading || !info ? 0.5 : 1 }}>Voir détails →</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Rapport params ────────────────────────────────────────────────────────────
 interface RapportParams {
   seuil_part_elevee: number
@@ -435,6 +544,12 @@ export default function AnalyseSynergiePays() {
   const [pageCed, setPageCed] = useState(1)
   const PAGE_SIZE = 20
 
+  // ── Drawer cédante ──────────────────────────────────────────────────────────
+  const [companyNames, setCompanyNames] = useState<Set<string>>(new Set())
+  const [drawerCedante, setDrawerCedante] = useState<string | null>(null)
+  const [drawerInfo, setDrawerInfo] = useState<CedanteInfoKPIs | null>(null)
+  const [drawerLoading, setDrawerLoading] = useState(false)
+
   // Scroll to top on mount
   useEffect(() => {
     document.getElementById('scar-main-scroll')?.scrollTo({ top: 0, behavior: 'instant' })
@@ -448,10 +563,22 @@ export default function AnalyseSynergiePays() {
 
 
 
-  // Load rate
+  // Load rate + company names
   useEffect(() => {
     api.get('/synergie/settings').then(r => setRate(r.data.usd_to_mad)).catch(() => { })
+    api.get('/companies/names').then(r => setCompanyNames(new Set<string>(r.data))).catch(() => { })
   }, [])
+
+  // Fetch drawer info when a cedante is selected
+  useEffect(() => {
+    if (!drawerCedante) { setDrawerInfo(null); return }
+    setDrawerLoading(true)
+    setDrawerInfo(null)
+    api.get(`/companies/${encodeURIComponent(drawerCedante)}`)
+      .then(r => setDrawerInfo(r.data))
+      .catch(() => setDrawerInfo(null))
+      .finally(() => setDrawerLoading(false))
+  }, [drawerCedante])
 
   // Load primary data: KPIs + rapport in parallel (fast — single DB query each)
   const loadData = useCallback(() => {
@@ -702,6 +829,7 @@ export default function AnalyseSynergiePays() {
   if (!pays) return null
 
   return (
+    <>
     <div style={{ minHeight: '100vh', background: 'hsl(220,20%,97%)' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
 
@@ -1109,7 +1237,19 @@ export default function AnalyseSynergiePays() {
                         <tbody>
                           {paginatedCed.map((row, i) => (
                             <tr key={`${row.cedante}-${i}`} style={{ borderBottom: '1px solid hsl(0,0%,95%)', background: i % 2 === 0 ? 'white' : 'hsl(0,0%,98.5%)' }}>
-                              <td className="px-3 py-2.5" style={{ fontWeight: 600, color: '#1f2937', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cedante}</td>
+                              <td className="px-3 py-2.5" style={{ fontWeight: 600, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {companyNames.has(row.cedante) ? (
+                                  <button
+                                    onClick={() => setDrawerCedante(row.cedante)}
+                                    style={{ color: GOLD_DARK, fontWeight: 600, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0, textAlign: 'left', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                    title={`Voir la fiche ${row.cedante}`}
+                                  >
+                                    {row.cedante}
+                                  </button>
+                                ) : (
+                                  <span style={{ color: '#1f2937' }}>{row.cedante}</span>
+                                )}
+                              </td>
                               <td className="px-3 py-2.5 text-gray-500">{row.nb_affaires}</td>
                               <td className="px-3 py-2.5">
                                 {formatMAD(activeFilter === 'vie' ? row.subject_vie : activeFilter === 'nonvie' ? row.subject_nonvie : row.subject_premium)}
@@ -1202,6 +1342,16 @@ export default function AnalyseSynergiePays() {
 
       </div>
     </div>
+
+    {drawerCedante && (
+      <CedanteDrawer
+        info={drawerInfo}
+        loading={drawerLoading}
+        onClose={() => setDrawerCedante(null)}
+        onDetail={() => navigate(`/modelisation/analyse-compagnie/${encodeURIComponent(drawerCedante)}`)}
+      />
+    )}
+    </>
   )
 }
 

@@ -1,8 +1,8 @@
 # Contexte Axe 2 — Modélisation Afrique 2030 (AtlanticRe)
 
 > **Document de référence exhaustif — Axe 2 + Module Synergique**  
-> Version : Avril 2026 | Mis à jour depuis le code source  
-> Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 2 de l'application AtlanticRe, ainsi que le module **Analyse Synergique (Axe 1×2)**.
+> Version : Avril 2026 — Mise à jour commit `91709ff` (feat: synergie)  
+> Ce fichier décrit **toutes les fonctionnalités existantes** de l'Axe 2 de l'application AtlanticRe, ainsi que le module **Analyse Synergique (Axe 1×2)** et le nouveau module **Analyse Compagnie**.
 
 ---
 
@@ -19,19 +19,21 @@ L'Axe 2 "Modélisation Afrique 2030" est la **dimension prospective et stratégi
 ### 1.2 Modules de l'Axe 2 — Routes complètes
 
 ```
-/modelisation                            → ModelisationHome.tsx (hub central)
-/modelisation/scar                       → SCAR Scoring (ScarLayout)
-/modelisation/cartographie/non-vie       → CartographieNonVie.tsx
-/modelisation/cartographie/vie           → CartographieVie.tsx
-/modelisation/cartographie/macroeconomie → CartographieMacro.tsx
-/modelisation/cartographie/gouvernance   → CartographieGouvernance.tsx
-/modelisation/analyse                    → AnalyseGlobale.tsx
-/modelisation/analyse/:pays              → AnalysePays.tsx
-/modelisation/comparaison                → ComparaisonPays.tsx
+/modelisation                              → ModelisationHome.tsx (hub central)
+/modelisation/scar                         → SCAR Scoring (ScarLayout)
+/modelisation/cartographie/non-vie         → CartographieNonVie.tsx
+/modelisation/cartographie/vie             → CartographieVie.tsx
+/modelisation/cartographie/macroeconomie   → CartographieMacro.tsx
+/modelisation/cartographie/gouvernance     → CartographieGouvernance.tsx
+/modelisation/analyse                      → AnalyseGlobale.tsx
+/modelisation/analyse/:pays                → AnalysePays.tsx
+/modelisation/analyse-compagnie            → AnalyseCompagnie.tsx        ← NOUVEAU
+/modelisation/analyse-compagnie/:company   → AnalyseCompagnieDetail.tsx  ← NOUVEAU
+/modelisation/comparaison                  → ComparaisonPays.tsx
 
-# Module Synergique (Axe 1 × Axe 2) — hors ScarLayout
-/analyse-synergie                        → AnalyseSynergie.tsx   ← NOUVEAU
-/analyse-synergie/:pays                  → AnalyseSynergiePays.tsx ← NOUVEAU
+# Module Synergique (Axe 1 × Axe 2) — dans ScarLayout
+/analyse-synergie                          → AnalyseSynergie.tsx
+/analyse-synergie/:pays                    → AnalyseSynergiePays.tsx
 ```
 
 Toutes ces routes sont sous le layout `<ScarLayout />` (navbar olive, fond clair adapté Axe 2).
@@ -721,7 +723,7 @@ L'Axe 2 utilise une palette différente de l'Axe 1 (Olive/SCAR vs Navy/Dashboard
 ### 14.2 Formatters communs
 
 ```typescript
-// Non-Vie
+// Non-Vie (locaux dans chaque page cartographie)
 fmtMn(v)   = v >= 1000 ? `${(v/1000).toFixed(1)} Mrd$` : `${v.toFixed(0)} Mn$`
 fmtPct(v)  = `${v.toFixed(1)}%`
 fmtUsd(v)  = `${v.toFixed(1)}$`
@@ -734,6 +736,27 @@ fmtScore(v) = v.toFixed(3)
 
 // Gouvernance
 fmtWgi(v)    = `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+```
+
+### 14.3 Formatters centralisés (`utils/formatters.ts`) — mis à jour
+
+Nouveaux exports dans `formatters.ts` utilisés dans le module Synergique :
+
+```typescript
+// Formateur compact pour les primes (sans devise — utilisé dans AnalyseSynergie)
+// 0-999 → entier | 1K-999K → K | 1Mn-999Mn → Mn | ≥1Md → Md (max 2 décimales)
+export function formatPrime(value: number | null | undefined): string
+
+// Formateur MAD — utilisé dans le module Synergique
+export function formatMAD(value: number | null | undefined, unit?: 'MAD'|'MDH'): string
+
+// Helpers pour react-select
+export function toOptions(arr: string[])       // string[] → { value, label }[]
+export function toNumOptions(arr: number[])    // number[] → { value, label }[]
+
+// Couleurs ULR
+export function ulrColor(ulr: number | null | undefined): string          // % brut (0-100+)
+export function ulrColorDecimal(ulr: number | null | undefined): string   // décimal (0-1)
 ```
 
 ### 14.3 `YearOrAvgNav` (composant local partagé)
@@ -1138,45 +1161,67 @@ const SYN_TABS = [
 |---|---|
 | **Taux USD → MAD** | Panneau collapsible — `GET/PUT /synergie/settings` — valeur stockée en base et rechargée à l'init |
 | **Filtre Vie / Non-Vie** | Deux boutons pill — modifie `activeFilter: 'all' \| 'vie' \| 'nonvie'` — impacte KPIs et classements |
+| **Exclure le Maroc** | Toggle pill — `excludeMaroc: boolean` (défaut `true`) — retire la contribution du Maroc des agrégats d'évolution (calcul client-side via champs `maroc_*` embarqués dans `EvolutionRow`) |
 | **Sélecteur d'année** | Boutons pilules : années disponibles + "Moyenne" — déclenche rechargement des endpoints year-dependent |
 | **Sélecteur pays** | `react-select` — navigue vers `/analyse-synergie/:pays` |
 
 ### 21.4 APIs consommées
 
 ```
-GET  /synergie/settings                         → { usd_to_mad: number }
-PUT  /synergie/settings                         → Sauvegarde du taux
-GET  /synergie/pays-croises                     → PaysCroise[]
-GET  /synergie/kpis?year=&usd_to_mad=           → GlobalKPIs
-GET  /synergie/classements?year=&usd_to_mad=    → Classements
-GET  /synergie/evolution?usd_to_mad=            → EvolutionRow[]
-GET  /synergie/tableau-pays?year=&usd_to_mad=   → TableauPaysRow[]
-GET  /synergie/tableau-cedantes?year=&usd_to_mad= → TableauCedanteRow[]
+GET  /synergie/settings                              → { usd_to_mad: number }
+PUT  /synergie/settings                              → Sauvegarde du taux
+GET  /synergie/classements?year=&usd_to_mad=         → Classements (tout embarqué)
+GET  /synergie/classements/cedantes?year=&usd_to_mad= → { tableau_cedantes: TableauCedanteRow[] }
+
+# Référentiel compagnies (pour CedanteDrawer)
+GET  /companies/names                               → string[]  (liste des noms dans le référentiel)
+GET  /companies/:company                            → CedanteInfoKPIs
 ```
 
-`/synergie/kpis`, `/synergie/classements`, `/synergie/tableau-pays`, `/synergie/tableau-cedantes` : rechargés à chaque changement d'année ou de taux.
-`/synergie/evolution` : chargé une seule fois (dépend uniquement du taux).
+**Architecture de chargement (refonte commit 91709ff)** :
+
+- L'endpoint `/synergie/classements` est **désormais le seul appel principal** — il retourne en une seule réponse : `{ pays_croises, kpis, evolution, tableau_pays, par_primes_marche, par_subject_premium, par_written_premium, par_share_written, par_penetration_marche, par_rentabilite }`. Les anciens endpoints `/synergie/kpis`, `/synergie/pays-croises`, `/synergie/evolution`, `/synergie/tableau-pays` sont **abandonnés**.
+- `/synergie/classements/cedantes` est un endpoint **séparé et lazy** — appelé uniquement quand l'onglet `cedantes` est activé pour la première fois, ou lors d'un changement d'année/taux si l'onglet était déjà visité.
+- Le chargement est orchestré par `loadYearData()` + `handleTabChange()` avec des `ref` guards anti-double-fetch (`cedantesLoadedRef`, `loadingCedantesRef`).
+- Le taux courant est stocké dans `rateRef` (React ref) pour éviter les re-renders inutiles dans `loadYearData`.
+
+**Caches backend** (module-level, TTL 5 min) :
+
+```python
+_mapping_cache           # {PAYS_RISQUE_UPPER: nom_pays_ext}
+_ext_cache_store         # données externes tous pays/années
+_classements_result_cache # résultats /classements par (year, rate)
+_cedantes_result_cache   # résultats /classements/cedantes par (year, rate)
+```
 
 ### 21.5 Types de données
 
+> **Nota : trois métriques de parts distinctes** (clarification post commit 91709ff) :
+> - `share_written_avg` = ~~ancien nom générique~~ → **désormais aligné sur** `SHARE_WRITTEN` du portefeuille interne (ratio fourni par la cédante)
+> - `part_affaires_pct` ← **NOUVEAU** = Written Premium / Subject Premium × 100 — "Quelle fraction des affaires souscrites Atlantic Re retient-elle ?"
+> - `penetration_marche_pct` ← **⭐ indicateur stratégique** = Written Premium / Primes Totales du Marché × 100 — "Atlantic Re capte X% du marché total"
+
 ```typescript
 interface GlobalKPIs {
-  nb_pays_croises: number              // Pays intersection portefeuille × données
+  nb_pays_croises: number
   nb_pays_croises_nonvie: number
   nb_pays_croises_vie: number
-  primes_marche_total_mad: number      // Primes totales du marché (MAD)
+  primes_marche_total_mad: number
   primes_marche_nonvie_mad: number
   primes_marche_vie_mad: number
-  subject_premium_total: number        // Primes des affaires soumises
+  subject_premium_total: number
   subject_premium_nonvie_total: number
   subject_premium_vie_total: number
-  written_premium_total: number        // Primes Atlantic Re souscrites
+  written_premium_total: number
   written_premium_nonvie_total: number
   written_premium_vie_total: number
-  share_written_avg: number            // Part moyenne souscrite (%)
+  share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
-  penetration_marche_pct: number       // ⭐ Pénétration réelle sur le marché (%)
+  part_affaires_pct: number           // ← NOUVEAU
+  part_affaires_pct_nonvie: number    // ← NOUVEAU
+  part_affaires_pct_vie: number       // ← NOUVEAU
+  penetration_marche_pct: number      // ⭐ Pénétration réelle marché
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
   annees_disponibles: number[]
@@ -1196,6 +1241,9 @@ interface TableauPaysRow {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number           // ← NOUVEAU
+  part_affaires_pct_nonvie: number    // ← NOUVEAU
+  part_affaires_pct_vie: number       // ← NOUVEAU
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -1217,6 +1265,9 @@ interface TableauCedanteRow {
   share_written_avg: number
   share_written_avg_nonvie: number
   share_written_avg_vie: number
+  part_affaires_pct: number           // ← NOUVEAU
+  part_affaires_pct_nonvie: number    // ← NOUVEAU
+  part_affaires_pct_vie: number       // ← NOUVEAU
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
@@ -1241,14 +1292,53 @@ interface EvolutionRow {
   penetration_marche_pct: number
   penetration_marche_pct_nonvie: number
   penetration_marche_pct_vie: number
+  // Champs Maroc embarqués pour l'exclusion client-side (← NOUVEAU)
+  maroc_written_premium?: number
+  maroc_written_nonvie?: number
+  maroc_written_vie?: number
+  maroc_subject_premium?: number
+  maroc_subject_nonvie?: number
+  maroc_subject_vie?: number
+  maroc_primes_marche_total_mad?: number
+  maroc_primes_marche_nonvie_mad?: number
+  maroc_primes_marche_vie_mad?: number
 }
 ```
 
-**Formule clé — Pénétration Réelle** :
+**Interface `CedanteInfoKPIs`** (nouvelle — utilisée par `CedanteDrawer`) :
+
+```typescript
+interface CedanteInfoKPIs {
+  company: string
+  type: string           // 'Insurance' | 'Reinsurance'
+  lob: string[]          // Lines of business
+  pays: string[]         // Pays de présence
+  kpis: {
+    total_primes_mn_usd: number | null
+    avg_croissance_pct: number | null
+    avg_part_marche_pct: number | null
+    nb_pays: number
+    nb_annees: number
+    derniere_annee: number | null
+    primes_derniere_annee: number | null
+    meilleure_croissance_pays: string | null
+    max_croissance_pct: number | null
+  }
+}
 ```
-penetration_marche_pct = SHARE_WRITTEN × (Subject Premium / Primes Marché) × 100
+
+**Formules clés** :
+```python
+# Backend (synergie.py)
+part_affaires_pct       = written_premium / subject_premium * 100
+penetration_marche_pct  = written_premium / primes_marche_total_mad * 100
+
+# Client-side (AnalyseSynergie.tsx) — quand excludeMaroc=true
+partAff = (written_premium - maroc_written_premium) /
+          (subject_premium - maroc_subject_premium) * 100
+pen     = (written_premium - maroc_written_premium) /
+          (primes_marche_total_mad - maroc_primes_marche_total_mad) * 100
 ```
-C'est l'**indicateur ⭐ stratégique principal** : il mesure la part effective d'Atlantic Re sur l'ensemble du marché (pas seulement sur les affaires participées).
 
 ### 21.6 Tab : KPIs & Synthèse
 
@@ -1258,7 +1348,7 @@ Toutes les valeurs réagissent au `activeFilter` (all / vie / nonvie).
 
 ### 21.7 Tab : Classement Pays — Top 15
 
-6 graphiques `BarChart` horizontal — chacun affiche le **Top 15 pays** :
+6 graphiques `BarChart` horizontal — chacun affiche le **Top 15 pays** (après filtrage Maroc si `excludeMaroc=true`) :
 
 | Graphique | Métrique principale |
 |---|---|
@@ -1272,6 +1362,8 @@ Toutes les valeurs réagissent au `activeFilter` (all / vie / nonvie).
 **Navigation** : clic sur un pays dans un graphique → navigue vers `/analyse-synergie/:pays`.
 
 **ULR Color** : vert < 70% · orange 70-100% · rouge > 100%.
+
+**`excludeMaroc`** : quand activé, les lignes Maroc sont filtrées des tableaux et classements par `isMaroc(pays)` (comparaison insensible à la casse et aux variantes "Maroc"/"Morocco").
 
 ### 21.8 Tab : Évolution
 
@@ -1287,15 +1379,19 @@ Toutes les valeurs réagissent au `activeFilter` (all / vie / nonvie).
 
 Tous les charts filtrent selon `activeFilter` (affichage NV uniquement, Vie uniquement, ou les deux).
 
+**Exclusion Maroc** : la série `evolution` est remplacée par un `useMemo` qui calcule `evolution` comme `evolutionRaw` (brut serveur) ou une version corrigée via soustraction des champs `maroc_*` quand `excludeMaroc=true`. Les ratios sont recalculés (pas simplement soustrait) pour rester cohérents.
+
 ### 21.9 Tab : Synthèse par Pays
 
 Tableau complet de tous les pays croisés — colonnes triables, recherche texte, pagination (20 lignes/page).
 
-**Colonnes** : Pays · Primes Marché · Subject NV · Subject Vie · Written NV · Written Vie · Part (%) · Pénétration (%) · Affaires · Cédantes · ULR (%)
+**Colonnes** : Pays · Primes Marché · Subject NV · Subject Vie · Written NV · Written Vie · Part Affaires (%) · Pénétration (%) · Affaires · Cédantes · ULR (%)
 
 Clic sur une ligne → navigue vers `/analyse-synergie/:pays`.
 
 **Sort** : tri par colonne (click sur header), tableau `sortedPays` recalculé via `useMemo`.
+
+**Filtrage Maroc** : les lignes identifiées par `isMaroc()` sont retirées quand `excludeMaroc=true`.
 
 ### 21.10 Tab : Détail par Cédante
 
@@ -1304,6 +1400,17 @@ Tableau de toutes les cédantes × pays — colonnes triables, recherche texte, 
 **Colonnes** : Cédante · Pays Risque · Affaires · Subject (NV, Vie, Total) · Written · Part (%) · Pénétration (%) · ULR · Branches
 
 Clic sur `Pays Risque` → navigue vers `/analyse-synergie/:pays`.
+
+**Lazy loading** : les données de cet onglet sont chargées séparément via `GET /synergie/classements/cedantes` uniquement quand l'onglet est visité pour la première fois. Rechargement automatique si l'onglet est actif lors d'un changement d'année ou de taux.
+
+**CedanteDrawer** ← NOUVEAU : clic sur le nom d'une cédante (si elle est dans le référentiel `companyNames`) → ouvre un drawer en bas de page avec :
+- Badge type (Assurance / Réassurance) + lignes métier (LOB)
+- Grille 6 KPIs : Primes totales · Primes dernière année · Croissance moy. · Part de marché moy. · Pays couverts · Années de données
+- Liste des pays de présence
+- Badge "Meilleure croissance pays"
+- Bouton "Voir détails →" → navigue vers `/modelisation/analyse-compagnie/:company`
+
+Les données du drawer sont chargées via `GET /companies/:company` (déclenché par `useEffect([drawerCedante])`). Les noms cliquables sont déterminés par `GET /companies/names` (chargé une fois à l'init).
 
 ### 21.11 ULR Color helper
 
@@ -1427,6 +1534,7 @@ Système de diagnostic automatique — voir section **`docs/rapport-recommandati
 | Paramètre | Défaut | Signification |
 |---|---|---|
 | `seuil_part_elevee` | 30% | Share Written > seuil → concentration |
+| `seuil_part_faible` | 5% | ← NOUVEAU — Share Written < seuil → présence marginale |
 | `seuil_ulr_risque` | 80% | ULR > seuil → sinistralité préoccupante |
 | `seuil_ulr_critique` | 100% | ULR > seuil → sinistralité critique |
 | `seuil_cedantes_min` | 2 | Nb cédantes < seuil → mono-cédante |
@@ -1454,6 +1562,8 @@ Système de diagnostic automatique — voir section **`docs/rapport-recommandati
 
 Tableau des cédantes pour le pays sélectionné, trié par `written_premium` DESC. Recherche texte, pagination (20/page). Colonnes : Cédante · Affaires · Subject · Written · Part (%) · Pénétration · ULR · Branches · % du pays.
 
+**CedanteDrawer** ← NOUVEAU : même logique que dans la vue globale — les noms de cédantes dans le référentiel sont cliquables et ouvrent le drawer. La liste `companyNames` est chargée au chargement de la page.
+
 ### 22.10 Styles CSS spécifiques au module Synergique
 
 ```typescript
@@ -1470,6 +1580,127 @@ Tableau des cédantes pour le pays sélectionné, trié par `written_premium` DE
 - **Scroll-to-top** : `document.getElementById('scar-main-scroll')?.scrollTo({ top: 0, behavior: 'instant' })` — déclenché à chaque changement de tab ET à chaque changement de pays (via `useEffect([pays])`)
 - **URI encoding** : `encodeURIComponent(pays)` à la navigation, `decodeURIComponent(paysParam)` à la réception
 - **Filtre actif** : `activeFilter: 'all' | 'vie' | 'nonvie'` dérivé de `filterVie` et `filterNonVie` (les deux activés = 'all', les deux désactivés = 'all')
+
+---
+
+## 23. Module Analyse Compagnie (Axe 2) ← NOUVEAU
+
+### 23.1 Description
+
+Module d'analyse du référentiel de compagnies d'assurance et réassurance africaines présentes dans les données de marché externe (Axco Navigator / Backcasting).
+
+**Thème** : Olive (Axe 2) — navbar olive, couleurs `OLIVE = hsl(83,52%,36%)` pour Assurance, `NAVY = hsl(213,60%,27%)` pour Réassurance.
+
+**Layout** : intégré dans `ScarLayout`. Public (pas d'authentification requise).
+
+### 23.2 Routes
+
+```
+/modelisation/analyse-compagnie           → AnalyseCompagnie.tsx       (vue liste globale)
+/modelisation/analyse-compagnie/:company  → AnalyseCompagnieDetail.tsx (fiche détaillée)
+```
+
+### 23.3 Page : Vue Globale (`/modelisation/analyse-compagnie`)
+
+`AnalyseCompagnie.tsx` — Liste et exploration des compagnies africaines dans le référentiel de données de marché.
+
+**Fonctionnalités** :
+- **Filtre Type** : `TypeFilter` — toggles Assurance (olive) / Réassurance (navy)
+- **Sélecteur pays** : `react-select` — filtre par pays
+- **Top companies BarChart** : primes totales (Mn USD) par compagnie — couleur par type
+- **Tableau de compagnies** : `CompanyListItem[]` — Compagnie · Pays · Type — cliquable → `AnalyseCompagnieDetail`
+
+**APIs** :
+```
+GET /companies/list?type=&pays=   → CompanyListItem[]
+GET /companies/global             → GlobalData { top_companies: [] }
+```
+
+### 23.4 Page : Fiche Détaillée (`/modelisation/analyse-compagnie/:company`)
+
+`AnalyseCompagnieDetail.tsx` — Analyse complète d'une compagnie.
+
+**System de Tabs (5 onglets)** :
+
+```typescript
+type TabId = 'kpis' | 'evolution' | 'geo' | 'structure' | 'raw'
+
+const TABS = [
+  { id: 'kpis',      label: 'KPIs & Synthèse',       icon: '📊' },
+  { id: 'evolution', label: 'Évolution',              icon: '📈' },
+  { id: 'geo',       label: 'Présence Géographique', icon: '🌍' },
+  { id: 'structure', label: 'Structure',              icon: '🥧' },
+  { id: 'raw',       label: 'Données Brutes',         icon: '📋' },
+]
+```
+
+**Interface `CompanyDetail`** :
+
+```typescript
+interface CompanyDetail {
+  company: string
+  type: string           // 'Insurance' | 'Reinsurance'
+  lob: string[]
+  pays: string[]
+  evolution: {
+    annee: number
+    primes_mn_usd: number | null
+    croissance_pct: number | null
+    part_marche_pct: number | null
+  }[]
+  by_lob: { lob: string; total_primes: number; avg_croissance: number | null }[]
+  by_pays: {
+    pays: string
+    total_primes: number
+    avg_part_marche: number | null
+    avg_penetration: number | null
+    avg_densite: number | null
+  }[]
+  kpis: {
+    total_primes_mn_usd: number
+    avg_croissance_pct: number | null
+    avg_penetration_pct: number | null
+    avg_densite_usd: number | null
+    avg_part_marche_pct: number | null
+    nb_pays: number
+    nb_annees: number
+    derniere_annee: number | null
+    primes_derniere_annee: number | null
+    meilleure_croissance_pays: string | null
+    max_croissance_pct: number | null
+  }
+  raw_rows: { company: string; pays: string; annee: number | null; primes_mn_usd: number | null;
+              croissance_pct: number | null; penetration_pct: number | null; densite_usd: number | null; ... }[]
+}
+```
+
+**APIs** :
+```
+GET /companies/:company   → CompanyDetail
+```
+
+**Tabs** :
+- **KPIs** : `CartographieKPIGrid` (4 cartes) + badges (type, LOB, nb_pays)
+- **Évolution** : `LineChart` primes + `BarChart` croissance (double axe)
+- **Présence Géographique** : tableau by_pays (Pays · Primes · Part Marché · Pénétration · Densité) + `BarChart` horizontal
+- **Structure** : `PieChart` répartition par LOB + `BarChart` groupé by_lob
+- **Données Brutes** : tableau complet `raw_rows` (toutes années × pays)
+
+**Navigation** :
+- Bouton retour `← Analyse Compagnie` → `/modelisation/analyse-compagnie`
+- Badge type (Assurance = olive, Réassurance = navy)
+- URI encoding : `encodeURIComponent(company)` / `decodeURIComponent(companyParam)`
+
+### 23.5 Backend router `analyse_compagnie.py`
+
+```
+GET /companies/names             → string[]           (liste des noms — pour CedanteDrawer)
+GET /companies/list              → CompanyListItem[]   (filtrable type, pays)
+GET /companies/global            → GlobalData
+GET /companies/:company          → CompanyDetail + CedanteInfoKPIs (deux usages)
+```
+
+> **Note** : L'endpoint `GET /companies/:company` sert à la fois pour `AnalyseCompagnieDetail` (retourne `CompanyDetail` complet) et pour le `CedanteDrawer` dans le module Synergique (retourne `CedanteInfoKPIs` — sous-ensemble).
 
 ---
 
@@ -1501,3 +1732,18 @@ Tableau des cédantes pour le pays sélectionné, trié par `written_premium` DE
 > **`getRowVal` et `getCountryAvg`** : Deux helpers similaires, `getRowVal` est omniprésent dans les composants, `getCountryAvg` est un helper de niveau supérieur. Ne pas les confondre.
 
 > **Rang continental dans `ComparaisonPays`** : La fonction `rank(data, field, pays, desc)` est définie inline dans le tab positionnement — elle calcule le classement en agrégeant par pays (moyenne si multi-années), puis trouve le rang du pays demandé.
+
+> **`part_affaires_pct` vs `share_written_avg` vs `penetration_marche_pct`** : Trois métriques de parts à ne pas confondre (ajoutées commit 91709ff) :
+> - `share_written_avg` = SHARE_WRITTEN fourni par la cédante dans le contrat (ratio interne)
+> - `part_affaires_pct` = Written / Subject × 100 — fraction retenue sur les affaires souscrites
+> - `penetration_marche_pct` ⭐ = Written / Primes Marché × 100 — pénétration du marché total
+
+> **Exclure le Maroc** : Le toggle `excludeMaroc` (défaut `true`) est propre à `AnalyseSynergie`. Il n'est **pas présent** dans `AnalyseSynergiePays`. Le backend embarque des champs `maroc_*` dans les lignes `EvolutionRow` — la soustraction est 100% client-side.
+
+> **CedanteDrawer** : Le composant est défini dans les deux fichiers (`AnalyseSynergie.tsx` et `AnalyseSynergiePays.tsx`) — logique identique mais légèrement reformatée. La liste `companyNames` est chargée une seule fois à l'init via `GET /companies/names` et stockée dans un `Set<string>` pour des lookups O(1).
+
+> **Lazy loading des cédantes** : L'onglet `cedantes` ne charge ses données qu'au premier accès (ou lors d'un changement d'année/taux si l'onglet est actif). Ne jamais supposer que `tableauCedantes` est rempli avant que l'onglet soit visité.
+
+> **`AnalyseCompagnie` — endpoint dual** : `GET /companies/:company` sert à la fois pour la fiche complète (navigation directe) et pour le `CedanteDrawer` (mini-KPIs). La réponse est la même — le frontend extrait ce dont il a besoin.
+
+> **Code splitting** : Toutes les pages Axe 2 chargées via `React.lazy()` dans `App.tsx`. `AnalyseCompagnie` et `AnalyseCompagnieDetail` sont lazy-loadées.

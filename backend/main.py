@@ -235,3 +235,6 @@ app.include_router(public_overview_router, prefix="/api/public", tags=["Public"]
 from routers.synergie import router as synergie_router
 app.include_router(synergie_router, prefix="/api", tags=["Synergie"])
 
+from routers.analyse_compagnie import router as analyse_compagnie_router
+app.include_router(analyse_compagnie_router, prefix="/api", tags=["Analyse Compagnie"])
+

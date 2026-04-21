@@ -147,7 +147,7 @@ export default function Home() {
                 className="text-[10px] font-semibold uppercase tracking-[0.22em]"
                 style={{ color: 'rgba(255,255,255,0.45)' }}
               >
-                CDG Group · Reach 2030
+                CDG Group · TargetBD
               </span>
             </div>
           </div>
@@ -217,7 +217,7 @@ export default function Home() {
             Atlantic Re est un réassureur international actif sur plus de 60
             marchés et auprès de 400+ cédantes. Cette plateforme porte la
             double mission du programme{' '}
-            <strong style={{ color: OLIVE_LIGHT }}>Reach 2030</strong> :
+            <strong style={{ color: OLIVE_LIGHT }}>TargetBD</strong> :
             piloter la performance du portefeuille existant et modéliser
             l'expansion stratégique sur le continent africain.
           </p>
@@ -231,7 +231,7 @@ export default function Home() {
               { icon: Globe2, value: '60+', label: 'Marchés couverts' },
               { icon: Network, value: '400+', label: 'Cédantes actives' },
               { icon: TrendingUp, value: '54', label: 'Pays Afrique' },
-              { icon: ShieldCheck, value: '2030', label: 'Horizon Reach' },
+              { icon: ShieldCheck, value: 'Cible', label: 'Horizon TargetBD' },
             ].map(({ icon: Icon, value, label }) => (
               <div
                 key={label}
@@ -353,7 +353,7 @@ export default function Home() {
               Re
             </div>
             <p className="text-[12px] text-gray-500 tracking-wide">
-              Atlantic Re © 2026 — Groupe CDG · Reach 2030
+              Atlantic Re © 2026 — Groupe CDG · TargetBD
             </p>
           </div>
           <p
