@@ -6,8 +6,8 @@ import { useData } from '../context/DataContext'
 import { formatCompact } from '../utils/formatters'
 import {
   LayoutDashboard, Target, GitCompare, Star, Settings,
-  LogOut, RefreshCw, ChevronDown, UserX, Database, BarChart2, ShieldAlert, PieChart,
-  Globe, Briefcase, Shield, FileText, Users, Crosshair, Shuffle, Combine
+  LogOut, ChevronDown, Database, BarChart2, ShieldAlert, PieChart,
+  Globe, Briefcase, Shield, FileText, Users, Crosshair, Shuffle, Combine, Home
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -64,7 +64,7 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
       {/* Trigger */}
       <button
         className={[
-          'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
+          'flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[0.78rem] font-medium whitespace-nowrap relative',
           'transition-all duration-250 ease-out-expo border',
           isGroupActive
             ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
@@ -153,22 +153,13 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
 
 export default function Layout() {
   const { user, logout, can } = useAuth()
-  const { refreshData, refreshing, dataStatus } = useData()
+  const { dataStatus } = useData()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
     navigate('/login')
     toast.success('Déconnexion réussie')
-  }
-
-  const handleRefresh = async () => {
-    try {
-      await refreshData()
-      toast.success('Données actualisées avec succès')
-    } catch {
-      toast.error('Erreur lors du rechargement')
-    }
   }
 
   const userInitials = user?.full_name
@@ -206,11 +197,13 @@ export default function Layout() {
 
         {/* ───── ZONE 1: LOGO ───── */}
         <div
-          className="flex items-center gap-3 px-5 h-full flex-shrink-0"
+          className="flex items-center gap-2 px-3.5 h-full flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
           style={{
             borderRight: '1px solid hsla(0,0%,100%,0.07)',
-            minWidth: 200,
+            minWidth: 170,
           }}
+          onClick={() => navigate('/home')}
+          title="Retour à l'accueil"
         >
           {/* Logo mark — floating with glow */}
           <div
@@ -248,7 +241,7 @@ export default function Layout() {
                 title={item.label}
                 className={({ isActive }) =>
                   [
-                    'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
+                    'group flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[0.78rem] font-medium whitespace-nowrap relative',
                     'transition-all duration-250 ease-out-expo border',
                     isActive
                       ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
@@ -278,44 +271,12 @@ export default function Layout() {
 
 
 
-          {/* Administration — admin only */}
-          {user?.role === 'admin' && (
-            <NavLink
-              to="/admin"
-              title="Administration"
-              className={({ isActive }) =>
-                [
-                  'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
-                  'transition-all duration-250 ease-out-expo border',
-                  isActive
-                    ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
-                    : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
-                ].join(' ')
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Settings
-                    size={14}
-                    className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
-                    style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
-                  />
-                  <span>Administration</span>
-                  {isActive && (
-                    <span
-                      className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
-                      style={{ background: 'hsl(83,52%,36%)' }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-          )}
+
         </nav>
 
         {/* ───── ZONE 3: RIGHT ACTIONS ───── */}
         <div
-          className="flex items-center gap-2.5 px-4 h-full flex-shrink-0"
+          className="flex items-center gap-2 px-2.5 h-full flex-shrink-0"
           style={{ borderLeft: '1px solid hsla(0,0%,100%,0.07)' }}
         >
           {/* Data Status chip — glass */}
@@ -345,38 +306,7 @@ export default function Layout() {
             </div>
           )}
 
-          {/* Refresh button — green accent, Antigravity */}
-          {(can('export') || user?.role === 'admin') && (
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="Actualiser les données"
-              className="group flex items-center gap-2 px-4 py-2 text-[0.8rem] font-semibold text-white rounded-lg whitespace-nowrap transition-all duration-250 ease-out-expo disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                background: 'linear-gradient(135deg, hsl(83,54%,27%) 0%, hsl(83,52%,36%) 55%, hsl(83,50%,45%) 100%)',
-                boxShadow: '0 2px 12px hsla(83,52%,36%,0.38), inset 0 1px 0 hsla(0,0%,100%,0.18)',
-                border: 'none',
-                willChange: 'transform',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 4px 20px hsla(83,52%,36%,0.48), inset 0 1px 0 hsla(0,0%,100%,0.22)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = ''
-                e.currentTarget.style.boxShadow = '0 2px 12px hsla(83,52%,36%,0.38), inset 0 1px 0 hsla(0,0%,100%,0.18)'
-              }}
-              onMouseDown={e => { e.currentTarget.style.transform = 'translateY(0)' }}
-            >
-              <RefreshCw
-                size={13}
-                className={`flex-shrink-0 transition-transform duration-500 ${refreshing ? 'animate-spin' : 'group-hover:rotate-180'}`}
-              />
-              <span className="hidden sm:inline">
-                {refreshing ? 'Chargement…' : 'Actualiser'}
-              </span>
-            </button>
-          )}
+
 
           {/* User profile dropdown — Glassmorphism */}
           <div className="relative group">
@@ -411,11 +341,11 @@ export default function Layout() {
                 {userInitials}
               </div>
               {/* Name + role */}
-              <div className="hidden md:flex flex-col items-start">
-                <span className="text-[0.77rem] font-semibold text-white leading-tight">
+              <div className="hidden md:flex flex-col items-start max-w-[110px]">
+                <span className="text-[0.77rem] font-semibold text-white leading-tight truncate w-full">
                   {user?.full_name || 'Administrateur'}
                 </span>
-                <span className="text-[0.6rem] font-medium tracking-widest uppercase" style={{ color: 'hsl(83,50%,55%)' }}>
+                <span className="text-[0.6rem] font-medium tracking-widest uppercase truncate w-full" style={{ color: 'hsl(83,50%,55%)' }}>
                   {user?.role || 'admin'}
                 </span>
               </div>
@@ -453,7 +383,7 @@ export default function Layout() {
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}
                 >
                   <Settings size={14} className="text-gray-400 flex-shrink-0" />
-                  Gestion des utilisateurs
+                  Administration
                 </button>
               )}
               <button

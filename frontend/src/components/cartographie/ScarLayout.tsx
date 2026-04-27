@@ -166,18 +166,33 @@ export default function ScarLayout() {
         <div className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none z-10"
           style={{ background: 'linear-gradient(90deg, transparent 0%, hsl(83,54%,32%) 15%, hsl(83,52%,42%) 40%, hsl(83,55%,52%) 55%, hsl(83,52%,42%) 70%, hsl(83,54%,32%) 85%, transparent 100%)' }} />
 
-        <div className="flex items-center gap-3 px-5 h-full flex-shrink-0"
-          style={{ borderRight: '1px solid hsla(0,0%,100%,0.07)', minWidth: 220 }}>
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-extrabold text-white flex-shrink-0 tracking-wider"
-            style={{ background: 'linear-gradient(135deg, hsl(83,54%,30%) 0%, hsl(83,52%,42%) 60%, hsl(83,55%,55%) 100%)', boxShadow: '0 2px 12px hsla(83,55%,50%,0.55), inset 0 1px 0 hsla(0,0%,100%,0.20)' }}>
-            SCAR
+        {/* ───── ZONE 1: LOGO ───── */}
+        <div
+          className="flex items-center gap-2 px-3.5 h-full flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
+          style={{
+            borderRight: '1px solid hsla(0,0%,100%,0.07)',
+            minWidth: 170,
+          }}
+          onClick={() => navigate('/home')}
+          title="Retour à l'accueil"
+        >
+          {/* Logo mark — floating with glow */}
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-extrabold text-white flex-shrink-0 animate-float"
+            style={{
+              background: 'linear-gradient(135deg, hsl(83,54%,27%) 0%, hsl(83,52%,36%) 60%, hsl(83,50%,45%) 100%)',
+              boxShadow: '0 2px 12px hsla(83,52%,36%,0.45), inset 0 1px 0 hsla(0,0%,100%,0.20)',
+              willChange: 'transform',
+            }}
+          >
+            Re
           </div>
-          <div className="flex flex-col justify-center cursor-pointer" onClick={() => navigate('/modelisation')}>
+          <div className="flex flex-col justify-center">
             <span className="text-[1.05rem] font-bold tracking-[0.01em] text-white leading-tight">
-              Target<span style={{ color: 'hsl(83,60%,70%)' }}>BD</span>
+              Atlantic<span style={{ color: 'hsl(83,50%,55%)' }}>Re</span>
             </span>
-            <span className="text-[0.59rem] font-medium tracking-[0.18em] uppercase mt-px" style={{ color: 'hsla(0,0%,100%,0.40)' }}>
-              Modélisation Stratégique
+            <span className="text-[0.59rem] font-medium tracking-[0.18em] uppercase mt-px" style={{ color: 'hsla(0,0%,100%,0.38)' }}>
+              CDG GROUP
             </span>
           </div>
         </div>
@@ -224,17 +239,7 @@ export default function ScarLayout() {
               Cartographie des marchés
             </span>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            title="Retour à l'accueil"
-            className="group flex items-center gap-2 px-4 py-2 text-[0.8rem] font-semibold text-white rounded-lg whitespace-nowrap transition-all duration-250"
-            style={{ background: 'linear-gradient(135deg, hsl(83,54%,30%) 0%, hsl(83,52%,42%) 55%, hsl(83,55%,52%) 100%)', boxShadow: '0 2px 12px hsla(83,55%,50%,0.45), inset 0 1px 0 hsla(0,0%,100%,0.18)', border: 'none' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.transform = '' }}
-          >
-            <ArrowLeft size={13} className="flex-shrink-0 transition-transform duration-300 group-hover:-translate-x-1" />
-            <span className="hidden sm:inline">Accueil</span>
-          </button>
+
         </div>
       </header>
 

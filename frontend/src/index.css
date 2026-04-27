@@ -992,3 +992,23 @@ input[type="checkbox"]:focus {
 .progress-gold      { background: var(--synergie-gold-muted); border-radius: 4px; height: 6px; overflow: hidden; }
 .progress-gold-fill { background: linear-gradient(90deg, var(--synergie-gold), var(--synergie-amber));
                       height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+
+/* -------------------------------------------------------
+   SCAR NavBar — hover CSS pur (remplace les handlers JS)
+   ------------------------------------------------------- */
+
+/* Bouton groupe nav (inactif) : hover blanc transparent */
+.scar-group-inactive:hover {
+  background: hsla(0, 0%, 100%, 0.07) !important;
+  color: rgba(255,255,255,0.95) !important;
+}
+
+/* Lien enfant standard (non actif) : hover blanc léger */
+a.scar-nav-child-link:not([aria-current='page']):hover {
+  background: hsla(0, 0%, 100%, 0.07) !important;
+}
+
+/* Lien enfant gold (non actif) : hover gold transparent */
+a.scar-nav-gold-link:not([aria-current='page']):hover {
+  background: hsla(43, 96%, 48%, 0.15) !important;
+}

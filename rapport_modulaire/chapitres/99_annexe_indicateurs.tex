@@ -1,0 +1,41 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Indicateurs du modèle de scoring}
+\label{ann:indicateurs}
+
+\begin{longtable}{@{}p{0.5cm}p{4.5cm}p{3cm}p{1.6cm}p{2.8cm}@{}}
+\toprule
+\textbf{N°} & \textbf{Indicateur} & \textbf{Dimension} & \textbf{Type} & \textbf{Source} \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\small\itshape (suite)}\\\toprule
+\textbf{N°} & \textbf{Indicateur} & \textbf{Dimension} & \textbf{Type} & \textbf{Source}\\\midrule
+\endhead
+\bottomrule\endfoot
+1  & PIB nominal (mds USD)               & Économique      & Quant. & FMI (WEO) \\
+2  & Taux de croissance du PIB (\% ann.) & Économique      & Quant. & FMI (WEO) \\
+3  & Inflation (\% annuel)               & Économique      & Quant. & FMI (WEO) \\
+4  & PIB par habitant (PPP en USD)       & Économique      & Quant. & FMI (WEO) \\
+5  & Solde courant (\% du PIB)           & Économique      & Quant. & FMI (WEO) \\
+6  & Degré d'intégration régionale       & Économique      & Qual.  & Traités Commerciaux \\
+\midrule
+7  & Volume total de primes (mn USD)     & Marché Ass.     & Quant. & Axco \\
+8  & Taux de pénétration (\%)            & Marché Ass.     & Quant. & Axco \\
+9  & Densité d'assurance (USD/hab.)      & Marché Ass.     & Quant. & Axco \\
+10 & Répartition Vie / Non-Vie (\%)      & Marché Ass.     & Quant. & Axco \\
+11 & Taux de croissance du marché (\%)   & Marché Ass.     & Quant. & Axco \\
+12 & Rentabilité technique -- S/P (\%)   & Marché Ass.     & Quant. & Axco / FANAF \\
+\midrule
+13 & Regulatory Quality (WGI)            & Réglementaire   & Quant. & Banque Mondiale \\
+14 & FDI Inflows (\% GDP)                & Réglementaire   & Quant. & Banque Mondiale \\
+15 & Kaopen (Chinn-Ito)                  & Réglementaire   & Quant. & \citet{ChinnIto2006} \\
+16 & Political Stability (WGI)           & Réglementaire   & Quant. & Banque Mondiale \\
+\midrule
+17 & Nombre de réassureurs actifs        & Concurrentiel   & Quant. & FANAF / Axco \\
+18 & Part de marché Top~3 (\%)           & Concurrentiel   & Quant. & Atlas Magazine \\
+\end{longtable}
+
+
+\end{document}

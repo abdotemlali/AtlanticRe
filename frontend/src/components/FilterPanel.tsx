@@ -5,7 +5,8 @@ import React from 'react';
 import { useMemo, useState } from "react"
 import Select from 'react-select'
 import { useData, FilterState } from '../context/DataContext'
-import { Filter, ChevronUp, RotateCcw, X } from 'lucide-react'
+import { Filter, ChevronUp, RotateCcw, X, Globe } from 'lucide-react'
+import { getAvailableAfricanMarkets, isAfricanFilterActive } from '../constants/africanMarkets'
 import { Skeleton } from './ui/Skeleton'
 
 const selectStyles = {
@@ -245,7 +246,7 @@ export default function FilterPanel() {
     })
   }
 
-  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_risque', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
+  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
   arrayFilters.forEach(k => {
     const vals = filters[k] as string[] | number[]
     if (vals && vals.length > 0) {
@@ -254,6 +255,18 @@ export default function FilterPanel() {
       })
     }
   })
+
+  // pays_risque : un seul chip "Marchés Africains" si le toggle est actif, sinon chips individuels
+  if (filters.african_markets_only) {
+    activeChips.push({
+      label: '🌍 Marchés Africains',
+      onRemove: () => setFilters(f => ({ ...f, pays_risque: [], african_markets_only: false })),
+    })
+  } else if (filters.pays_risque.length > 0) {
+    filters.pays_risque.forEach(v => {
+      activeChips.push({ label: v, onRemove: () => removeFilter('pays_risque', v) })
+    })
+  }
 
   // Special cases for string/number filters
   if (filters.int_spc_search) {
@@ -425,7 +438,119 @@ export default function FilterPanel() {
             }}
           />
           <Select isMulti options={subBrancheOptions} {...selectStyles} placeholder="Sous-branche" value={toOptions(filters.sous_branche)} isDisabled={subBrancheOptions.length === 0} onChange={v => setFilters(f => ({ ...f, sous_branche: v.map(x => x.value) }))} />
-          <Select isMulti options={toOptions(filterOptions.pays_risque)} {...selectStyles} placeholder="Pays du risque" value={toOptions(filters.pays_risque)} onChange={v => setFilters(f => ({ ...f, pays_risque: v.map(x => x.value) }))} />
+          {/* ── Toggle rapide : Marchés Africains ── */}
+          {(() => {
+            const availPays = filterOptions.pays_risque ?? []
+            const africanAvail = getAvailableAfricanMarkets(availPays)
+            const isActive = isAfricanFilterActive(filters.pays_risque, availPays)
+
+            const handleToggle = () => {
+              if (isActive) {
+                // Désactiver → vider pays_risque ET réinitialiser le flag
+                setFilters(f => ({ ...f, pays_risque: [], african_markets_only: false }))
+              } else {
+                // Activer → remplir pays_risque + poser le flag UI
+                setFilters(f => ({ ...f, pays_risque: africanAvail, african_markets_only: true }))
+              }
+            }
+
+            return (
+              <button
+                onClick={handleToggle}
+                title={isActive ? 'Désactiver le filtre marchés africains' : 'Filtrer uniquement les marchés africains'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  width: '100%',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: isActive
+                    ? '1.5px solid var(--color-navy)'
+                    : '1.5px solid var(--color-gray-200)',
+                  background: isActive
+                    ? 'var(--color-navy)'
+                    : 'transparent',
+                  color: isActive ? '#fff' : 'var(--color-gray-500)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: africanAvail.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: africanAvail.length === 0 ? 0.4 : 1,
+                  transition: 'all 0.2s ease',
+                  letterSpacing: '0.02em',
+                }}
+                disabled={africanAvail.length === 0}
+                onMouseEnter={e => {
+                  if (!isActive && africanAvail.length > 0) {
+                    e.currentTarget.style.borderColor = 'var(--color-navy)'
+                    e.currentTarget.style.color = 'var(--color-navy)'
+                    e.currentTarget.style.background = 'var(--color-navy-muted)'
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                    e.currentTarget.style.color = 'var(--color-gray-500)'
+                    e.currentTarget.style.background = 'transparent'
+                  }
+                }}
+              >
+                <Globe
+                  size={13}
+                  style={{
+                    flexShrink: 0,
+                    animation: isActive ? 'spin 8s linear infinite' : 'none',
+                  }}
+                />
+                <span style={{ flex: 1, textAlign: 'left' }}>
+                  {isActive ? '✓ Marchés Africains' : 'Marchés Africains'}
+                </span>
+                {isActive && (
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      background: 'hsla(0,0%,100%,0.25)',
+                      borderRadius: '4px',
+                      padding: '1px 5px',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {africanAvail.length} pays
+                  </span>
+                )}
+              </button>
+            )
+          })()}
+
+          {/* Sélecteur Pays risque : masqué quand le toggle africain est actif */}
+          {filters.african_markets_only ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 10px',
+                borderRadius: '8px',
+                border: '1.5px solid hsla(209,28%,24%,0.25)',
+                background: 'hsla(209,28%,24%,0.04)',
+                fontSize: '0.73rem',
+                color: 'var(--color-navy)',
+                fontWeight: 600,
+              }}
+            >
+              <Globe size={11} style={{ opacity: 0.6, flexShrink: 0 }} />
+              <span style={{ opacity: 0.7 }}>Afrique ({filters.pays_risque.length} pays)</span>
+              <button
+                onClick={() => setFilters(f => ({ ...f, pays_risque: [], african_markets_only: false }))}
+                style={{ marginLeft: 'auto', opacity: 0.5, cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', color: 'inherit' }}
+                title="Réinitialiser le filtre africain"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ) : (
+            <Select isMulti options={toOptions(filterOptions.pays_risque)} {...selectStyles} placeholder="Pays du risque" value={toOptions(filters.pays_risque)} onChange={v => setFilters(f => ({ ...f, pays_risque: v.map(x => x.value), african_markets_only: false }))} />
+          )}
           <Select isMulti options={toOptions(filterOptions.pays_cedante)} {...selectStyles} placeholder="Pays cédante" value={toOptions(filters.pays_cedante)} onChange={v => setFilters(f => ({ ...f, pays_cedante: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.courtiers)} {...selectStyles} placeholder="Courtier" value={toOptions(filters.courtier)} onChange={v => setFilters(f => ({ ...f, courtier: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.cedantes)} {...selectStyles} placeholder="Cédante" value={toOptions(filters.cedante)} onChange={v => setFilters(f => ({ ...f, cedante: v.map(x => x.value) }))} />

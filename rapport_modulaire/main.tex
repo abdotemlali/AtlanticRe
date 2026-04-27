@@ -1,0 +1,216 @@
+% ============================================================
+%  RAPPORT DE PFE — ATLANTIC RE / EMI
+%  Temlali Abderrahmane & Smaiki Anas — 2025-2026
+%  Compilable Overleaf : pdflatex
+%  Bibliographie : natbib + thebibliography intégrée
+% ============================================================
+
+\documentclass[12pt,a4paper]{report}
+
+% ── Encodage & langue ────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+
+% ── Typographie ──────────────────────────────────────────────
+\usepackage{lmodern}
+
+% ── Mise en page ─────────────────────────────────────────────
+\usepackage[top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm]{geometry}
+
+% ── En-têtes / pieds de page ─────────────────────────────────
+\usepackage{fancyhdr}
+
+% ── Couleurs ─────────────────────────────────────────────────
+\usepackage[table]{xcolor}
+
+% ── Tableaux ─────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{array}
+
+% ── Figures & flottants ──────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+% ── Listes ───────────────────────────────────────────────────
+\usepackage{enumitem}
+
+% ── Maths ────────────────────────────────────────────────────
+\usepackage{amsmath}
+
+% ── Hyperliens ───────────────────────────────────────────────
+\usepackage[hidelinks]{hyperref}
+
+% ── Bibliographie natbib ─────────────────────────────────────
+\usepackage[authoryear,round]{natbib}
+
+% ── TikZ pour les diagrammes UML ─────────────────────────────
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes, arrows.meta, fit, calc, decorations.markings}
+
+% ── Couleurs de planning ─────────────────────────────────────
+\definecolor{phase1}{RGB}{220,230,242}
+\definecolor{phase2}{RGB}{226,239,218}
+\definecolor{phase3}{RGB}{255,242,204}
+\definecolor{phase4}{RGB}{242,220,219}
+\definecolor{phase5}{RGB}{230,220,245}
+\definecolor{phase6}{RGB}{220,240,240}
+\definecolor{phase7}{RGB}{255,228,196}
+\definecolor{phase8}{RGB}{228,228,228}
+
+% ── Couleurs UML ─────────────────────────────────────────────
+\definecolor{umlactor}{RGB}{44,62,80}
+\definecolor{umluc}{RGB}{230,240,255}
+\definecolor{umlucborder}{RGB}{52,73,94}
+\definecolor{umlclass}{RGB}{255,253,230}
+\definecolor{umlclassborder}{RGB}{41,128,185}
+\definecolor{umlclasshead}{RGB}{41,128,185}
+\definecolor{umlseq}{RGB}{236,240,241}
+
+% ── Style fancyhdr ───────────────────────────────────────────
+\setlength{\headheight}{13.6pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small Atlantic Re --- Rapport de PFE}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Redéfinition sobre des chapitres ─────────────────────────
+\makeatletter
+\def\@makechapterhead#1{%
+  \vspace*{-10pt}%
+  {\parindent\z@ \raggedright
+    \normalfont\Large\bfseries \thechapter\quad #1
+    \par\nobreak
+    \vskip 4pt
+    \hrule height 0.8pt
+  }%
+  \vspace{16pt}%
+  \markboth{\MakeUppercase{#1}}{}%
+}
+\def\@makeschapterhead#1{%
+  \vspace*{-10pt}%
+  {\parindent\z@ \raggedright
+    \normalfont\Large\bfseries #1
+    \par\nobreak
+    \vskip 4pt
+    \hrule height 0.8pt
+  }%
+  \vspace{16pt}%
+  \markboth{\MakeUppercase{#1}}{}%
+}
+\makeatother
+
+% ============================================================
+\usepackage{subfiles}
+
+\begin{document}
+
+
+% ============================================================
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% ============================================================
+%  PAGE DE GARDE
+% ============================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+
+\begin{minipage}[c]{0.35\textwidth}
+  \centering
+  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{EMI}}\\[0.3cm]
+  {\small École Mohammadia d'Ingénieurs}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.35\textwidth}
+  \centering
+  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{Atlantic Re}}\\[0.3cm]
+  {\small Atlantic Re -- Filiale de CDG}
+\end{minipage}
+
+\vspace{1.2cm}
+{\large \textbf{UNIVERSITÉ MOHAMMED V}}\\[0.1cm]
+{\large \textbf{ÉCOLE MOHAMMADIA D'INGÉNIEURS}}
+
+\vspace{0.5cm}
+\hrulefill
+\vspace{0.3cm}
+
+{\normalsize \textbf{Département : Génie Informatique}}\\[0.1cm]
+{\normalsize \textbf{Section : IDSI -- Ingénierie Digitale et Systèmes Intelligents}}
+\vspace{1.2cm}
+
+{\normalsize Rapport de Projet de Fin d'Études}\\[0.1cm]
+{\normalsize \textbf{N\textsuperscript{o} GI-2026-XY}}
+\vspace{0.6cm}
+
+\setlength{\fboxsep}{12pt}
+\fbox{%
+  \begin{minipage}{0.82\textwidth}
+    \begin{center}
+      \large \textbf{Modélisation stratégique et digitalisation de l'expansion africaine}\\[0.2cm]
+      \large \textbf{d'un réassureur international à horizon 2030}
+    \end{center}
+  \end{minipage}%
+}
+
+\vfill
+
+\begin{minipage}[t]{0.45\textwidth}
+  \centering
+  \textbf{Réalisé par :}\\[0.4cm]
+  TEMLALI Abderrahmane\\
+  SMAIKI Anas
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+  \centering
+  \textbf{Dirigé par :}\\[0.4cm]
+  Pr. Asmae RETBI (EMI)\\
+  M. Amine RYANE (Atlantic Re)
+\end{minipage}
+
+\vspace{1.5cm}
+{\normalsize Année universitaire 2025--2026}
+\end{center}
+\end{titlepage}
+
+% ============================================================
+%  REMERCIEMENTS
+% ============================================================
+\subfile{chapitres/00_remerciements.tex}
+
+\subfile{chapitres/00_resume.tex}
+
+\subfile{chapitres/00_abstract.tex}
+
+\subfile{chapitres/00_abreviations.tex}
+
+\subfile{chapitres/01_introduction.tex}
+
+\subfile{chapitres/10_chapitre_1.tex}
+
+\subfile{chapitres/10_chapitre_2.tex}
+
+\subfile{chapitres/10_chapitre_3.tex}
+
+\subfile{chapitres/10_chapitre_4.tex}
+
+\subfile{chapitres/99_conclusion.tex}
+
+\subfile{chapitres/99_references.tex}
+
+\subfile{chapitres/99_annexe_indicateurs.tex}
+
+\subfile{chapitres/99_glossaire.tex}
+
+\end{document}

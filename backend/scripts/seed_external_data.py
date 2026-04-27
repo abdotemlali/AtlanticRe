@@ -117,8 +117,9 @@ MACRO_COLS: Dict[str, str] = {
     "Integration_Regionale_Score": "integration_regionale_score",
 }
 
-# Mapping noms de pays français (CSV africa_eco_integration) -> noms anglais (ref_pays)
-MACRO_PAYS_FR_TO_EN: Dict[str, str] = {
+# Mapping noms de pays français (tous CSV) -> noms anglais (ref_pays)
+# Utilisé pour non_vie, vie, gouv ET macro (tous les CSV ont les pays en français)
+PAYS_FR_TO_EN: Dict[str, str] = {
     "Afrique du Sud": "SOUTH AFRICA",
     "Algérie":        "ALGERIE",
     "Angola":          "ANGOLA",
@@ -154,6 +155,9 @@ MACRO_PAYS_FR_TO_EN: Dict[str, str] = {
     "Égypte":          "EGYPT",
     "Éthiopie":        "ETHIOPIA",
 }
+
+# Alias pour rétrocompatibilité
+MACRO_PAYS_FR_TO_EN = PAYS_FR_TO_EN
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -304,10 +308,10 @@ def _run(data_dir: Path, create_tables: bool) -> int:
         Base.metadata.create_all(bind=engine)
 
     files = {
-        "non_vie": data_dir / "marche_assurance_non_vie_afrique_clean.csv",
-        "vie":     data_dir / "marche_assurance_vie_afrique_clean.csv",
-        "gouv":    data_dir / "wgi_africa_wide_kaopen_clean.csv",
-        "macro":   data_dir / "africa_eco_integration_clean.csv",
+        "non_vie": data_dir / "marche_assurance_non_vie.csv",
+        "vie":     data_dir / "marche_assurance_vie.csv",
+        "gouv":    data_dir / "wgi_africa_kaopen.csv",
+        "macro":   data_dir / "africa_eco_integration.csv",
     }
 
     # macro : virgule comme séparateur décimal possible → on teste
@@ -321,10 +325,10 @@ def _run(data_dir: Path, create_tables: bool) -> int:
         pass
 
     print("📥 Lecture des CSV…")
-    non_vie_rows = _load_csv(files["non_vie"], NON_VIE_COLS)
-    vie_rows     = _load_csv(files["vie"],     VIE_COLS)
-    gouv_rows    = _load_csv(files["gouv"],    GOUV_COLS)
-    macro_rows   = _load_csv(files["macro"],   MACRO_COLS, decimal=macro_decimal, pays_normalize=MACRO_PAYS_FR_TO_EN)
+    non_vie_rows = _load_csv(files["non_vie"], NON_VIE_COLS, pays_normalize=PAYS_FR_TO_EN)
+    vie_rows     = _load_csv(files["vie"],     VIE_COLS,     pays_normalize=PAYS_FR_TO_EN)
+    gouv_rows    = _load_csv(files["gouv"],    GOUV_COLS,    pays_normalize=PAYS_FR_TO_EN)
+    macro_rows   = _load_csv(files["macro"],   MACRO_COLS, decimal=macro_decimal, pays_normalize=PAYS_FR_TO_EN)
 
     print(f"  non_vie : {len(non_vie_rows)} lignes")
     print(f"  vie     : {len(vie_rows)} lignes")

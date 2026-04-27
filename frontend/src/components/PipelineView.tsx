@@ -49,6 +49,29 @@ const STATUS_LABELS: Record<string, string> = {
     'CANCELLED': 'Annulé'
 }
 
+const RADIAN = Math.PI / 180
+
+const renderCustomizedLabel = ({
+    cx, cy, midAngle, innerRadius, outerRadius, percent
+}: any) => {
+    if (percent < 0.05) return null // cache les tranches trop petites
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    return (
+        <text
+            x={x}
+            y={y}
+            fill="#fff"
+            textAnchor="middle"
+            dominantBaseline="central"
+            style={{ fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}
+        >
+            {`${(percent * 100).toFixed(1)}%`}
+        </text>
+    )
+}
+
 export default function PipelineView() {
     const { filters } = useData()
     const [data, setData] = useState<Contract[]>([])
@@ -234,6 +257,8 @@ export default function PipelineView() {
                                     outerRadius={100}
                                     paddingAngle={2}
                                     dataKey="value"
+                                    label={renderCustomizedLabel}
+                                    labelLine={false}
                                 >
                                     {analytics.mixPie.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.fill} />

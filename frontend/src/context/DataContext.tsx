@@ -33,6 +33,7 @@ export interface FilterState {
   commission_max: number | null
   courtage_min: number | null
   courtage_max: number | null
+  african_markets_only: boolean   // UI flag: afficher un seul chip "Marchés Africains" au lieu de 52 chips
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -63,6 +64,7 @@ export const DEFAULT_FILTERS: FilterState = {
   commission_max: null,
   courtage_min: null,
   courtage_max: null,
+  african_markets_only: false,
 }
 
 export interface KPISummary {

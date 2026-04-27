@@ -88,12 +88,19 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        {/* ── Public landing routes (Axe 1 / Axe 2 entry) ── */}
-        <Route path="/" element={<Home />} />
-        <Route path="/modelisation" element={<ModelisationHome />} />
+        {/* ── Route racine : redirige selon l'état d'auth ── */}
+        <Route path="/" element={
+          isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
+        } />
 
-        {/* ── Cartographie SCAR (Axe 2) — public, olive navbar ── */}
-        <Route element={<ScarLayout />}>
+        {/* ── Home — sélection Axe 1 / Axe 2 (protégée) ── */}
+        <Route path="/home" element={
+          <ProtectedRoute><Suspense fallback={<LoadingFallback />}><Home /></Suspense></ProtectedRoute>
+        } />
+
+        {/* ── Cartographie SCAR (Axe 2) — protégé, olive navbar ── */}
+        <Route element={<ProtectedRoute><ScarLayout /></ProtectedRoute>}>
+          <Route path="/modelisation" element={<ErrorBoundary><ModelisationHome /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/non-vie" element={<ErrorBoundary><CartographieNonVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/macroeconomie" element={<ErrorBoundary><CartographieMacro /></ErrorBoundary>} />
@@ -107,7 +114,7 @@ function AppRoutes() {
           <Route path="/analyse-synergie/:pays"        element={<ErrorBoundary><AnalyseSynergiePays /></ErrorBoundary>} />
         </Route>
 
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route
@@ -146,7 +153,7 @@ function AppRoutes() {
             }
           />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Suspense>
   )
