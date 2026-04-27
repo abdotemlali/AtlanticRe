@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import {
   ArrowLeft, Briefcase, Banknote, TrendingUp, Shield, Activity,
-  Users, Globe, FileText, ChevronDown, ChevronUp,
+  Users, Globe, FileText, ChevronDown, ChevronUp, Download,
 } from 'lucide-react'
 import Select from 'react-select'
 import { useData } from '../context/DataContext'
@@ -44,6 +44,8 @@ export default function BrokerDetail() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'contracts'>('overview')
   const [contractSort, setContractSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'written_premium', dir: 'desc' })
+  const [showAllCedantes, setShowAllCedantes] = useState(false)
+  const [showAllPays, setShowAllPays] = useState(false)
 
   // ── Shared local filters (replaces ~100 lines of state + logic) ──────────
   const lf = useLocalFilters()
@@ -91,10 +93,17 @@ export default function BrokerDetail() {
 
   const role = roleConfig(profile.retro_role)
 
+  const NUMERIC_COLS = new Set(['written_premium', 'resultat', 'ulr', 'share_signed', 'commission', 'uw_year'])
+
   const sortedContracts = [...contracts].sort((a, b) => {
-    const va = a[contractSort.key] ?? 0
-    const vb = b[contractSort.key] ?? 0
-    return contractSort.dir === 'desc' ? vb - va : va - vb
+    const va = a[contractSort.key] ?? ''
+    const vb = b[contractSort.key] ?? ''
+    if (NUMERIC_COLS.has(contractSort.key)) {
+      return contractSort.dir === 'desc' ? Number(vb) - Number(va) : Number(va) - Number(vb)
+    }
+    return contractSort.dir === 'desc'
+      ? String(vb).localeCompare(String(va), 'fr', { sensitivity: 'base' })
+      : String(va).localeCompare(String(vb), 'fr', { sensitivity: 'base' })
   })
 
   const handleContractSort = (key: string) => {
@@ -102,8 +111,32 @@ export default function BrokerDetail() {
     else setContractSort({ key, dir: 'desc' })
   }
 
+  const exportContractsExcel = () => {
+    import('xlsx').then(XLSX => {
+      const rows = sortedContracts.map((c: any) => ({
+        'N° Police':     c.policy_id    || '',
+        'Cédante':       c.cedante      || '',
+        'Branche':       c.branche      || '',
+        'Pays':          c.pays_risque  || '',
+        'Année UW':      c.uw_year      || '',
+        'Type':          c.type_contrat || '',
+        'Prime (MAD)':   c.written_premium ?? 0,
+        'Résultat (MAD)':c.resultat     ?? 0,
+        'ULR (%)':       c.ulr != null ? Number((c.ulr * 100).toFixed(2)) : '',
+        'Part %':        c.share_signed != null ? Number((c.share_signed).toFixed(2)) : '',
+        'Commission %':  c.commission   != null ? Number((c.commission).toFixed(2)) : '',
+        'Statut':        c.status       || '',
+      }))
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Contrats')
+      const date = new Date().toISOString().slice(0, 10)
+      const slug = broker.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      XLSX.writeFile(wb, `contrats_${slug}_${date}.xlsx`)
+    })
+  }
+
   const CSortIcon = ({ col }: { col: string }) => {
-    if (contractSort.key === col) return null
+    if (contractSort.key !== col) return null
     return contractSort.dir === 'desc' ? <ChevronDown size={11} /> : <ChevronUp size={11} />
   }
 
@@ -313,12 +346,27 @@ export default function BrokerDetail() {
                 Cédantes Servies ({profile.cedantes?.length || 0})
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(profile.cedantes || []).slice(0, 25).map((c: string) => (
+                {(showAllCedantes ? profile.cedantes : (profile.cedantes || []).slice(0, 25)).map((c: string) => (
                   <span key={c} style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: `${C.navy}0A`, color: C.navy, border: `1px solid ${C.grayLight}` }}>
                     {c}
                   </span>
                 ))}
-                {(profile.cedantes?.length || 0) > 25 && <span style={{ color: C.gray, fontSize: '0.7rem', fontWeight: 600, alignSelf: 'center' }}>+{profile.cedantes.length - 25} autres</span>}
+                {!showAllCedantes && (profile.cedantes?.length || 0) > 25 && (
+                  <button
+                    onClick={() => setShowAllCedantes(true)}
+                    style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.olive}14`, color: C.olive, border: `1px solid ${C.olive}44`, cursor: 'pointer' }}
+                  >
+                    +{profile.cedantes.length - 25} autres
+                  </button>
+                )}
+                {showAllCedantes && (profile.cedantes?.length || 0) > 25 && (
+                  <button
+                    onClick={() => setShowAllCedantes(false)}
+                    style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.gray}14`, color: C.gray, border: `1px solid ${C.grayLight}`, cursor: 'pointer' }}
+                  >
+                    Réduire ↑
+                  </button>
+                )}
               </div>
             </div>
             <div style={{ background: 'white', borderRadius: 14, padding: 20, border: `1px solid ${C.grayLight}` }}>
@@ -327,12 +375,27 @@ export default function BrokerDetail() {
                 Pays d'Exposition ({profile.pays?.length || 0})
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(profile.pays || []).slice(0, 25).map((p: string) => (
+                {(showAllPays ? profile.pays : (profile.pays || []).slice(0, 25)).map((p: string) => (
                   <span key={p} style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: `${C.blue}0A`, color: C.blue, border: `1px solid ${C.grayLight}` }}>
                     {p}
                   </span>
                 ))}
-                {(profile.pays?.length || 0) > 25 && <span style={{ color: C.gray, fontSize: '0.7rem', fontWeight: 600, alignSelf: 'center' }}>+{profile.pays.length - 25} autres</span>}
+                {!showAllPays && (profile.pays?.length || 0) > 25 && (
+                  <button
+                    onClick={() => setShowAllPays(true)}
+                    style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.blue}14`, color: C.blue, border: `1px solid ${C.blue}44`, cursor: 'pointer' }}
+                  >
+                    +{profile.pays.length - 25} autres
+                  </button>
+                )}
+                {showAllPays && (profile.pays?.length || 0) > 25 && (
+                  <button
+                    onClick={() => setShowAllPays(false)}
+                    style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: `${C.gray}14`, color: C.gray, border: `1px solid ${C.grayLight}`, cursor: 'pointer' }}
+                  >
+                    Réduire ↑
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -341,11 +404,22 @@ export default function BrokerDetail() {
 
       {tab === 'contracts' && (
         <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${C.grayLight}`, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.grayLight}`, background: '#fafbfc' }}>
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.grayLight}`, background: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: C.navy, margin: 0 }}>
               <FileText size={14} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />
               Détail des Contrats ({contracts.length})
             </h3>
+            <button
+              onClick={exportContractsExcel}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 8,
+                border: `1px solid ${C.grayLight}`, background: 'white',
+                cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700, color: C.navy,
+              }}
+            >
+              <Download size={13} /> Exporter Excel
+            </button>
           </div>
           <div style={{ overflowX: 'auto', maxHeight: 600 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>

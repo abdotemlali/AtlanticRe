@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react"
+import { useNavigate } from 'react-router-dom'
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps'
 import { useData, filtersToParams } from '../../context/DataContext'
 import api from '../../utils/api'
@@ -252,6 +253,7 @@ export default function WorldMap({
   externalParams,
 }: WorldMapProps) {
   const { filters } = useData()
+  const navigate = useNavigate()
   const [countryData, setCountryData] = useState<CountryData[]>([])
   const [loading, setLoading] = useState(true)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
@@ -399,7 +401,7 @@ export default function WorldMap({
                     style={{
                       default: { outline: 'none', cursor: d ? 'pointer' : 'default', transition: 'fill 0.2s, fill-opacity 0.3s' },
                       hover: { fill: d ? '#4361ee' : '#252545', outline: 'none' },
-                      pressed: { outline: 'none' },
+                      pressed: { outline: 'none', fill: d ? '#2d4bc7' : '#252545' },
                     }}
                     onMouseEnter={(e) => {
                       if (!d) return
@@ -412,6 +414,11 @@ export default function WorldMap({
                       setTooltip(t => (t ? { ...t, x: pos.x, y: pos.y } : { x: pos.x, y: pos.y, data: d }))
                     }}
                     onMouseLeave={() => setTooltip(null)}
+                    onClick={() => {
+                      if (!d) return
+                      setTooltip(null)
+                      navigate(`/analyse/${encodeURIComponent(d.pays)}`)
+                    }}
                   />
                 )
               })
@@ -436,8 +443,11 @@ export default function WorldMap({
             padding: '10px 14px',
           }}
         >
-          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'hsl(83,50%,55%)', letterSpacing: '0.06em', marginBottom: 6, textTransform: 'uppercase' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'hsl(83,50%,55%)', letterSpacing: '0.06em', marginBottom: 4, textTransform: 'uppercase' }}>
             {tooltip.data.pays}
+          </p>
+          <p style={{ fontSize: '0.65rem', color: 'hsla(0,0%,100%,0.35)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.6rem' }}>🔍</span> Cliquer pour analyser
           </p>
           <div className="space-y-1" style={{ fontSize: '0.75rem' }}>
             {colorBy === 'exposition' ? (

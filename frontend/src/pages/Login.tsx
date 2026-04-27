@@ -32,6 +32,7 @@ export default function Login() {
         navigate('/change-password')
       } else {
         toast.success('Connexion réussie')
+        navigate('/home')
       }
     } catch {
       toast.error('Identifiants incorrects')

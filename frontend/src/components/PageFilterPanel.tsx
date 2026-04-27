@@ -48,10 +48,7 @@ export default function PageFilterPanel() {
 
   const scope = PAGE_SCOPES[location.pathname]
 
-  // Don't render if no scope is defined for this page
-  if (!scope || !filterOptions) return null
-
-  const keys = scope.keys.filter(k => !scope.excluded?.includes(k))
+  const keys = scope ? scope.keys.filter(k => !scope.excluded?.includes(k)) : []
 
   const hasYear = keys.some(k => ['uw_year_min', 'uw_year_max', 'uw_years'].includes(k))
   const hasBranche = keys.includes('branche')
@@ -75,6 +72,9 @@ export default function PageFilterPanel() {
     filters.branche.forEach(b => { options.push(...((filterOptions.sous_branche as any)[b] || [])) })
     return toOptions([...new Set(options)].sort())
   }, [filterOptions, filters.branche])
+
+  // Don't render if no scope is defined for this page — AFTER all hooks
+  if (!scope || !filterOptions) return null
 
   const uwYears = filterOptions.underwriting_years ?? []
 

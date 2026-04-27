@@ -348,7 +348,7 @@ export default function Analysis() {
       setFilters((f: any) => ({ ...f, pays_risque: [selectedPays] }))
     }
     sessionStorage.setItem('dashboard_tab', 'contrats')
-    navigate('/')
+    navigate('/dashboard')
   }
 
   const handleComparer = () => {

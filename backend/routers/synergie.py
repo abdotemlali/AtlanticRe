@@ -125,6 +125,15 @@ def _get_ulr_col(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
+def _is_vie_series(branche_upper: "pd.Series") -> "pd.Series":
+    """
+    Détection intelligente du segment Vie : retourne un masque booléen True
+    si la branche contient le mot 'VIE' (même en milieu de chaîne).
+    Exemples capturés : 'VIE', 'ASSURANCE VIE', 'VIE CREDIT', ' VIE ', 'VIE '
+    """
+    return branche_upper.str.contains(r'\bVIE\b', regex=True, na=False)
+
+
 def _calc_part_affaires(written_premium: float, subject_premium: float) -> float:
     """
     Part sur les Affaires = Primes Totales Atlantic Re / Primes des Affaires Souscrites × 100.
@@ -320,7 +329,7 @@ def _compute_pays_kpis(
 
     # Split Vie / Non-Vie sur données internes (colonne INT_BRANCHE)
     if "_BRANCHE_UPPER" in df_pays.columns:
-        vie_mask = df_pays["_BRANCHE_UPPER"] == "VIE"
+        vie_mask = _is_vie_series(df_pays["_BRANCHE_UPPER"])
         df_vie = df_pays[vie_mask]
         df_nonvie = df_pays[~vie_mask]
     else:
@@ -691,7 +700,7 @@ def classements_global(
     agg_total = _agg_pays(df_year, "")
 
     if has_branche and not df_year.empty:
-        mask_vie = df_year["_BRANCHE_UPPER"] == "VIE"
+        mask_vie = _is_vie_series(df_year["_BRANCHE_UPPER"])
         agg_nv = _agg_pays(df_year[~mask_vie], "_nv")
         agg_v  = _agg_pays(df_year[mask_vie],  "_v")
     else:
@@ -932,7 +941,7 @@ def classements_global(
 
         evo_total_agg = _agg_year(df_ext, "")
         if has_branche:
-            mask_vie_evo = df_ext["_BRANCHE_UPPER"] == "VIE"
+            mask_vie_evo = _is_vie_series(df_ext["_BRANCHE_UPPER"])
             evo_nv_agg = _agg_year(df_ext[~mask_vie_evo], "_nv")
             evo_v_agg  = _agg_year(df_ext[mask_vie_evo],  "_v")
         else:
@@ -959,7 +968,7 @@ def classements_global(
             if not df_maroc_evo.empty:
                 maroc_total_agg = _agg_year(df_maroc_evo, "")
                 if has_branche:
-                    mask_vie_maroc = df_maroc_evo["_BRANCHE_UPPER"] == "VIE"
+                    mask_vie_maroc = _is_vie_series(df_maroc_evo["_BRANCHE_UPPER"])
                     maroc_nv_agg = _agg_year(df_maroc_evo[~mask_vie_maroc], "_nv")
                     maroc_v_agg  = _agg_year(df_maroc_evo[mask_vie_maroc],  "_v")
                 else:
@@ -1255,7 +1264,7 @@ def evolution_global(
             sw_vals = grp["SHARE_WRITTEN"].dropna().tolist()
             # Split Vie / Non-Vie
             if "_BRANCHE_UPPER" in grp.columns:
-                vie_m = grp["_BRANCHE_UPPER"] == "VIE"
+                vie_m = _is_vie_series(grp["_BRANCHE_UPPER"])
                 grp_vie = grp[vie_m]
                 grp_nv = grp[~vie_m]
             else:
