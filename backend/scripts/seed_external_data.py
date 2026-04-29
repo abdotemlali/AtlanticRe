@@ -304,10 +304,10 @@ def _run(data_dir: Path, create_tables: bool) -> int:
         Base.metadata.create_all(bind=engine)
 
     files = {
-        "non_vie": data_dir / "marche_assurance_non_vie_afrique_clean.csv",
-        "vie":     data_dir / "marche_assurance_vie_afrique_clean.csv",
-        "gouv":    data_dir / "wgi_africa_wide_kaopen_clean.csv",
-        "macro":   data_dir / "africa_eco_integration_clean.csv",
+        "non_vie": data_dir / "marche_assurance_non_vie_FINAL.csv",
+        "vie":     data_dir / "marche_assurance_vie_FINAL.csv",
+        "gouv":    data_dir / "wgi_africa_kaopen_FINAL.csv",
+        "macro":   data_dir / "africa_eco_integration_FINAL.csv",
     }
 
     # macro : virgule comme séparateur décimal possible → on teste
@@ -321,9 +321,9 @@ def _run(data_dir: Path, create_tables: bool) -> int:
         pass
 
     print("📥 Lecture des CSV…")
-    non_vie_rows = _load_csv(files["non_vie"], NON_VIE_COLS)
-    vie_rows     = _load_csv(files["vie"],     VIE_COLS)
-    gouv_rows    = _load_csv(files["gouv"],    GOUV_COLS)
+    non_vie_rows = _load_csv(files["non_vie"], NON_VIE_COLS, pays_normalize=MACRO_PAYS_FR_TO_EN)
+    vie_rows     = _load_csv(files["vie"],     VIE_COLS, pays_normalize=MACRO_PAYS_FR_TO_EN)
+    gouv_rows    = _load_csv(files["gouv"],    GOUV_COLS, pays_normalize=MACRO_PAYS_FR_TO_EN)
     macro_rows   = _load_csv(files["macro"],   MACRO_COLS, decimal=macro_decimal, pays_normalize=MACRO_PAYS_FR_TO_EN)
 
     print(f"  non_vie : {len(non_vie_rows)} lignes")

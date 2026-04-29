@@ -19,7 +19,7 @@ SET @alter_stmt = IF(
     @col_exists = 0,
     'ALTER TABLE ext_macroeconomie
        ADD COLUMN integration_regionale_rank SMALLINT NULL
-       COMMENT ''Rang intégration régionale africaine (1 = mieux intégré, source : africa_eco_integration_clean.csv)''
+       COMMENT ''Rang intégration régionale africaine (1 = mieux intégré, source : africa_eco_integration_FINAL.csv)''
        AFTER inflation_rate_pct',
     'SELECT ''Colonne integration_regionale_rank déjà présente — aucune action.'' AS info'
 );

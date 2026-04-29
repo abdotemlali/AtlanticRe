@@ -18,6 +18,8 @@ import {
   Building2,
   Scale,
   Landmark,
+  BarChart2,
+  Shuffle,
 } from 'lucide-react'
 import {
   ComposableMap,
@@ -33,12 +35,14 @@ type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[];
 type NavItem   = NavDirect | NavGroup
 
 const navItems: NavItem[] = [
-  { to: '/modelisation', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
+  { to: '/vue_ensemble', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
   {
     label: 'Modélisation', icon: Target,
     children: [
-      { to: '/modelisation/scoring',  label: 'Scoring SCAR',     icon: Target   },
-      { to: '/modelisation/criteres', label: 'Critères & poids', icon: Sparkles },
+      { to: '/vue_ensemble#scoring',  label: 'Scoring SCAR',     icon: Target, enabled: true },
+      { to: '/vue_ensemble#criteres', label: 'Critères & poids', icon: Sparkles, enabled: true },
+      { to: '/modelisation/predictions',  label: 'Prédictions 2030',  icon: TrendingUp, enabled: true },
+      { to: '/modelisation/monte-carlo',  label: 'Monte Carlo',        icon: Shuffle,    enabled: true },
     ],
   },
   {
@@ -53,10 +57,10 @@ const navItems: NavItem[] = [
   {
     label: 'Analyse', icon: Network,
     children: [
-      { to: '/modelisation/analyse',     label: 'Analyse par Pays',    icon: Network,    enabled: true },
+      { to: '/modelisation/analyse',     label: 'Analyse par Pays',    icon: BarChart2,    enabled: true },
+      { to: '/modelisation/analyse-compagnie', label: 'Analyse Compagnie', icon: Building2, enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Scale,       enabled: true },
       { to: '/analyse-synergie',         label: 'Analyse Synergie',    icon: Combine,    enabled: true, gold: true },
-      { to: '/modelisation/projections', label: 'Projections ML',      icon: Sparkles   },
     ],
   },
   { to: '/modelisation/recommandations', label: 'Recommandations', icon: Sparkles },
@@ -613,7 +617,7 @@ const AFRICA_NUMERIC = new Set([
   12, 24, 72, 204, 72, 854, 108, 120, 132, 140, 148, 174, 178, 180, 204,
   231, 232, 262, 266, 270, 288, 324, 328, 384, 404, 426, 430, 434, 450,
   454, 466, 478, 480, 504, 508, 516, 562, 566, 646, 686, 694, 706, 710,
-  716, 724, 728, 732, 736, 748, 768, 788, 800, 818, 834, 854, 894,
+  716, 724, 728, 729, 732, 736, 748, 768, 788, 800, 818, 834, 854, 894,
   // Petits territoires/îles
   174, 175, 638,
 ])
@@ -860,7 +864,7 @@ export default function ModelisationHome() {
           {navItems.map(item =>
             item.children ? (
               <NavDropdown key={item.label} {...item} />
-            ) : item.to === '/modelisation' ? (
+            ) : item.to === '/vue_ensemble' ? (
               // Item "Vue d'ensemble" — cliquable, actif
               <button
                 key={item.to}
@@ -1146,6 +1150,110 @@ export default function ModelisationHome() {
                 >
                   <Combine size={15} />
                   Accéder à l'Analyse Synergique →
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Section 3c : Prédictions 2030 — module card ── */}
+          <section>
+            <div
+              className="bg-white rounded-xl p-6 flex items-start gap-5"
+              style={{
+                border: '2px solid hsl(83,52%,42%)',
+                background: 'hsla(83,52%,42%,0.03)',
+                boxShadow: '0 4px 20px hsla(83,52%,42%,0.10)',
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, hsl(83,54%,28%), hsl(83,52%,42%))', boxShadow: '0 4px 12px hsla(83,52%,42%,0.35)' }}
+              >
+                <TrendingUp size={22} style={{ color: 'white' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h2 className="text-lg font-bold" style={{ color: 'hsl(83,52%,28%)' }}>
+                    Prédictions 2030
+                  </h2>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(83,52%,42%,0.15)', color: 'hsl(83,52%,30%)', border: '1px solid hsla(83,52%,42%,0.35)' }}
+                  >
+                    Axe 2 · Modélisation
+                  </span>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(83,52%,42%,0.10)', color: 'hsl(83,52%,42%)', border: '1px solid hsla(83,52%,42%,0.25)' }}
+                  >
+                    NOUVEAU
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                  Projections univariées à horizon 2030 sur 34 marchés africains.
+                  3 modèles statistiques (linéaire, polynomial, lissage exponentiel), intervalles de confiance 95%, carte choroplèthe et export Excel.
+                </p>
+                <button
+                  onClick={() => navigate('/modelisation/predictions')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, hsl(83,54%,28%), hsl(83,52%,42%))', boxShadow: '0 2px 12px hsla(83,52%,42%,0.35)' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px hsla(83,52%,42%,0.45)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 12px hsla(83,52%,42%,0.35)' }}
+                >
+                  <TrendingUp size={15} />
+                  Accéder aux Prédictions 2030 →
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Section 3d : Monte Carlo — module card ── */}
+          <section>
+            <div
+              className="bg-white rounded-xl p-6 flex items-start gap-5"
+              style={{
+                border: '2px solid hsl(270,55%,60%)',
+                background: 'hsla(270,55%,60%,0.03)',
+                boxShadow: '0 4px 20px hsla(270,55%,60%,0.10)',
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, hsl(270,60%,50%), hsl(270,55%,60%))', boxShadow: '0 4px 12px hsla(270,55%,60%,0.35)' }}
+              >
+                <Shuffle size={22} style={{ color: 'white' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h2 className="text-lg font-bold" style={{ color: 'hsl(270,60%,40%)' }}>
+                    Monte Carlo
+                  </h2>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(270,55%,60%,0.15)', color: 'hsl(270,60%,40%)', border: '1px solid hsla(270,55%,60%,0.35)' }}
+                  >
+                    Axe 2 · Modélisation
+                  </span>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: 'hsla(270,55%,60%,0.10)', color: 'hsl(270,55%,60%)', border: '1px solid hsla(270,55%,60%,0.25)' }}
+                  >
+                    NOUVEAU
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                  Simulations stochastiques avancées de type Monte Carlo. Évaluez la distribution des probabilités
+                  des résultats futurs et modélisez les incertitudes sur les variables clés à l'horizon 2030.
+                </p>
+                <button
+                  onClick={() => navigate('/modelisation/monte-carlo')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, hsl(270,60%,50%), hsl(270,55%,60%))', boxShadow: '0 2px 12px hsla(270,55%,60%,0.35)' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px hsla(270,55%,60%,0.45)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 12px hsla(270,55%,60%,0.35)' }}
+                >
+                  <Shuffle size={15} />
+                  Accéder à Monte Carlo →
                 </button>
               </div>
             </div>

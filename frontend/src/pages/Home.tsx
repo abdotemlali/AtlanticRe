@@ -327,7 +327,7 @@ export default function Home() {
             cta="Explorer"
             status="En intégration"
             statusActive={false}
-            onClick={() => navigate('/modelisation')}
+            onClick={() => navigate('/vue_ensemble')}
             delay="0.08s"
           />
         </div>
