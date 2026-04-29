@@ -1346,22 +1346,25 @@ function ValidationPanel({ validation, onRefresh, refreshing, error }: {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(validation.variables).map(([k, m]) => (
-                  <tr key={k} className="border-b" style={{ borderColor: 'hsl(0,0%,95%)' }}>
-                    <td className="py-1.5 px-2 font-semibold">{m.label}</td>
-                    <td className="py-1.5 px-2"><ModelBadge modele={m.modele} /></td>
-                    <td className="py-1.5 px-2 text-right font-mono">{fmtR2(m.r2_mean)}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{m.mape_mean != null ? fmtPct(m.mape_mean, 1) : '—'}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{fmtNum(m.mae, 3)}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{fmtNum(m.q80, 3)}</td>
-                    <td className="py-1.5 px-2 text-right font-mono">{fmtNum(m.q95, 3)}</td>
-                    <td className="py-1.5 px-2 text-center text-[10px]">
-                      {k === 'gdp_growth'
-                        ? <span style={{ color: GREEN }}>ML + Axco</span>
-                        : <span className="text-gray-400">ML pur</span>}
-                    </td>
-                  </tr>
-                ))}
+                {Object.entries(validation.variables).map(([k, m]) => {
+                  const isGdpGrowth = k === 'gdp_growth'
+                  return (
+                    <tr key={k} className="border-b" style={{ borderColor: 'hsl(0,0%,95%)' }}>
+                      <td className="py-1.5 px-2 font-semibold">{m.label}</td>
+                      <td className="py-1.5 px-2"><ModelBadge modele={m.modele} /></td>
+                      <td className="py-1.5 px-2 text-right font-mono">{isGdpGrowth ? '—' : fmtR2(m.r2_mean)}</td>
+                      <td className="py-1.5 px-2 text-right font-mono">{isGdpGrowth ? '—' : (m.mape_mean != null ? fmtPct(m.mape_mean, 1) : '—')}</td>
+                      <td className="py-1.5 px-2 text-right font-mono">{isGdpGrowth ? '—' : fmtNum(m.mae, 3)}</td>
+                      <td className="py-1.5 px-2 text-right font-mono">{isGdpGrowth ? '—' : fmtNum(m.q80, 3)}</td>
+                      <td className="py-1.5 px-2 text-right font-mono">{isGdpGrowth ? '—' : fmtNum(m.q95, 3)}</td>
+                      <td className="py-1.5 px-2 text-center text-[10px]">
+                        {isGdpGrowth
+                          ? <span style={{ color: GREEN }}>ML + Axco</span>
+                          : <span className="text-gray-400">ML pur</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
