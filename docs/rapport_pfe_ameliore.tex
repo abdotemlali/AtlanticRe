@@ -1,4 +1,4 @@
-﻿% ============================================================
+% ============================================================
 %  RAPPORT DE PFE — ATLANTIC RE / EMI
 %  Temlali Abderrahmane & Smaiki Anas — 2025-2026
 %  Compilable Overleaf : pdflatex
@@ -124,15 +124,11 @@
 
 \begin{minipage}[c]{0.35\textwidth}
   \centering
-  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{EMI}}\\[0.3cm]
+  \includegraphics[width=4cm, keepaspectratio]{emi.couleur-1200x675-cropped copie.png}\\[0.3cm]
   {\small École Mohammadia d'Ingénieurs}
 \end{minipage}
 \hfill
-\begin{minipage}[c]{0.35\textwidth}
-  \centering
-  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{Atlantic Re}}\\[0.3cm]
-  {\small Atlantic Re -- Filiale de CDG}
-\end{minipage}
+
 
 \vspace{1.2cm}
 {\large \textbf{UNIVERSITÉ MOHAMMED V}}\\[0.1cm]
@@ -537,9 +533,9 @@ Le projet poursuit les objectifs opérationnels suivants, structurés selon les 
 
 Le projet a été conduit selon une approche \textbf{Agile adaptée}, inspirée du cadre Scrum mais ajustée au contexte d'un PFE de quatre mois réalisé par un binôme. Cette méthodologie repose sur un découpage du travail en \textbf{sprints de deux à quatre semaines}, chacun produisant un livrable partiel démontrable et validable par l'encadrant entreprise. L'adoption de cette démarche itérative et incrémentale se justifie par trois facteurs principaux : la nature exploratoire du projet --- dont le périmètre a évolué au terme de la phase d'immersion ---, la nécessité de livrables intermédiaires pour maintenir la confiance du commanditaire, et la complémentarité des deux axes du projet qui nécessitent un parallélisme de tâches maîtrisé entre les deux membres du binôme.
 
-\subsection{Rituels et outils de gestion}
+\subsection{Pratiques et outils de gestion}
 
-Les rituels suivants ont structuré le suivi du projet :
+Les pratiques suivantes ont structuré le suivi du projet :
 
 \begin{itemize}[leftmargin=1.5cm, itemsep=4pt]
   \item \textbf{Point hebdomadaire avec l'encadrant entreprise} : revue des livrables de la semaine, validation des orientations, arbitrage des priorités et synchronisation avec les contraintes métier du Pôle Business Développement.
@@ -1101,59 +1097,97 @@ Ce chapitre formalise la conception du système dans ses trois dimensions consti
 
 \subsection{Vue d'ensemble}
 
-L'architecture retenue suit un modèle \textbf{trois-tiers} (présentation, métier, données), décomposé en couches faiblement couplées dont la figure~\ref{fig:archi_generale} présente la vue synoptique. Ce choix se justifie par trois exigences concomitantes : la séparation des données sensibles du portefeuille de l'interface utilisateur (BNF.2) ; la capacité à servir simultanément les requêtes de consultation et les calculs analytiques sans dégradation (BNF.1) ; et l'évolutivité indépendante de chaque couche (BNF.4).
+L'architecture retenue adopte un modèle \textbf{full-stack modulaire} inspiré des principes de l'architecture en microservices, décomposé en services faiblement couplés communiquant exclusivement via des contrats d'interface REST standardisés. La figure~\ref{fig:archi_generale} en présente la vue synoptique. Ce choix architectural se justifie par sa réponse directe aux exigences non fonctionnelles du projet : l'isolation stricte entre le service frontend et le service backend garantit la confidentialité des données sensibles du portefeuille (BNF.2) ; la communication asynchrone via API REST permet de servir simultanément les requêtes de consultation et les calculs analytiques sans dégradation (BNF.1) ; le couplage lâche entre services assure la maintenabilité et l'évolutivité indépendante de chaque composant (BNF.4), permettant par exemple de remplacer le service de persistance ou d'ajouter un nouveau microservice de calcul sans impact sur les autres modules. Contrairement à une architecture monolithique traditionnelle, cette conception \textit{API-first} facilite la future migration vers une infrastructure conteneurisée (Docker/Kubernetes) et l'ajout de microservices spécialisés au fur et à mesure de la montée en charge.
 
 \begin{figure}[H]
 \centering
-\caption{Architecture générale trois-tiers du système AtlanticRe}
+\caption{Architecture full-stack modulaire du système AtlanticRe}
 \label{fig:archi_generale}
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  layer/.style={draw, rounded corners=5pt, minimum width=11cm, minimum height=1.2cm, align=center, font=\small\bfseries, inner sep=6pt},
+  svc/.style={draw, rounded corners=4pt, minimum width=2.8cm, minimum height=1.6cm, align=center, font=\scriptsize\bfseries, inner sep=5pt},
+  client/.style={draw, rounded corners=5pt, minimum width=13cm, minimum height=1.1cm, align=center, font=\small\bfseries, inner sep=6pt, fill=blue!8, draw=blue!35},
+  gw/.style={draw, rounded corners=5pt, minimum width=13cm, minimum height=0.9cm, align=center, font=\small\bfseries, inner sep=5pt, fill=gray!12, draw=gray!55},
+  db/.style={draw, rounded corners=2pt, minimum width=2cm, minimum height=0.5cm, align=center, font=\tiny, fill=green!10, draw=green!45},
+  arr/.style={-{Stealth[length=2.5mm]}, thick, gray!55},
+  dblarr/.style={{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]}, thick, gray!55},
   sublabel/.style={font=\scriptsize\itshape, text=gray!60!black},
-  arr/.style={-{Stealth[length=3mm]}, thick, gray!55},
-  note/.style={font=\tiny, align=left, text width=3.2cm},
+  contract/.style={font=\tiny, text=gray!55!black},
+  svcbox/.style={draw, dashed, rounded corners=5pt, inner sep=7pt},
 ]
-% ── Couche Présentation ──────────────────────────────────────
-\node[layer, fill=blue!8, draw=blue!35] (pres) at (0,0)
-  {Couche Présentation \hfill \normalfont\scriptsize React 18 + TypeScript + Vite};
-\node[sublabel, below=-1pt of pres, anchor=north]
+% ── Client SPA ───────────────────────────────────────────────
+\node[client] (spa) at (0,0)
+  {Client SPA \hfill \normalfont\scriptsize React 18 + TypeScript + Vite};
+\node[sublabel, below=-1pt of spa, anchor=north]
   {31 pages — Dashboard · Filtrage · Cartographies · Scoring · Administration};
-% ── Couche Métier ────────────────────────────────────────────
-\node[layer, fill=orange!8, draw=orange!40] (metier) at (0,-2.2)
-  {Couche Métier \hfill \normalfont\scriptsize FastAPI + Python 3.12};
-\node[sublabel, below=-1pt of metier, anchor=north]
-  {22 routeurs · 25 services · Matching flou · \textbf{Moteur ML} · JWT · Rate-limiting};
-% ── Couche Données ───────────────────────────────────────────
-\node[layer, fill=green!8, draw=green!40] (data) at (0,-4.4)
-  {Couche Données \hfill \normalfont\scriptsize MySQL + Pandas (Excel)};
-\node[sublabel, below=-1pt of data, anchor=north]
-  {Portefeuille interne (Pandas) · Référentiel pays · 4 tables thématiques · Journal d'activité};
-% ── Flèches bidirectionnelles ────────────────────────────────
-\draw[arr] (pres.south) -- node[right, font=\tiny]{API REST / JSON} (metier.north);
-\draw[arr] (metier.south) -- node[right, font=\tiny]{ORM / Pandas} (data.north);
-\draw[arr, bend right=40] (metier.north) -- (pres.south);
-\draw[arr, bend right=40] (data.north) -- (metier.south);
-% ── Annotations latérales ────────────────────────────────────
-\node[note, right=0.4cm of pres]
-  {\textbf{CORS} contrôlé\\\textbf{JWT} bearer token\\\textbf{31 pages} SPA};
-\node[note, right=0.4cm of metier]
-  {\textbf{Scoring ML} multicritère\\\textbf{Matching} flou\\\textbf{Pipeline ETL}};
-\node[note, right=0.4cm of data]
-  {\textbf{MySQL} — données structurées\\\textbf{Pandas} — portefeuille\\\textbf{Idempotence} pipeline};
+
+% ── API Gateway ──────────────────────────────────────────────
+\node[gw] (gw) at (0,-1.9)
+  {API Gateway \hfill \normalfont\scriptsize FastAPI — Routage, CORS, JWT, Rate-limiting};
+
+% ── Flèche Client ↔ Gateway ─────────────────────────────────
+\draw[dblarr] (spa.south) -- node[right, contract]{HTTPS / REST / JSON} (gw.north);
+
+% ── Microservices ────────────────────────────────────────────
+% Auth Service
+\node[svc, fill=red!6, draw=red!35] (auth) at (-5.5,-4.6)
+  {Service\\Authentification\\[2pt]\normalfont\tiny JWT · bcrypt\\RBAC · Sessions};
+\node[db] (dbauth) at (-5.5,-6.2) {MySQL — users};
+
+% Portfolio Service
+\node[svc, fill=orange!8, draw=orange!40] (port) at (-1.8,-4.6)
+  {Service\\Portefeuille\\[2pt]\normalfont\tiny KPI · Filtrage\\Cédante · Courtier};
+\node[db] (dbport) at (-1.8,-6.2) {Pandas — Excel};
+
+% External Data / ETL Service
+\node[svc, fill=cyan!8, draw=cyan!40] (etl) at (1.8,-4.6)
+  {Service\\Données Externes\\[2pt]\normalfont\tiny ETL · Cartographies\\Imputation · Fiabilité};
+\node[db] (dbetl) at (1.8,-6.2) {MySQL — 4 tables};
+
+% Scoring ML Service
+\node[svc, fill=purple!8, draw=purple!40] (ml) at (5.5,-4.6)
+  {Service\\Scoring ML\\[2pt]\normalfont\tiny Pipeline 13 ét.\\Score 0-100 · IC};
+\node[db] (dbml) at (5.5,-6.2) {CSV + Modèles};
+
+% ── Contour microservices ────────────────────────────────────
+\node[svcbox, gray!30, fit=(auth)(dbauth)(ml)(dbml), inner sep=10pt] (svczone) {};
+\node[font=\tiny\bfseries, gray!50!black, anchor=south east] at (svczone.north east)
+  {Services indépendants — couplage lâche via contrats REST};
+
+% ── Flèches Gateway → Services ──────────────────────────────
+\draw[arr] (gw.south) -- ++(0,-0.5) -| (auth.north);
+\draw[arr] (gw.south) -- ++(0,-0.5) -| (port.north);
+\draw[arr] (gw.south) -- ++(0,-0.5) -| (etl.north);
+\draw[arr] (gw.south) -- ++(0,-0.5) -| (ml.north);
+
+% ── Flèches Services → Data stores ──────────────────────────
+\draw[arr, gray!45] (auth.south) -- (dbauth.north);
+\draw[arr, gray!45] (port.south) -- (dbport.north);
+\draw[arr, gray!45] (etl.south) -- (dbetl.north);
+\draw[arr, gray!45] (ml.south) -- (dbml.north);
+
+% ── Communication inter-services ─────────────────────────────
+\draw[dblarr, dashed, red!50] (etl.east) -- node[above, font=\tiny, text=red!60!black]{données} (ml.west);
+\draw[dblarr, dashed, orange!50] (port.east) -- node[above, font=\tiny, text=orange!60!black]{croisement} (etl.west);
+
+% ── Annotations ──────────────────────────────────────────────
+\node[font=\tiny, align=left, text width=2.4cm, right=0.3cm of spa]
+  {\textbf{SPA} mono-page\\\textbf{Vite} HMR\\\textbf{CORS} contrôlé};
+\node[font=\tiny, align=left, text width=2.4cm, right=0.3cm of gw]
+  {\textbf{Point d'entrée} unique\\\textbf{Routage} intelligent\\\textbf{Middleware} transversal};
 \end{tikzpicture}%
 }
 \end{figure}
 
-\paragraph{Couche Présentation.} Application mono-page de 31~pages réparties en deux sous-systèmes : les modules de pilotage du portefeuille interne (Axe~1 : Dashboard, Analyse globale, Cédante, Courtier, Comparaison, Rétrocession, Cibles TTY, Saturation FAC, Exposition) et les modules d'analyse des marchés africains (Axe~2 : quatre cartographies thématiques, Fiche pays, Comparaison transnationale, Scoring ML, Vue unifiée).
+\paragraph{Service Frontend (Présentation).} Application mono-page de 31~pages réparties en deux sous-systèmes : les modules de pilotage du portefeuille interne (Axe~1 : Dashboard, Analyse globale, Cédante, Courtier, Comparaison, Rétrocession, Cibles TTY, Saturation FAC, Exposition) et les modules d'analyse des marchés africains (Axe~2 : quatre cartographies thématiques, Fiche pays, Comparaison transnationale, Scoring ML, Vue unifiée).
 
-\paragraph{Couche Métier.} Serveur applicatif exposant une API REST organisée en 22~routeurs thématiques et 25~services métier. Le \textbf{Moteur de Modélisation Prédictive} constitue le c\oe{}ur analytique de cette couche : il orchestre le pipeline de prédiction en 13~étapes et produit le score d'attractivité composite des 33~marchés africains. Les middlewares JWT, rate-limiting et journalisation s'appliquent transversalement à toutes les routes.
+\paragraph{Service API Backend (Métier).} Serveur applicatif exposant une API REST organisée en 22~routeurs thématiques et 25~services métier. Le \textbf{Moteur de Modélisation Prédictive} constitue le c\oe{}ur analytique de cette couche : il orchestre le pipeline de prédiction en 13~étapes et produit le score d'attractivité composite des 33~marchés africains. Les middlewares JWT, rate-limiting et journalisation s'appliquent transversalement à toutes les routes.
 
-\paragraph{Couche Données.} Deux sources coexistent : les données internes du portefeuille, traitées via Pandas au démarrage pour un filtrage en temps quasi réel, et la base MySQL hébergeant les données structurées (référentiel pays, quatre tables thématiques, utilisateurs, journaux).
+\paragraph{Service de Persistance (Données).} Deux sources coexistent : les données internes du portefeuille, traitées via Pandas au démarrage pour un filtrage en temps quasi réel, et la base MySQL hébergeant les données structurées (référentiel pays, quatre tables thématiques, utilisateurs, journaux).
 
 \subsection{Flux de données inter-couches}
 
-La figure~\ref{fig:flux_donnees} détaille les flux de données entre les axes du projet et les couches de l'architecture.
+La figure~\ref{fig:flux_donnees} détaille les flux de données entre les axes du projet et les services de l'architecture. Les données externes issues de quatre familles de sources (Axco, FMI, Banque Mondiale, FANAF) sont ingérées par le pipeline ETL (Axe~1), normalisées et chargées dans la base MySQL sous forme de quatre tables thématiques. En parallèle, les données internes du portefeuille sont chargées au démarrage dans un DataFrame Pandas en mémoire, garantissant des temps de réponse quasi instantanés pour les requêtes de filtrage multicritère. Le croisement entre ces deux flux --- matérialisé par la flèche rouge en pointillés --- constitue l'articulation centrale du système : il permet au moteur ML (Axe~3) d'enrichir les projections de marché par l'expérience historique d'Atlantic~Re sur chaque pays, tandis que les services KPI alimentent l'interface en indicateurs de performance consolidés.
 
 \begin{figure}[H]
 \centering
@@ -2580,32 +2614,67 @@ Ce chapitre a formalisé l'intégralité de la conception du système, structur�
 \chapter*{Conclusion générale}
 \addcontentsline{toc}{chapter}{Conclusion générale}
 
-Ce projet de fin d'études illustre comment une démarche d'ingénieur rigoureuse,
-articulée autour de trois axes complémentaires, peut produire un écosystème digital
-complet au service de la stratégie d'expansion africaine d'un réassureur international.
+\section*{Bilan des réalisations}
+
+Ce projet de fin d'études a permis de concevoir et développer un écosystème digital
+complet au service de la stratégie d'expansion africaine d'Atlantic Re, structuré
+autour de trois axes complémentaires et indissociables.
 
 Le \textbf{premier axe --- le pipeline ETL} --- a permis de centraliser sur une seule
 plateforme l'ensemble des données externes nécessaires à l'analyse des marchés
-africains, en intégrant cinq familles de sources hétérogènes et en assurant la
-reproductibilité et la traçabilité de chaque valeur. Cette centralisation constitue
-une valeur ajoutée opérationnelle immédiate pour le Pôle Business Développement,
-qui fonctionnait jusqu'alors par collectes manuelles dispersées.
+africains, en intégrant cinq familles de sources hétérogènes (Axco, Banque Mondiale,
+FMI, FANAF, publications spécialisées) et en assurant la reproductibilité et la
+traçabilité de chaque valeur. Cette centralisation constitue une valeur ajoutée
+opérationnelle immédiate pour le Pôle Business Développement, qui fonctionnait
+jusqu'alors par collectes manuelles dispersées et non reproductibles.
 
 Le \textbf{deuxième axe --- la plateforme de réassurance} --- a éliminé les sources
 d'incohérence liées aux extractions manuelles et offre aux équipes un portail
-structuré de consultation, de filtrage multicritère et d'export des KPI du
-portefeuille, enrichi par le croisement avec les données externes du pipeline.
+structuré de consultation, de filtrage multicritère et d'export des indicateurs clés
+de performance du portefeuille. Les modules de réconciliation intelligente des
+partenaires, de pilotage des cibles TTY et de saturation FAC répondent directement
+aux besoins opérationnels exprimés par les souscripteurs. Le croisement des données
+internes avec les données externes issues du pipeline enrichit considérablement la
+capacité analytique des équipes.
 
-Le \textbf{troisième axe --- la modélisation prédictive} --- a produit un panel dense
-à couverture complète sur les 34 marchés africains retenus, obtenu par imputation
-hiérarchique et validé par une double procédure statistique (LOCO) et métier, sur
-lequel repose le modèle de Machine Learning multicritère en cours de finalisation.
+Le \textbf{troisième axe --- la modélisation prédictive par Machine Learning} --- a
+produit un classement opérationnel des 33 marchés africains du panel, assorti
+d'intervalles de confiance empiriquement valides et de recommandations stratégiques
+directement exploitables dans le cadre du plan Reach2030. Le pipeline de 13 étapes
+séquentielles, validé par six tests de cohérence économique automatiques, constitue
+un outil d'aide à la décision rigoureux et transparent.
 
-Les perspectives naturelles de ce travail incluent l'automatisation du pipeline de
-mise à jour annuelle du panel, l'intégration de nouvelles sources de données
-(exposition aux risques climatiques, données télématiques pour l'automobile) et
-l'extension du modèle de Machine Learning aux branches complémentaires une fois
-le périmètre initial stabilisé.
+\section*{Perspectives}
+
+Les perspectives naturelles de ce travail s'articulent autour de trois horizons. À
+\textbf{court terme}, la migration de la plateforme vers l'infrastructure interne
+d'Atlantic Re et l'automatisation du pipeline de mise à jour annuelle du panel
+constituent les priorités opérationnelles. À \textbf{moyen terme}, l'intégration de
+nouvelles sources de données --- exposition aux risques climatiques, données de
+sinistralité catastrophe, indicateurs ESG --- permettrait d'enrichir le modèle de
+scoring et d'affiner les recommandations stratégiques. À \textbf{long terme},
+l'extension du modèle de Machine Learning aux branches complémentaires (assurance-vie,
+risques techniques) et le déploiement d'un module de veille automatisée des marchés
+africains consolideraient la position d'Atlantic Re comme acteur \textit{data-driven}
+de la réassurance continentale.
+
+\section*{Valeur ajoutée sur notre parcours}
+
+Au-delà du livrable technique, ce projet de fin d'études a constitué une expérience
+formatrice à plusieurs égards. Sur le plan \textbf{professionnel}, l'immersion au sein
+du Pôle Business Développement d'Atlantic Re nous a permis de confronter les méthodes
+d'ingénierie informatique à la réalité d'un métier exigeant --- la réassurance ---,
+où la qualité de la donnée et la rigueur analytique conditionnent directement des
+décisions financières engageant des montants significatifs. La conduite du projet en
+mode Agile, avec des points de validation hebdomadaires auprès de l'encadrant
+entreprise, nous a appris à conjuguer ambition technique et pragmatisme opérationnel.
+
+Sur le plan \textbf{personnel}, la gestion d'un périmètre tridimensionnel (ETL,
+plateforme, Machine Learning) au sein d'un binôme a renforcé nos compétences en
+coordination, en priorisation et en communication technique. Ce PFE nous a confortés
+dans notre conviction que l'ingénierie digitale prend tout son sens lorsqu'elle est
+ancrée dans une problématique métier concrète et qu'elle produit un impact mesurable
+pour ses utilisateurs.
 
 \clearpage
 
