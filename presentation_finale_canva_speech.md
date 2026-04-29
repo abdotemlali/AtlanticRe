@@ -62,27 +62,49 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 
 ---
 
-## SLIDE 4 — Architecture de la Plateforme (Vue globale)
+## SLIDE 4 — Cadre du Projet : Données & Environnement de Test
+
+**🎨 Visuel (Canva) :** 
+**Titre :** 🔒 Cadre de Développement & Confidentialité
+**Schéma :** Icône "Base de données anonymisée" croisée avec le logo "Localhost / Offline". Badge "Environnement Isolé".
+
+**🗣️ Speech :**
+> "Avant de vous présenter l'architecture, nous tenons à rassurer sur un point critique : la confidentialité. Pour cette phase de développement, toutes les données visualisées aujourd'hui sont factices. Nous n'avons reproduit que la structure exacte de vos templates réels. De plus, l'application et les tests tournent intégralement en local sur le PC de notre encadrant, de manière totalement hermétique et sans aucune interaction réseau avec l'extérieur."
+
+---
+
+## SLIDE 5 — Vision de Déploiement : Sécurité On-Premise
+
+**🎨 Visuel (Canva) :** 
+**Titre :** 🛡️ Vision d'Hébergement & Intranet
+**Schéma :** Un serveur privé avec un bouclier, représentant l'intranet sécurisé d'Atlantic Re.
+
+**🗣️ Speech :**
+> "Notre vision pour l'avenir de la plateforme s'inscrit dans cette même exigence. Portail360 n'a pas vocation à être déployé sur un Cloud public. L'objectif final est d'héberger ce travail scrupuleusement sur les serveurs internes de l'entreprise (On-Premise). L'outil et ses données resteront la propriété exclusive et locale de votre infrastructure intranet."
+
+---
+
+## SLIDE 6 — Architecture de la Plateforme (Vue globale)
 
 **🎨 Visuel (Canva) :** 
 **Schéma visuel :** 4 blocs horizontaux connectés par des flèches.
 `Pipeline ETL` $\rightarrow$ `Axe 1 (Interne)` $\rightarrow$ `Axe 2 (Externe)` $\rightarrow$ `Scoring ML`
 
 **🗣️ Speech :**
-> "Pour disrupter l'ancienne méthode de travail, nous n'avons pas créé des outils séparés, mais un écosystème organique où chaque bloc nourrit le suivant. Le pipeline alimente la gouvernance, qui à son tour nourrit l'algorithme."
+> "Et c'est avec cette garantie de sécurité que nous pouvons aborder l'architecture globale. Pour disrupter l'ancienne méthode de travail, nous n'avons pas créé des outils séparés, mais un écosystème organique où chaque bloc nourrit le suivant. Le pipeline alimente la gouvernance, qui à son tour nourrit l'algorithme."
 
 ---
 
-## 🛑 PARTIE 1 : PIPELINE ETL & DONNÉES (SLIDES 5-6)
+## 🛑 PARTIE 1 : PIPELINE ETL & DONNÉES (SLIDES 7-8)
 
-### SLIDE 5 — Choix des Critères et Règle de Primauté
+### SLIDE 7 — Choix des Critères et Règle de Primauté
 **🎨 Visuel (Canva) :** 4 cartes critères (Économique / Vie / Non-Vie / Gouvernance) colorées avec les logos FMI, Axco, Banque Mondiale.
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Pour modéliser l'Afrique, il faut analyser le potentiel macro-économique (Assurance, PIB) mais aussi le risque réglementaire (stabilité politique, ouverture financière via la Banque Mondiale). 
 > **Notre fonctionnalité clé ici est la Règle de Primauté** : le système aspire automatiquement les données et sait arbitrer seul. Il donne priorité au FMI pour l'économie générale et à Axco pour les primes d'assurance pures, créant un seul référentiel indiscutable pour le département."
 
-### SLIDE 6 — L'Imputation Intelligente (Les Trous Statistiques)
+### SLIDE 8 — L'Imputation Intelligente (Les Trous Statistiques)
 **🎨 Visuel (Canva) :** Tableau avec des cellules "vides" qui se remplissent. Badge "6800 lignes de données".
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
@@ -90,29 +112,29 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 
 ---
 
-## 📊 PARTIE 2 : PORTEFEUILLE INTERNE - AXE 1 (SLIDES 7-10)
+## 📊 PARTIE 2 : PORTEFEUILLE INTERNE - AXE 1 (SLIDES 9-12)
 
-### SLIDE 7 — Traitement Interne : La Réconciliation par IA (Matching Flou)
+### SLIDE 9 — Traitement Interne : La Réconciliation par IA (Matching Flou)
 **🎨 Visuel (Canva) :** Schéma de fusion : `SAHAM ASS.` + `Saham Re` + `Saham assurance` $\rightarrow$ `SAHAM ASSURANCE`.
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Passons à l'Axe 1 : notre interne. Avant de se comparer à l'extérieur, il fallait auditer nos trois immenses historiques Excel (Affaires, Sinistres, Cessions).
 > Nous avons conçu un moteur de **Réconciliation par Matching Flou**. Il détecte les fautes de frappe de nos systèmes et regroupe automatiquement tous les contrats sous un seul vrai nom de partenaire. Enfin, le groupe dispose d'un bilan comptable net et holistique par client !"
 
-### SLIDE 8 — Le Dashboard Analytique & Les Alertes ULR
+### SLIDE 10 — Le Dashboard Analytique & Les Alertes ULR
 **🎨 Visuel (Canva) :** Screenshot de `Home.tsx` / `Dashboard.tsx` avec les jauges ULR (Loss Ratio).
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Voici l'environnement de votre équipe commerciale : le Dashboard. Au-delà des KPIs classiques, tout le filtrage est contextuel. La force de l'outil réside dans ses **alertes colorimétriques**. Si un segment de notre portefeuille dépasse les 100% de Ratio de Sinistralité (ULR), la jauge vire brutalement au rouge. L'information n'est plus cherchée, elle est poussée au management."
 
-### SLIDE 9 — Cibles TTY & Saturation FAC
+### SLIDE 11 — Cibles TTY & Saturation FAC
 **🎨 Visuel (Canva) :** Écran divisé : 1 moitié 'Traités' avec badges (HAUSSE / BAISSE), 1 moitié 'Facultatives' avec barre de saturation.
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Le portail est prescriptif. Pour planifier nos stratégies de renouvellement sur les Traités, le module **Cibles TTY** agit comme un conseiller financier : il applique un Bonus/Malus mathématique basé sur l'historique de rentabilité et recommande instantanément la part-cible exacte à prendre l'an prochain. 
 > Le module de **Saturation FAC**, lui, est une alarme anti-surexposition. Il vous empêche en temps réel de concentrer trop de capitaux sur une entreprise ou un marché ciblé en facultatives."
 
-### SLIDE 10 — La Rétrocession et le FAC-to-FAC (Le Double Rôle)
+### SLIDE 12 — La Rétrocession et le FAC-to-FAC (Le Double Rôle)
 **🎨 Visuel (Canva) :** Nuage de points (Scatter plot) croisant Donneurs et Preneurs. Badges Rôles (Apporteur / Placeur / Double Rôle).
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
@@ -120,15 +142,15 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 
 ---
 
-## 🌍 PARTIE 3 : CROISEMENT & EXPOSITION - AXE 2 (SLIDES 11-12)
+## 🌍 PARTIE 3 : CROISEMENT & EXPOSITION - AXE 2 (SLIDES 13-14)
 
-### SLIDE 11 — Cartographies Spatiales (Correction de l'Afrique du Sud)
+### SLIDE 13 — Cartographies Spatiales (Correction de l'Afrique du Sud)
 **🎨 Visuel (Canva) :** Cartes dynamiques de l'Afrique via le portail. 
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Avec l'interne et l'externe assainis, nous arrivons au croisement. L'Axe 2 propose d'abord des **Cartographies dynamiques à échelle logarithmique**. Pourquoi logarithmique ? Car l'Afrique du Sud 'écrase' statistiquement le reste du continent. Cette technique redonne la visibilité aux marchés de la zone CIMA, révélant de petites économies émergentes très rentables, invisibles sur une carte conventionnelle."
 
-### SLIDE 12 — La Synergie Ultime : L'Exposition Relative
+### SLIDE 14 — La Synergie Ultime : L'Exposition Relative
 **🎨 Visuel (Canva) :** Fond Or `#C48C14`. Graphe superposant la part d'Atlantic Re face au Camembert global d'un marché.
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
@@ -136,15 +158,15 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 
 ---
 
-## 🤖 PARTIE 4 : MACHINE LEARNING & SCORING (SLIDES 13-14)
+## 🤖 PARTIE 4 : MACHINE LEARNING & SCORING (SLIDES 15-16)
 
-### SLIDE 13 — Le Moteur de Scoring Économique (Normalisation)
+### SLIDE 15 — Le Moteur de Scoring Économique (Normalisation)
 **🎨 Visuel (Canva) :** Entonnoir ML : 18 critères massifs $\rightarrow$ Normalisation $\rightarrow$ 1 Score (0-100).
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
 > "Pour statuer sur toute cette data, il fallait une instance algorithmique (Axe 3). Notre modèle de Machine Learning compile 18 variables (de la prime aux IDE en passant par notre propre ULR interne). Via un processus de **Normalisation Mathématique** stricte, il efface les biais d'unité (millions vs pourcentages) pour délivrer un Score Unifié de 0 à 100, rendant chaque pays comparable à l'autre."
 
-### SLIDE 14 — La Matrice Décisionnelle "What-If"
+### SLIDE 16 — La Matrice Décisionnelle "What-If"
 **🎨 Visuel (Canva) :** Panneau de "sliders" simulant des ajustements de poids (ex: +30% Risque Politique) $\rightarrow$ Re-bascule du classement (Attractif / À Éviter).
 
 **🗣️ Speech (Focus Fonctionnalité DG) :**
@@ -152,9 +174,9 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 
 ---
 
-## 🏁 CONCLUSION & PERSPECTIVES (SLIDES 15-16)
+## 🏁 CONCLUSION & PERSPECTIVES (SLIDES 17-18)
 
-### SLIDE 15 — Bilan des 4 Axes et Livrables
+### SLIDE 17 — Bilan des 4 Axes et Livrables
 **🎨 Visuel (Canva) :** Dégradé diagonal de clôture `#1B2A3A` $\rightarrow$ `#2D3E50`. 3 coches de validation massives.
 
 **🗣️ Speech :**
@@ -163,7 +185,7 @@ Ce document fusionne la structure visuelle (pour la conception sur Canva) avec l
 > 2. Le portail d'audit le plus exhaustif et interactif sur notre propre portefeuille.
 > 3. Et la matrice algorithmique permettant de devancer la concurrence grâce au Machine Learning."
 
-### SLIDE 16 — Perspectives (Et demain ?)
+### SLIDE 18 — Perspectives (Et demain ?)
 **🎨 Visuel (Canva) :** Logo Portail360 et Atlantic Re (Mêmes éléments que la page de garde pour l'unité visuelle). Bandeau Questions & Réponses.
 
 **🗣️ Speech :**
