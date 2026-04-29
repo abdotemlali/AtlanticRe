@@ -45,6 +45,9 @@ def init_db() -> None:
     try:
         # 1. Créer les tables
         db_models.Base.metadata.create_all(bind=database.engine)
+        # Table dédiée au cache persistant des prédictions Axe 2 (Base distinct)
+        from models.predictions_cache_model import Base as PredictionsCacheBase
+        PredictionsCacheBase.metadata.create_all(bind=database.engine)
         logger.info("Tables BDD vérifiées / créées")
     except Exception as exc:
         logger.warning(f"⚠️  Impossible de créer les tables : {exc}")
@@ -181,6 +184,23 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Impossible d'initialiser synergie_settings : %s", exc)
 
+    # ── Préchauffage cache Monte Carlo (background thread) ──────────────────
+    try:
+        from routers.monte_carlo_axe2 import start_warmup
+        start_warmup()
+        logger.info("Monte Carlo — préchauffage du cache lancé en arrière-plan")
+    except Exception as exc:
+        logger.warning(f"Impossible de démarrer le préchauffage Monte Carlo : {exc}")
+
+    # ── Préchauffage cache Prédictions Axe 2 (DB persistant) ────────────────
+    # Charge depuis SQLite si valide ; sinon lance la pipeline ML (~30–60s).
+    try:
+        from routers.predictions_axe2 import _get_pipeline as _predictions_warmup
+        _predictions_warmup()
+        logger.info("Prédictions Axe 2 — cache prêt (chargé depuis DB ou recalculé)")
+    except Exception as exc:
+        logger.warning(f"Impossible de préchauffer le cache Prédictions Axe 2 : {exc}")
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -237,4 +257,10 @@ app.include_router(synergie_router, prefix="/api", tags=["Synergie"])
 
 from routers.analyse_compagnie import router as analyse_compagnie_router
 app.include_router(analyse_compagnie_router, prefix="/api", tags=["Analyse Compagnie"])
+
+from routers.predictions_axe2 import router as predictions_axe2_router
+app.include_router(predictions_axe2_router, prefix="/api", tags=["Prédictions Axe 2"])
+
+from routers.monte_carlo_axe2 import router as monte_carlo_router
+app.include_router(monte_carlo_router, prefix="/api", tags=["Monte Carlo Axe 2"])
 

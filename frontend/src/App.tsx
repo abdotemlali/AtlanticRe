@@ -48,6 +48,8 @@ const AnalyseSynergie        = lazy(() => import('./pages/AnalyseSynergie'))
 const AnalyseSynergiePays    = lazy(() => import('./pages/AnalyseSynergiePays'))
 const AnalyseCompagnie       = lazy(() => import('./pages/AnalyseCompagnie'))
 const AnalyseCompagnieDetail = lazy(() => import('./pages/AnalyseCompagnieDetail'))
+const PredictionsAxe2        = lazy(() => import('./pages/PredictionsAxe2'))
+const MonteCarloAxe2         = lazy(() => import('./pages/MonteCarloAxe2'))
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function LoadingFallback() {
@@ -92,6 +94,7 @@ function AppRoutes() {
         <Route path="/" element={
           isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
         } />
+        <Route path="/vue_ensemble" element={<ModelisationHome />} />
 
         {/* ── Home — sélection Axe 1 / Axe 2 (protégée) ── */}
         <Route path="/home" element={
@@ -110,6 +113,8 @@ function AppRoutes() {
           <Route path="/modelisation/analyse-compagnie"           element={<ErrorBoundary><AnalyseCompagnie /></ErrorBoundary>} />
           <Route path="/modelisation/analyse-compagnie/:company"  element={<ErrorBoundary><AnalyseCompagnieDetail /></ErrorBoundary>} />
           <Route path="/modelisation/comparaison"                 element={<ErrorBoundary><ComparaisonPays /></ErrorBoundary>} />
+          <Route path="/modelisation/predictions"                 element={<ErrorBoundary><PredictionsAxe2 /></ErrorBoundary>} />
+          <Route path="/modelisation/monte-carlo"               element={<ErrorBoundary><MonteCarloAxe2 /></ErrorBoundary>} />
           <Route path="/analyse-synergie"              element={<ErrorBoundary><AnalyseSynergie /></ErrorBoundary>} />
           <Route path="/analyse-synergie/:pays"        element={<ErrorBoundary><AnalyseSynergiePays /></ErrorBoundary>} />
         </Route>

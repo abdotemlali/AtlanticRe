@@ -4,7 +4,7 @@ import React from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, BarChart2, ChevronDown, Compass, Database, LayoutDashboard, Map,
-  Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark, Combine,
+  Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark, Combine, Shuffle,
 } from 'lucide-react'
 
 type NavChild = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
@@ -13,12 +13,14 @@ type NavGroup = { label: string; icon: React.ElementType; children: NavChild[]; 
 type NavItem = NavDirect | NavGroup
 
 const navItems: NavItem[] = [
-  { to: '/modelisation', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
+  { to: '/vue_ensemble', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
   {
     label: 'Modélisation', icon: Target,
     children: [
-      { to: '/modelisation/scoring', label: 'Scoring SCAR', icon: Target },
-      { to: '/modelisation/criteres', label: 'Critères & poids', icon: Sparkles },
+      { to: '/vue_ensemble#scoring', label: 'Scoring SCAR', icon: Target, enabled: true },
+      { to: '/vue_ensemble#criteres', label: 'Critères & poids', icon: Sparkles, enabled: true },
+      { to: '/modelisation/predictions',  label: 'Prédictions 2030',  icon: TrendingUp, enabled: true },
+      { to: '/modelisation/monte-carlo',  label: 'Monte Carlo',        icon: Shuffle,    enabled: true },
     ],
   },
   {
@@ -37,7 +39,6 @@ const navItems: NavItem[] = [
       { to: '/modelisation/analyse-compagnie', label: 'Analyse Compagnie', icon: Building2, enabled: true },
       { to: '/modelisation/comparaison', label: 'Comparaison marchés', icon: Network, enabled: true },
       { to: '/analyse-synergie', label: 'Analyse Synergie', icon: Combine, enabled: true, gold: true },
-      { to: '/modelisation/projections', label: 'Projections ML', icon: TrendingUp },
     ],
   },
   { to: '/modelisation/recommandations', label: 'Recommandations', icon: Sparkles },
@@ -187,7 +188,7 @@ export default function ScarLayout() {
           >
             Re
           </div>
-          <div className="flex flex-col justify-center">
+          <div className="flex flex-col justify-center cursor-pointer" onClick={() => navigate('/vue_ensemble')}>
             <span className="text-[1.05rem] font-bold tracking-[0.01em] text-white leading-tight">
               Atlantic<span style={{ color: 'hsl(83,50%,55%)' }}>Re</span>
             </span>
