@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
+  ArrowLeft,
+  ChevronDown,
   Combine,
+  Compass,
+  Database,
   Globe2,
+  LayoutDashboard,
   Map,
+  Network,
+  Sparkles,
+  Target,
   TrendingUp,
   X,
   Heart,
   Building2,
+  Scale,
   Landmark,
   BarChart2,
   Shuffle,
@@ -19,6 +28,11 @@ import {
   ZoomableGroup,
 } from 'react-simple-maps'
 
+// ─── Nav types ───────────────────────────────────────────────────────────────
+type NavChild  = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
+type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
+type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
+type NavItem   = NavDirect | NavGroup
 
 const navItems: NavItem[] = [
   { to: '/vue_ensemble', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
@@ -52,9 +66,99 @@ const navItems: NavItem[] = [
   { to: '/modelisation/recommandations', label: 'Recommandations', icon: Sparkles },
 ]
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── NavDropdown ──────────────────────────────────────────────────────────────
+function NavDropdown({ label, icon: Icon, children }: NavGroup) {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const isGroupActive = children.some(
+    c => c.enabled && (pathname === c.to || pathname.startsWith(c.to + '/'))
+  )
 
+  return (
+    <div className="relative group flex-shrink-0" style={{ isolation: 'auto' }}>
+      <button
+        className={[
+          'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
+          'transition-all duration-250 ease-out border',
+          isGroupActive
+            ? 'text-white -translate-y-px'
+            : 'text-white/55 hover:text-white/95 hover:-translate-y-px border-transparent',
+        ].join(' ')}
+        style={isGroupActive ? { background: 'hsla(83,50%,55%,0.18)', borderColor: 'hsla(83,50%,55%,0.40)' } : undefined}
+        onMouseEnter={e => { if (!isGroupActive) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
+        onMouseLeave={e => { if (!isGroupActive) e.currentTarget.style.background = '' }}
+      >
+        <Icon size={14} className="flex-shrink-0 transition-all duration-250"
+          style={isGroupActive ? { color: 'hsl(83,60%,75%)', opacity: 1 } : { opacity: 0.55 }} />
+        <span>{label}</span>
+        <ChevronDown size={11} className="flex-shrink-0 ml-0.5 transition-transform duration-250 group-hover:rotate-180"
+          style={{ opacity: isGroupActive ? 0.85 : 0.45 }} />
+        {isGroupActive && (
+          <span className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
+            style={{ background: 'hsl(83,60%,70%)' }} />
+        )}
+      </button>
+      <div className="absolute left-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+        style={{
+          top: 'calc(100% + 8px)', zIndex: 200,
+          background: 'hsla(83,30%,12%,0.96)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid hsla(83,52%,50%,0.25)', boxShadow: '0 16px 48px hsla(83,40%,8%,0.55)',
+          borderRadius: 12, minWidth: 240, padding: 6,
+        }}
+      >
+        {children.map(child => {
+          const ChildIcon = child.icon
+          if (child.enabled) {
+            const isActive = pathname === child.to || pathname.startsWith(child.to + '/')
+            return (
+              <button
+                key={child.to}
+                onClick={() => navigate(child.to)}
+                className={[
+                  'w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200',
+                  isActive 
+                    ? child.gold ? 'text-white' : 'text-white' 
+                    : child.gold ? 'hover:bg-[hsla(0,0%,100%,0.07)]' : 'text-white/70 hover:text-white',
+                ].join(' ')}
+                style={child.gold 
+                  ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', background: isActive ? 'hsla(43,96%,48%,0.25)' : undefined }
+                  : isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined
+                }
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = child.gold ? 'hsla(43,96%,48%,0.15)' : 'hsla(0,0%,100%,0.07)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = isActive ? (child.gold ? 'hsla(43,96%,48%,0.25)' : 'hsla(83,52%,50%,0.22)') : '' }}
+              >
+                <ChildIcon size={13} className="flex-shrink-0" style={child.gold ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', opacity: 1 } : { color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
+                <span>{child.label}</span>
+                {child.gold && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
+                    Axe 1x2
+                  </span>
+                )}
+              </button>
+            )
+          }
+          // Item non implémenté — badge Soon, non cliquable
+          return (
+            <div key={child.label}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap text-white/45 select-none"
+              style={{ cursor: 'not-allowed' }}
+            >
+              <ChildIcon size={13} className="flex-shrink-0" style={{ opacity: 0.5 }} />
+              <span>{child.label}</span>
+              <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider"
+                style={{ background: 'hsla(83,52%,50%,0.15)', color: 'hsl(83,60%,70%)', border: '1px solid hsla(83,52%,50%,0.25)' }}>
+                Soon
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface OverviewStats {
   nb_pays: number
   regions: string[]
@@ -705,6 +809,7 @@ function AfriqueMap() {
 // ─── ModelisationHome ─────────────────────────────────────────────────────────
 export default function ModelisationHome() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1163,6 +1268,22 @@ export default function ModelisationHome() {
             <AfriqueMap />
           </section>
 
+        </div>
+      </main>
+
+      {/* ── STATUS BAR ── */}
+      <div className="status-bar">
+        <div className="status-bar__left">
+          <span className="status-bar__dot" />
+          <span>Module en cours d'intégration</span>
+          <span className="status-bar__separator" />
+          <span>© 2024–2026 Atlantic Re — CDG Group</span>
+        </div>
+        <div className="status-bar__right">
+          <span>SCAR · Modélisation Stratégique</span>
+          <span className="status-bar__separator" />
+          <span style={{ color: 'hsla(83,60%,70%,0.6)' }}>v0.1.0</span>
+        </div>
       </div>
 
       {/* ── MODALE ── */}
@@ -1173,6 +1294,6 @@ export default function ModelisationHome() {
           onClose={() => setOpenModal(null)}
         />
       )}
-    </>
+    </div>
   )
 }
