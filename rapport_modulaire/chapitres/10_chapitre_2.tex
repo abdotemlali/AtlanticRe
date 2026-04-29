@@ -1,0 +1,1307 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Fondements métier, analyse des besoins et conception}
+\label{chap:metier}
+
+Ce chapitre remplit trois fonctions successives. Il pose d'abord le cadre conceptuel
+du métier de la réassurance et définit les termes techniques qui seront mobilisés
+tout au long du rapport. Il expose ensuite l'analyse des besoins conduite de manière
+itérative, incluant les besoins explicites formulés par l'encadrant et les besoins
+cachés identifiés lors de l'immersion. Il présente enfin la conception des deux axes
+du projet issue de cette analyse, enrichie de diagrammes UML et de la modélisation multidimensionnelle des données.
+
+\section{Cadre général de la réassurance}
+
+\subsection{Définition et fonctions économiques}
+
+La réassurance est le mécanisme par lequel une compagnie d'assurance --- la
+\textit{cédante} --- transfère à un réassureur une fraction des risques souscrits,
+en contrepartie d'une prime. Cette mécanique remplit trois fonctions essentielles
+pour la cédante : augmenter sa \textbf{capacité de souscription} au-delà de ses
+fonds propres, protéger son \textbf{compte technique} contre les sinistres sévères
+ou accumulés, et lisser ses \textbf{résultats} dans la durée \citep{Outreville2013}.
+La cédante reste vis-à-vis de l'assuré l'unique interlocuteur contractuel : le
+réassureur n'a aucune relation directe avec l'assuré final.
+
+\subsection{Les acteurs et les flux financiers}
+
+Trois catégories d'acteurs interviennent dans un traité de réassurance. La
+\textbf{cédante} est la compagnie d'assurance locale qui transfère une partie de
+son risque et verse une prime de réassurance en contrepartie d'une couverture des
+sinistres au-delà de sa rétention. Le \textbf{broker de réassurance} (type Aon,
+Guy Carpenter, Willis Re) est l'intermédiaire qui structure le traité, négocie les
+conditions et transmet les données statistiques entre cédante et réassureur. Atlantic
+Re, en tant que \textbf{réassureur acceptant}, s'engage à couvrir une fraction du
+risque cédé. Certains réassureurs pratiquent en outre la \textbf{rétrocession},
+c'est-à-dire le transfert d'une partie des risques acceptés vers un autre réassureur,
+afin de gérer leur propre exposition au risque.
+
+\subsection{Typologies de traités}
+
+Deux grandes familles de traités structurent le marché. Les \textbf{traités
+proportionnels} (quote-part, excédent de plein) partagent primes et sinistres selon
+une clé fixe entre cédante et réassureur : si le réassureur prend 30\,\% des primes,
+il supporte 30\,\% des sinistres. Les \textbf{traités non proportionnels} (excédent
+de sinistres, excédent de perte annuelle) font intervenir le réassureur uniquement
+au-delà d'un seuil de rétention prédéfini, protégeant la cédante contre les
+événements à forte sévérité sans partage systématique des petits sinistres.
+
+\section{Concepts clés et indicateurs techniques}
+
+\subsection{Indicateurs de rentabilité technique}
+
+Le \textbf{ratio S/P} (Sinistres sur Primes brutes) mesure la rentabilité technique
+à court terme d'un portefeuille : un ratio structurellement inférieur à 85\,\% indique
+un résultat technique attractif. L'\textbf{ULR} (Ultimate Loss Ratio, ratio sinistres
+à terme) intègre le développement des réserves sinistres sur plusieurs exercices et
+évalue la fiabilité du provisionnement initial : c'est l'indicateur de référence pour
+les comparaisons de long terme. Les \textbf{primes émises nettes} mesurent le volume
+d'affaires accepté déduction faite des rétrocessions, traduisant la taille réelle du
+portefeuille d'Atlantic Re sur un marché donné.
+
+Les \textbf{IBNR} (Incurred But Not Reported) désignent les provisions pour sinistres
+survenus mais non encore déclarés à la compagnie : leur niveau traduit la qualité
+des systèmes de remontée d'information des cédantes. Une IBNR élevée et volatile
+signale un marché dont le provisionnement est peu fiable, ce qui pèse négativement
+sur l'ULR à terme.
+
+\subsection{Indicateurs de marché}
+
+La \textbf{densité d'assurance} est le rapport primes totales / population, exprimé
+en USD par habitant : elle renseigne sur la maturité du marché et la capacité des
+assurés à souscrire. Le \textbf{taux de pénétration} est le rapport primes / PIB,
+exprimé en pourcentage : il permet de comparer les marchés indépendamment de leur
+taille absolue. Pour un réassureur, un marché à forte densité et à faible pénétration
+signale un potentiel de croissance structurelle des primes à moyen terme.
+
+\subsection{Indicateurs réglementaires et macroéconomiques}
+
+Les \textbf{WGI} (Worldwide Governance Indicators) de la Banque Mondiale mesurent
+six dimensions de la gouvernance institutionnelle d'un pays, dont la qualité
+réglementaire (\textit{Regulatory Quality}) et la stabilité politique (\textit{Political
+Stability}) \citep{BanqueMondiale2023}. Ces indicateurs conditionnent la liberté
+opérationnelle d'un réassureur étranger sur un marché et la protection de ses marges
+en devises. L'indice \textbf{Kaopen} \citep{ChinnIto2006} mesure l'ouverture du compte
+de capital d'un pays : un indice élevé signifie que le réassureur peut rapatrier ses
+marges sans restriction, ce qui est déterminant pour la rentabilité réelle des
+opérations. Le \textbf{WEO} (World Economic Outlook) du FMI fournit les données
+macroéconomiques de référence : PIB, croissance, inflation, PIB par habitant en PPP,
+solde courant \citep{FMI2024}.
+
+\subsection{Spécificités réglementaires africaines}
+
+La \textbf{zone CIMA} regroupe 14 pays membres de la Conférence Interafricaine des
+Marchés d'Assurances, disposant d'un code des assurances unifié \citep{CIMA2023}.
+Cette harmonisation facilite l'entrée d'un réassureur étranger mais crée aussi un
+bloc concurrentiel cohérent où les pratiques de provisionnement et de calcul du S/P
+sont standardisées. La \textbf{FANAF} est la principale source de statistiques
+sectorielles pour les marchés francophones africains \citep{FANAF2023}. La
+\textbf{ZLECAf} (Zone de Libre-Échange Continentale Africaine) est le cadre
+commercial panafricain qui devrait progressivement faciliter les flux de capitaux
+et les opérations transfrontalières des réassureurs.
+
+% ============================================================
+%  SECTION 2.3 — ANALYSE DES BESOINS (très détaillée)
+% ============================================================
+\section{Analyse des besoins : une démarche itérative et approfondie}
+
+\subsection{Approche méthodologique}
+
+L'analyse des besoins a été conduite selon une démarche \textbf{itérative en trois cycles}, structurée de manière à garantir que les solutions développées répondent non seulement aux attentes formulées par le commanditaire, mais aussi aux besoins réels du terrain --- parfois non exprimés mais pourtant critiques pour la réussite du projet. La figure~\ref{fig:cycles_besoins} illustre cette démarche.
+
+\begin{figure}[H]
+\centering
+\caption{Démarche itérative d'analyse des besoins en trois cycles}
+\label{fig:cycles_besoins}
+\begin{tikzpicture}[
+  cycle/.style={draw, rounded corners=6pt, minimum width=4.5cm, minimum height=2.2cm, align=center, font=\small, inner sep=8pt},
+  arr/.style={-{Stealth[length=3mm]}, thick, gray!70},
+]
+  \node[cycle, fill=blue!10, draw=blue!40] (c1) at (0,0) {\textbf{Cycle 1}\\Cadrage initial\\\scriptsize Semaines 1--2\\\scriptsize\itshape Entretiens, étude Reach2030};
+  \node[cycle, fill=orange!10, draw=orange!40] (c2) at (5.5,0) {\textbf{Cycle 2}\\Immersion terrain\\\scriptsize Semaines 2--3\\\scriptsize\itshape Observation, analyse docs};
+  \node[cycle, fill=green!10, draw=green!40] (c3) at (11,0) {\textbf{Cycle 3}\\Validation MoSCoW\\\scriptsize Semaine 3\\\scriptsize\itshape Priorisation et validation};
+  \draw[arr] (c1) -- (c2);
+  \draw[arr] (c2) -- (c3);
+  \node[font=\scriptsize\itshape, below=0.3cm of c1, blue!60!black] {Cahier des charges};
+  \node[font=\scriptsize\itshape, below=0.3cm of c2, orange!60!black] {Élargissement périmètre};
+  \node[font=\scriptsize\itshape, below=0.3cm of c3, green!60!black] {Liste consolidée BF+BNF};
+\end{tikzpicture}
+\end{figure}
+
+\textbf{Cycle 1 --- Cadrage initial (semaines 1--2).} Ce premier cycle vise à formaliser les besoins explicites de la commande tels qu'exprimés par l'encadrant entreprise. Les techniques mobilisées sont : (i)~des entretiens semi-directifs avec l'encadrant pour appréhender la vision stratégique et les livrables attendus ; (ii)~l'étude documentaire du plan Reach2030, des rapports annuels d'Atlantic~Re et des publications sectorielles (Swiss~Re Sigma, FANAF, Atlas~Magazine) ; (iii)~la cartographie des parties prenantes (Pôle Business Développement, Direction Technique, Direction Générale) afin d'identifier les consommateurs finaux des livrables. Ce cycle produit un cahier des charges préliminaire centré sur la modélisation externe.
+
+\textbf{Cycle 2 --- Immersion et découverte de besoins latents (semaines 2--3).} Ce deuxième cycle, décisif dans la trajectoire du projet, résulte de l'immersion quotidienne dans les processus de travail du Pôle Business Développement. Les techniques mobilisées sont : (i)~l'observation participante des flux opérationnels des analystes, révélant des manipulations manuelles de fichiers Excel chronophages et sources d'erreurs ; (ii)~l'analyse documentaire des fichiers de données internes, mettant en évidence des incohérences structurelles (doublons de cédantes, classifications manquantes, ruptures de convention entre exercices) ; (iii)~des entretiens informels avec les membres de l'équipe pour saisir les frustrations et les besoins non satisfaits. Ce cycle produit le constat structurel documenté en section~1.2.3 et la proposition d'élargissement du périmètre.
+
+\textbf{Cycle 3 --- Validation et consolidation (semaine 3).} Ce troisième cycle permet de consolider l'ensemble des besoins identifiés lors des deux cycles précédents, de les prioriser selon la méthode MoSCoW (\textit{Must have / Should have / Could have / Won't have}) et de les faire valider formellement par l'encadrant entreprise. Il aboutit à la liste consolidée des besoins fonctionnels et non fonctionnels présentée ci-après, couvrant les deux axes du projet.
+
+\subsection{Besoins explicites : la commande initiale de modélisation}
+
+Les besoins explicites correspondent aux attentes formulées par le commanditaire lors du cadrage initial du stage. Ils définissent le périmètre original de la mission avant son élargissement :
+
+\begin{enumerate}[leftmargin=1.5cm, itemsep=6pt, label=\textbf{BE.\arabic*}]
+  \item \textbf{Modèle quantitatif de priorisation.} Il est attendu un modèle permettant de classer les marchés africains Vie et Non-Vie selon leur attractivité globale, en combinant des indicateurs de potentiel de primes, de rentabilité technique, de stabilité réglementaire et de dynamisme économique. Ce classement doit être suffisamment discriminant pour orienter les arbitrages de la direction générale.
+
+  \item \textbf{Assise sur des données fiables et longitudinales.} Le modèle doit s'appuyer sur des données multicritères couvrant au minimum dix exercices (2015--2024), afin de capter les tendances de moyen terme et de lisser les effets conjoncturels susceptibles de biaiser une analyse ponctuelle.
+
+  \item \textbf{Intégration de dimensions d'attractivité complémentaires.} Le cadre d'analyse doit articuler cinq dimensions --- économique, sectorielle (marché de l'assurance), réglementaire (gouvernance et ouverture du compte de capital), concurrentielle (densité et concentration du marché de la réassurance) et interne (expérience propre d'Atlantic~Re) --- afin de refléter la complexité des critères de décision en réassurance internationale.
+
+  \item \textbf{Production d'un classement opérationnel.} Le livrable final doit comporter un classement hiérarchisé des marchés, accompagné de recommandations stratégiques directement exploitables pour les décisions de développement du plan Reach2030.
+
+  \item \textbf{Restitution cartographique et analytique.} Les résultats doivent être présentés sous forme de visualisations interactives --- cartes choroplèthes, graphiques radar, séries temporelles --- facilitant la prise de décision et la communication en comité de direction.
+\end{enumerate}
+
+\subsection{Besoins latents : identifiés lors de l'immersion terrain}
+
+Lors de la phase d'immersion dans les processus quotidiens du Pôle Business Développement, plusieurs besoins non formulés --- mais pourtant structurants pour la réussite du projet --- ont été identifiés par observation participante et analyse documentaire. Le tableau~\ref{tab:besoins_latents} en présente la synthèse, suivie d'une description détaillée.
+
+\begin{table}[H]
+\centering
+\caption{Synthèse des besoins latents identifiés lors de l'immersion}
+\label{tab:besoins_latents}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.1cm}p{3.8cm}Xp{2cm}@{}}
+\toprule
+\textbf{Réf.} & \textbf{Besoin identifié} & \textbf{Impact opérationnel} & \textbf{Criticité} \\
+\midrule
+BL.1 & Absence de consultation structurée & Versions divergentes des KPI entre analystes & Critique \\
+BL.2 & Absence de filtrage multicritère & Tableaux croisés manuels pour chaque requête & Critique \\
+BL.3 & Indicateurs composites non calculés & Recalcul manuel, erreurs potentielles & Élevée \\
+BL.4 & Incohérences de nommage & Agrégations approximatives par cédante & Élevée \\
+BL.5 & Absence de comparaison directe & Benchmarking manuel entre marchés & Modérée \\
+BL.6 & Absence de traçabilité & Impossibilité d'audit d'usage & Modérée \\
+BL.7 & Fiabilité du modèle compromise & Données internes non assainies & Critique \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{enumerate}[leftmargin=1.5cm, itemsep=6pt, label=\textbf{BL.\arabic*}]
+  \item \textbf{Absence d'outil de consultation structurée de la donnée interne.} Les équipes ne disposent d'aucune interface permettant de consulter les indicateurs clés du portefeuille (primes, ratios, résultats par pays, par branche ou par cédante) autrement que par ouverture et manipulation directe de fichiers Excel volumineux. Chaque analyste construit manuellement ses propres extractions, ce qui engendre des versions divergentes des mêmes indicateurs entre les différents membres de l'équipe.
+
+  \item \textbf{Absence de filtrage dynamique multicritère.} Il n'existe aucun mécanisme permettant de croiser simultanément plusieurs dimensions d'analyse (pays, branche, exercice, type de contrat, cédante, courtier), ce qui contraint les analystes à réaliser des tableaux croisés dynamiques ad~hoc sous Excel pour chaque question posée par la direction.
+
+  \item \textbf{Indicateurs composites non précalculés.} Certains indicateurs essentiels à la prise de décision --- ULR (\textit{Ultimate Loss Ratio}), résultat de souscription net de rétrocession, indice de diversification du portefeuille d'une cédante --- ne sont pas disponibles directement dans les fichiers sources et doivent être recalculés manuellement à chaque usage, ce qui constitue une source d'erreurs et un frein à la réactivité.
+
+  \item \textbf{Incohérences de nommage et doublons.} Un même client (cédante) peut apparaître sous jusqu'à six dénominations différentes dans les fichiers de production, rendant toute agrégation par cédante approximative sans un travail préalable de réconciliation que personne n'a le temps de réaliser systématiquement.
+
+  \item \textbf{Absence d'outil de comparaison directe de marchés.} La direction sollicite régulièrement des comparaisons entre marchés (par exemple, comparer la rentabilité et la taille du portefeuille Maroc contre Côte d'Ivoire), mais aucun outil ne permet de produire ces comparaisons autrement que par construction manuelle de tableaux.
+
+  \item \textbf{Absence de traçabilité de l'activité.} Il n'existe aucun journal d'activité permettant de déterminer quel utilisateur a consulté quelles données, à quel moment et dans quel but, rendant impossible tout audit d'usage ou toute analyse de la fréquentation des indicateurs.
+
+  \item \textbf{Impact sur la fiabilité du modèle externe.} Ce constat consolidé démontre que toute analyse de marché externe s'appuyant sur des données internes non fiabilisées risque d'être elle-même biaisée : il convient d'abord d'assainir et de rendre accessible la donnée interne avant de pouvoir construire un modèle externe crédible.
+\end{enumerate}
+
+Ces constats ont conduit à la proposition d'élargissement du périmètre validée par l'encadrant (cf.~section~1.2.3) et à la formalisation du double axe du projet.
+
+% ============================================================
+%  BESOINS FONCTIONNELS DÉTAILLÉS
+% ============================================================
+\subsection{Besoins fonctionnels consolidés}
+
+L'expression des besoins fonctionnels est structurée selon une démarche d'ingénierie des exigences : chaque besoin est identifié par un code unique (BF.$n$), rattaché à un \textit{axe} (Digitalisation ou Modélisation) et à un \textit{domaine fonctionnel} (restitution, analyse, pilotage, administration, données, etc.), puis priorisé selon la méthode MoSCoW (\textit{Must have}, \textit{Should have}, \textit{Could have}, \textit{Won't have}). Chaque besoin est enfin décrit par un objectif métier et un ensemble de règles de gestion exprimées en termes fonctionnels, indépendamment de toute implémentation technique, les choix technologiques étant détaillés au chapitre~\ref{chap:outils}.
+
+\subsubsection{Axe 1 --- Écosystème digital de gouvernance de la donnée interne}
+
+\paragraph{Domaine~1 : Restitution et exploration du portefeuille.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.1 --- Tableau de bord consolidé du portefeuille (\textit{Must have}).}
+  \emph{Objectif :} offrir à l'utilisateur métier une vision consolidée et actualisée de l'activité de réassurance à travers un tableau de bord unique.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système présente les indicateurs globaux du portefeuille : prime écrite, prime nette, résultat technique, ratio sinistres sur primes (\textit{ultimate loss ratio}), nombre de contrats et nombre de cédantes actives.
+    \item Les variations inter-exercices sont calculées et affichées sous forme de tendances relatives, avec signalement visuel des évolutions significatives.
+    \item Le tableau de bord propose des représentations graphiques complémentaires : cartographie mondiale, séries temporelles et répartitions par branche et par type de contrat.
+    \item L'ensemble des indicateurs se met à jour de manière cohérente dès qu'un filtre est modifié par l'utilisateur.
+  \end{itemize}
+
+  \item \textbf{BF.2 --- Filtrage multicritère du portefeuille (\textit{Must have}).}
+  \emph{Objectif :} permettre une exploration fine du portefeuille par combinaison d'au moins quinze critères d'analyse couvrant l'ensemble des dimensions métier.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système autorise la combinaison simultanée de critères de périmètre (acceptation étrangère, acceptation marocaine), de nature de contrat (facultatif, traité proportionnel, traité non~proportionnel), de branche, de sous-branche, de pays du risque, de pays de la cédante, de courtier, de cédante, d'exercice de souscription, de nature de la cédante (assureur, réassureur) et de plages de valeurs (primes, ratio S/P, parts souscrites, commissions, courtages).
+    \item Les filtres actifs sont matérialisés de manière explicite, avec possibilité de suppression unitaire et de réinitialisation globale.
+    \item L'état de filtrage est sérialisable afin de permettre le partage d'une vue d'analyse entre utilisateurs.
+  \end{itemize}
+
+  \item \textbf{BF.3 --- Exportation des données filtrées (\textit{Must have}).}
+  \emph{Objectif :} assurer la portabilité des analyses produites et faciliter leur intégration dans les livrables métier (notes de souscription, comités de direction).
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Depuis toute vue d'analyse, l'utilisateur peut exporter les données affichées au format tableur ou au format document portable.
+    \item L'export intègre un en-tête documentant les filtres actifs, l'utilisateur émetteur et l'horodatage afin de garantir la traçabilité de la donnée extraite.
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~2 : Analyses thématiques du portefeuille.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.4 --- Analyse par marché géographique (\textit{Must have}).}
+  \emph{Objectif :} fournir une lecture géographique consolidée du portefeuille par pays du risque et par branche.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système agrège les indicateurs techniques par pays et par branche et les présente sous forme de cartographie, de tableaux triables et de graphiques comparatifs.
+    \item Un dispositif de \textit{forage} permet à l'utilisateur d'accéder, depuis une agrégation globale, aux contrats élémentaires qui la composent.
+    \item L'utilisateur peut croiser les dimensions pays et type de contrat afin d'isoler la part respective des affaires facultatives et des affaires en traité.
+  \end{itemize}
+
+  \item \textbf{BF.5 --- Analyse par cédante avec réconciliation des dénominations (\textit{Must have}).}
+  \emph{Objectif :} reconstituer une vision unifiée de chaque cédante malgré l'hétérogénéité des dénominations présentes dans les données de production.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système met en œuvre un mécanisme automatisé de réconciliation des variantes orthographiques des dénominations de cédantes, fondé sur un enchaînement de techniques de comparaison textuelle.
+    \item La fiche cédante restitue l'historique pluriannuel des primes, le ratio S/P, le résultat technique, la répartition par branche ainsi qu'un indice synthétique de diversification du portefeuille.
+    \item L'utilisateur peut visualiser la liste des variantes regroupées et, le cas échéant, corriger manuellement une fusion erronée.
+  \end{itemize}
+
+  \item \textbf{BF.6 --- Analyse par courtier (\textit{Should have}).}
+  \emph{Objectif :} évaluer l'apport et la performance technique des intermédiaires de placement.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le mécanisme de réconciliation des dénominations est appliqué à l'entité courtier.
+    \item La fiche courtier présente le volume intermédié, les branches couvertes, les cédantes apportées et l'évolution temporelle de la relation commerciale.
+  \end{itemize}
+
+  \item \textbf{BF.7 --- Comparaison directe d'entités (\textit{Must have}).}
+  \emph{Objectif :} appuyer les décisions de souscription par une mise en perspective comparative d'entités de même nature.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'utilisateur peut sélectionner deux à quatre entités (pays, cédantes, courtiers) et obtenir une comparaison côte-à-côte des indicateurs techniques et de leur évolution.
+    \item Le système produit un indicateur synthétique d'attractivité relative permettant un classement des entités sélectionnées.
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~3 : Pilotage opérationnel.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.8 --- Pilotage des cibles TTY et de la saturation FAC (\textit{Should have}).}
+  \emph{Objectif :} outiller le suivi des objectifs de souscription et détecter les écarts par rapport au plan stratégique.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'utilisateur autorisé peut définir, par pays et par branche, des parts cibles pour les affaires en traité proportionnel.
+    \item Le système compare en continu le réalisé aux cibles et signale les situations de dépassement ou de sous-utilisation à l'aide d'un code visuel.
+    \item La saturation des branches sur les affaires facultatives est évaluée au regard d'un seuil paramétrable et fait l'objet d'une alerte dédiée.
+  \end{itemize}
+
+  \item \textbf{BF.9 --- Gestion des affaires de rétrocession (\textit{Should have}).}
+  \emph{Objectif :} intégrer la dimension rétrocession dans l'analyse du portefeuille afin d'obtenir une vision nette du risque porté.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système restitue l'inventaire des affaires de rétrocession avec filtrage par partenaire et par rôle dans la chaîne (apporteur, placeur, donneur, preneur).
+    \item Les indicateurs spécifiques de rétrocession (primes cédées, commissions, soldes) sont calculés et exposés.
+    \item Une vue dédiée permet d'analyser, pour chaque partenaire, le niveau de saturation de la relation par branche.
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~4 : Administration et gouvernance.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.10 --- Authentification, habilitation et administration des utilisateurs (\textit{Must have}).}
+  \emph{Objectif :} garantir un accès contrôlé, tracé et révocable à l'écosystème digital, conformément aux exigences de sécurité de l'entreprise.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'accès à la plate-forme est conditionné à une authentification préalable de l'utilisateur.
+    \item Le système distingue au minimum trois profils d'habilitation (administrateur, souscripteur, lecteur) et applique un contrôle d'accès fondé sur les rôles.
+    \item Une interface d'administration permet la création, la modification, la désactivation et la réinitialisation des comptes utilisateurs.
+    \item Toutes les actions des utilisateurs sont consignées dans un journal d'activité horodaté et consultable par l'administrateur.
+  \end{itemize}
+
+\end{itemize}
+
+\subsubsection{Axe 2 --- Pipeline data science et modélisation africaine}
+
+\paragraph{Domaine~5 : Constitution du panel de données externes.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.11 --- Collecte, harmonisation et structuration des données de marché (\textit{Must have}).}
+  \emph{Objectif :} constituer un référentiel unifié des marchés d'assurance et de réassurance africains sur une profondeur d'analyse de dix exercices.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système collecte, pour trente-quatre pays africains, les indicateurs assurantiels, macroéconomiques et de gouvernance sur la période 2015--2024.
+    \item Les nomenclatures (dénominations de pays, codes normalisés, appartenance régionale, appartenance aux zones d'intégration) sont unifiées à travers un référentiel géographique unique.
+    \item Les données nettoyées sont organisées en un modèle relationnel structuré comprenant un référentiel de pays et quatre tables thématiques.
+  \end{itemize}
+
+  \item \textbf{BF.12 --- Traitement des valeurs manquantes par imputation hiérarchique (\textit{Must have}).}
+  \emph{Objectif :} reconstituer un panel de données dense et exploitable à partir de sources primaires nécessairement lacunaires.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système applique une stratégie d'imputation en plusieurs niveaux, combinant reconstruction temporelle, inférence régionale et apprentissage statistique supervisé.
+    \item Chaque valeur imputée est annotée de manière explicite par sa méthode d'imputation et par un niveau de fiabilité estimé.
+    \item L'utilisateur dispose d'une vue permettant d'identifier, pour tout indicateur, la proportion de valeurs mesurées et imputées.
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~6 : Restitution analytique des marchés.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.13 --- Cartographies interactives par thématique (\textit{Must have}).}
+  \emph{Objectif :} rendre explorables les quatre dimensions d'analyse du marché africain à travers des représentations cartographiques et statistiques interactives.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système met à disposition un module cartographique pour chacune des quatre thématiques : marché non-vie, marché vie, macroéconomie et gouvernance.
+    \item Chaque module comprend une carte choroplèthe de l'Afrique avec sélection d'indicateur et d'année, des indicateurs synthétiques, un classement Top~10, une vue croisée configurable, des séries temporelles, une matrice pays~$\times$~années, une distribution statistique et un tableau de classement triable.
+    \item Les commentaires analytiques associés aux visualisations sont générés dynamiquement à partir des données, de manière à refléter l'état courant du panel.
+  \end{itemize}
+
+  \item \textbf{BF.14 --- Fiche pays et comparaison transnationale (\textit{Must have}).}
+  \emph{Objectif :} fournir une lecture consolidée d'un marché et permettre sa mise en perspective avec un marché de référence.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item La fiche pays consolide les quatre dimensions thématiques en un profil multidimensionnel, accompagné d'un graphique radar, des indicateurs techniques, de leur évolution et d'un positionnement continental.
+    \item L'utilisateur peut comparer deux pays côte-à-côte sur l'ensemble des dimensions à travers graphiques et tableaux synoptiques.
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~7 : Scoring multicritère et aide à la décision.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.15 --- Scoring multicritère d'attractivité des marchés (\textit{Should have}).}
+  \emph{Objectif :} produire une évaluation quantitative et reproductible de l'attractivité des marchés africains pour Atlantic Re.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le système agrège les cinq dimensions d'attractivité (économique, marché assurance, réglementaire, concurrentielle, interne) en un score synthétique.
+    \item Le scoring est paramétrable : les poids relatifs des dimensions peuvent être ajustés par l'utilisateur autorisé et le classement est recalculé en conséquence.
+    \item Le système génère un classement final accompagné d'une décomposition dimensionnelle pour chaque marché évalué, étayant une recommandation stratégique documentée.
+    \item \textit{Note de lecture : cette composante constitue la dernière phase du projet et se trouve en cours de développement au moment de la rédaction du présent rapport.}
+  \end{itemize}
+
+\end{itemize}
+
+\paragraph{Domaine~8 : Convergence interne/externe.}
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BF.16 --- Vue unifiée des données internes et externes (\textit{Could have}).}
+  \emph{Objectif :} confronter l'exposition d'Atlantic Re sur un marché aux caractéristiques structurelles de ce marché, afin d'identifier les territoires d'investissement prioritaires.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Pour un pays donné, le système met en regard la prime cédée à Atlantic Re (Axe~1) et l'estimation de la prime de réassurance du marché (Axe~2) afin d'en déduire un taux de pénétration relatif.
+    \item Les marchés structurellement attractifs mais sous-exploités commercialement sont identifiés et signalés comme cibles de développement.
+  \end{itemize}
+
+\end{itemize}
+
+Le tableau~\ref{tab:bf_synthese} présente la synthèse des seize besoins fonctionnels, ventilés par domaine, axe et priorité MoSCoW.
+
+\begin{table}[H]
+\centering
+\caption{SYNTHÈSE DES BESOINS FONCTIONNELS PAR DOMAINE, AXE ET PRIORITÉ}
+\label{tab:bf_synthese}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.1cm}Xp{2.6cm}p{1.3cm}p{2cm}@{}}
+\toprule
+\textbf{Réf.} & \textbf{Intitulé du besoin fonctionnel} & \textbf{Domaine} & \textbf{Priorité} & \textbf{Axe} \\
+\midrule
+BF.1  & Tableau de bord consolidé du portefeuille         & Restitution      & Must   & Digitalisation \\
+BF.2  & Filtrage multicritère du portefeuille             & Restitution      & Must   & Digitalisation \\
+BF.3  & Exportation des données filtrées                  & Restitution      & Must   & Digitalisation \\
+\midrule
+BF.4  & Analyse par marché géographique                   & Analyses         & Must   & Digitalisation \\
+BF.5  & Analyse par cédante avec réconciliation           & Analyses         & Must   & Digitalisation \\
+BF.6  & Analyse par courtier                              & Analyses         & Should & Digitalisation \\
+BF.7  & Comparaison directe d'entités                     & Analyses         & Must   & Digitalisation \\
+\midrule
+BF.8  & Pilotage des cibles TTY et saturation FAC         & Pilotage         & Should & Digitalisation \\
+BF.9  & Gestion des affaires de rétrocession              & Pilotage         & Should & Digitalisation \\
+\midrule
+BF.10 & Authentification, habilitation et administration  & Gouvernance      & Must   & Digitalisation \\
+\midrule
+BF.11 & Collecte et structuration des données externes    & Données externes & Must   & Modélisation   \\
+BF.12 & Imputation hiérarchique des valeurs manquantes    & Données externes & Must   & Modélisation   \\
+\midrule
+BF.13 & Cartographies interactives par thématique         & Restitution      & Must   & Modélisation   \\
+BF.14 & Fiche pays et comparaison transnationale          & Restitution      & Must   & Modélisation   \\
+\midrule
+BF.15 & Scoring multicritère d'attractivité des marchés   & Scoring          & Should & Modélisation   \\
+\midrule
+BF.16 & Vue unifiée des données internes et externes      & Convergence      & Could  & Transversal    \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+%  BESOINS NON FONCTIONNELS DÉTAILLÉS
+% ============================================================
+\subsection{Besoins non fonctionnels}
+
+Les exigences non fonctionnelles définissent les qualités intrinsèques attendues du système, indépendamment des fonctionnalités offertes à l'utilisateur. Elles sont formulées en termes d'objectifs mesurables et constituent des critères de recette vérifiables lors de la phase de tests.
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+
+  \item \textbf{BNF.1 --- Performance et réactivité.}
+  \emph{Objectif :} garantir un niveau de performance compatible avec un usage interactif quotidien, sans interruption de la continuité d'analyse.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Le temps de réponse pour la restitution d'un indicateur filtré n'excède pas deux secondes, quelle que soit la combinaison de critères appliquée.
+    \item Le temps de chargement initial du tableau de bord n'excède pas trois secondes en conditions nominales.
+    \item Les recalculs consécutifs à la modification d'un filtre s'effectuent sans latence perceptible par l'utilisateur.
+    \item La navigation dans les tableaux volumineux demeure fluide indépendamment du volume de données consulté.
+  \end{itemize}
+
+  \item \textbf{BNF.2 --- Sécurité et confidentialité des données.}
+  \emph{Objectif :} assurer un niveau de sécurité conforme à la sensibilité des données de réassurance manipulées.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Les données internes d'Atlantic Re ne transitent à aucun moment par des services ou infrastructures tiers.
+    \item L'accès aux fonctionnalités est conditionné à une authentification forte assortie d'un mécanisme d'expiration et de révocation des sessions.
+    \item Les éléments secrets (mots de passe notamment) ne sont jamais stockés en clair.
+    \item Le système se prémunit contre les tentatives d'accès automatisées par un dispositif de limitation de débit.
+    \item Les communications entre les différents composants sont protégées par les dispositifs de sécurité standards du web.
+  \end{itemize}
+
+  \item \textbf{BNF.3 --- Portabilité et autonomie d'exploitation.}
+  \emph{Objectif :} garantir la souveraineté de l'outil en permettant son exploitation au sein du système d'information d'Atlantic Re, sans dépendance externe.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'écosystème digital est exploitable intégralement au sein de l'environnement interne d'Atlantic Re.
+    \item Le fonctionnement nominal ne requiert aucune connexion à un service cloud tiers.
+    \item L'installation et la mise à jour s'effectuent à l'aide des outils standards de l'écosystème retenu, sans procédure spécifique.
+  \end{itemize}
+
+  \item \textbf{BNF.4 --- Maintenabilité et évolutivité.}
+  \emph{Objectif :} faciliter la reprise et l'évolution de la plate-forme par une équipe d'exploitation au-delà de la période du projet.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'architecture logicielle suit un découpage en couches et en modules faiblement couplés, chaque module pouvant être modifié sans propagation d'effets de bord.
+    \item Le code source est écrit dans un style homogène et auto-documenté, conforme aux conventions de l'écosystème technologique retenu.
+    \item La logique métier est isolée de la logique de présentation et de la logique d'accès aux données.
+    \item La documentation technique nécessaire à la reprise du projet est produite et versionnée avec le code.
+  \end{itemize}
+
+  \item \textbf{BNF.5 --- Traçabilité et auditabilité.}
+  \emph{Objectif :} permettre à tout moment de retracer l'origine d'une donnée et l'historique des actions ayant abouti à un résultat analytique.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Toute valeur issue d'un traitement algorithmique (imputation, réconciliation, agrégation) est identifiable en tant que telle et annotée de sa source et de son niveau de fiabilité.
+    \item L'ensemble des actions des utilisateurs sur la plate-forme est consigné dans un journal d'activité horodaté, non modifiable par les utilisateurs eux-mêmes.
+  \end{itemize}
+
+  \item \textbf{BNF.6 --- Reproductibilité du pipeline analytique.}
+  \emph{Objectif :} garantir que les résultats analytiques produits puissent être régénérés à l'identique, sur demande ou à l'occasion d'une mise à jour des données sources.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'intégralité du pipeline de constitution et de traitement du panel de données externes est rejouable à volonté.
+    \item Les procédures d'alimentation du système sont idempotentes : une exécution multiple produit le même résultat qu'une exécution unique.
+    \item L'environnement d'exécution est décrit de manière exhaustive, de sorte que le projet puisse être reconstitué à l'identique sur un poste neuf.
+  \end{itemize}
+
+  \item \textbf{BNF.7 --- Ergonomie et expérience utilisateur.}
+  \emph{Objectif :} proposer une expérience utilisateur conforme aux standards des plates-formes d'analyse professionnelles et alignée sur l'identité de marque d'Atlantic Re.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item L'interface adopte une identité visuelle sobre et professionnelle, cohérente avec la charte graphique d'Atlantic Re.
+    \item La navigation est intuitive et fondée sur des patrons d'interaction éprouvés, minimisant la courbe d'apprentissage.
+    \item Les représentations cartographiques et graphiques sont interactives et enrichies d'éléments contextuels (info-bulles, légendes dynamiques).
+    \item L'interface reste exploitable sur les résolutions d'écran courantes des postes de travail professionnels.
+  \end{itemize}
+
+  \item \textbf{BNF.8 --- Qualité et fiabilité des résultats analytiques.}
+  \emph{Objectif :} établir la confiance des utilisateurs métier dans les indicateurs produits par la plate-forme.
+  \begin{itemize}[label=\textendash, itemsep=2pt]
+    \item Les indicateurs calculés par la plate-forme sont reconciliables avec les valeurs issues des procédures internes de référence.
+    \item Les écarts résiduels sont documentés, expliqués et rendus consultables par l'utilisateur.
+    \item Les algorithmes de réconciliation et d'imputation font l'objet d'une évaluation formelle (taux de rappel, taux de précision, taux d'erreur résiduel).
+  \end{itemize}
+
+\end{itemize}
+
+Le tableau~\ref{tab:bnf_synthese} synthétise les huit exigences non fonctionnelles et leurs critères de validation associés.
+
+\begin{table}[H]
+\centering
+\caption{SYNTHÈSE DES BESOINS NON FONCTIONNELS ET CRITÈRES DE VALIDATION}
+\label{tab:bnf_synthese}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.1cm}p{3.2cm}X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Catégorie d'exigence}      & \textbf{Critères de validation} \\
+\midrule
+BNF.1 & Performance                        & Restitution filtrée < 2\,s ; chargement initial < 3\,s ; fluidité constante sur tableaux volumineux. \\
+BNF.2 & Sécurité et confidentialité        & Zéro transit externe ; authentification forte ; secrets non stockés en clair ; limitation de débit. \\
+BNF.3 & Portabilité                        & Déploiement intégré à l'environnement interne ; indépendance de tout service cloud tiers. \\
+BNF.4 & Maintenabilité                     & Architecture modulaire en couches ; documentation technique complète et versionnée. \\
+BNF.5 & Traçabilité et auditabilité        & Annotation des valeurs calculées ; journal d'activité horodaté et immuable. \\
+BNF.6 & Reproductibilité                   & Pipeline rejouable ; procédures idempotentes ; environnement entièrement décrit. \\
+BNF.7 & Ergonomie                          & Conformité à la charte graphique ; interactivité des visualisations ; responsive design. \\
+BNF.8 & Qualité des résultats              & Réconciliation avec les procédures internes ; métriques d'évaluation algorithmique publiées. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+%  SECTION 2.4 — CONCEPTION (enrichie avec UML + multidimensionnel)
+% ============================================================
+\section{Conception}
+
+\subsection{Architecture générale de l'application}
+
+Le système développé adopte une \textbf{architecture trois-tiers} séparant strictement la couche de présentation, la couche de logique métier et la couche de persistance des données. Cette architecture est commune aux deux axes du projet : le frontend constitue un point d'entrée unique qui dessert aussi bien les modules de gouvernance du portefeuille interne (Axe~1) que les modules de visualisation cartographique et de modélisation africaine (Axe~2). La figure~\ref{fig:archi_globale} présente la vue d'ensemble de cette architecture.
+
+\begin{figure}[H]
+\centering
+\caption{Architecture générale de l'application Atlantic~Re}
+\label{fig:archi_globale}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.8cm and 1cm,
+  tier/.style={draw, thick, rounded corners=8pt, inner sep=14pt, fill=#1},
+  module/.style={draw, rounded corners=4pt, minimum height=0.7cm, minimum width=3.4cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  techlabel/.style={font=\tiny, text=gray!60!black, align=center},
+  bigarr/.style={-{Stealth[length=4mm, width=3mm]}, very thick, gray!55},
+  smallarr/.style={-{Stealth[length=2.5mm]}, thick, gray!45},
+]
+
+% ===== COUCHE PRÉSENTATION =====
+\node[tier=blue!6, minimum width=15cm, minimum height=4cm] (frontend) at (0,0) {};
+\node[font=\small\bfseries, blue!70!black, anchor=north west] at ([yshift=-4pt, xshift=6pt]frontend.north west) {Couche Présentation (React 18 $\cdot$ TypeScript $\cdot$ Vite $\cdot$ TailwindCSS)};
+
+\node[module, fill=blue!12] (ctx) at (-5.2, 0.6) {Contexts\\\tiny AuthContext, DataContext};
+\node[module, fill=blue!18] (axe1) at (-1.5, 0.6) {Pages Axe 1\\\tiny Dashboard, Cédantes, Rétro};
+\node[module, fill=cyan!15] (axe2) at (2.2, 0.6) {Pages Axe 2\\\tiny Cartographies, Fiche Pays};
+\node[module, fill=purple!12] (adminUI) at (5.7, 0.6) {Admin \& UI\\\tiny DataTable, Graphiques};
+
+\node[module, fill=blue!12] (ui) at (-5.2, -0.7) {Export \& Utils\\\tiny PDF, Excel Generator};
+\node[module, fill=blue!18] (axe1bis) at (-1.5, -0.7) {Pages Axe 1 (suite)\\\tiny Comparaison, Saturation};
+\node[module, fill=cyan!15] (axe2bis) at (2.2, -0.7) {Pages transversales\\\tiny Vue unifiée, Comparaison};
+
+% ===== COUCHE MÉTIER =====
+\node[tier=green!6, minimum width=15cm, minimum height=4.8cm] (backend) at (0,-5.5) {};
+\node[font=\small\bfseries, green!55!black, anchor=north west] at ([yshift=-4pt, xshift=6pt]backend.north west) {Couche Métier (FastAPI $\cdot$ Python 3.12 $\cdot$ Uvicorn)};
+
+\node[module, fill=yellow!15, minimum width=14cm, minimum height=0.55cm] (mw) at (0, -4) {Middlewares : CORS $\cdot$ JWT Auth $\cdot$ Rate Limiting $\cdot$ Activity Logging};
+
+\node[module, fill=green!12] (r1) at (-5.2, -5.2) {Routers Axe 1\\\tiny API Kpis, Comparaison};
+\node[module, fill=green!12] (r2) at (-1.5, -5.2) {Routers Axe 1 (suite)\\\tiny Rétrocession, Export};
+\node[module, fill=teal!12] (r3) at (2.2, -5.2) {Routers Axe 2\\\tiny API Externe, Synergie};
+\node[module, fill=orange!10] (r4) at (5.7, -5.2) {Routers Admin\\\tiny Auth, Alerts, Users};
+
+\node[module, fill=green!18] (s1) at (-5.2, -6.6) {Services Métier\\\tiny kpi\_service, retro\_service};
+\node[module, fill=green!18] (s2) at (-1.5, -6.6) {Services Matching\\\tiny cedante\_matching};
+\node[module, fill=red!15, draw=red!80!black, thick] (s3) at (2.2, -6.6) {\textbf{Cœur Modélisation}\\\tiny data\_science, scoring};
+\node[module, fill=orange!12] (s4) at (5.7, -6.6) {Services Auth\\\tiny auth\_service, logging};
+
+% ===== COUCHE DONNÉES =====
+\node[tier=red!4, minimum width=15cm, minimum height=2.2cm] (data) at (0,-10) {};
+\node[font=\small\bfseries, red!55!black, anchor=north west] at ([yshift=-4pt, xshift=6pt]data.north west) {Couche Données};
+
+\node[module, fill=orange!18, minimum width=4cm, minimum height=0.9cm] (excel) at (-4, -10) {\normalsize Fichiers Excel Axe 1\\\tiny Modèles Pandas In-Memory};
+\node[module, fill=red!15, minimum width=4cm, minimum height=0.9cm] (mysql) at (0, -10) {\normalsize Base MySQL (Auth)\\\tiny Users, ActivityLogs};
+\node[module, fill=red!15, minimum width=4cm, minimum height=0.9cm] (mysqlext) at (4, -10) {\normalsize Base MySQL (Axe 2)\\\tiny RefPays, Données Macro};
+
+% ===== FLÈCHES =====
+\draw[bigarr] (0,-1.4) -- node[right, font=\scriptsize, text=gray!80!black] {HTTP / REST} (0,-3.3);
+
+\draw[smallarr] (r1.south) -- (s1.north);
+\draw[smallarr] (r2.south) -- (s2.north);
+\draw[smallarr] (r3.south) -- (s3.north);
+\draw[smallarr] (r4.south) -- (s4.north);
+
+\draw[smallarr] (s1.south) -- ++(0,-0.4) -| (excel.north);
+\draw[smallarr] (s2.south) -- ++(0,-0.4) -| (excel.north);
+\draw[smallarr] (s3.south) -- ++(0,-0.4) -| (mysqlext.north);
+\draw[smallarr] (s4.south) -- ++(0,-0.4) -| (mysql.north);
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+\paragraph{Couche Présentation.} L'interface utilisateur est développée en \textbf{React~18} avec \textbf{TypeScript}, compilée par \textbf{Vite} et stylisée avec \textbf{TailwindCSS}. Elle comprend 31~pages réparties entre les modules Axe~1 (Dashboard, Analyse globale, Analyse cédante, Analyse courtier, Comparaison, Rétrocession, Cibles~TTY, Saturation~FAC, Exposition, Scoring, Administration) et les modules Axe~2 (quatre cartographies thématiques, Fiche pays, Comparaison transnationale, Vue unifiée). Deux contextes React globaux --- \texttt{AuthContext} et \texttt{DataContext} --- assurent respectivement la gestion de l'authentification et la propagation des filtres à l'ensemble des composants. Les visualisations sont produites par la bibliothèque \textbf{Recharts}.
+
+\paragraph{Couche Métier.} Le serveur applicatif repose sur \textbf{FastAPI} (Python~3.12), exposant une API REST organisée en 22~routeurs thématiques et 25~services métier. Une couche de middlewares assure le contrôle d'accès (JWT), la gestion des origines (CORS), la limitation de débit et la journalisation automatique des actions. Au cœur de cette architecture se trouve le \textbf{moteur de modélisation prédictive et de scoring}, qui constitue le pilier algorithmique central du projet. C'est ce moteur qui évalue scientifiquement l'attractivité des marchés de la sous-région. Autour de ce cœur analytique s'articulent les autres services : calculs des KPI, matching intelligent par similarité textuelle et pipeline de données externes.
+
+\paragraph{Couche Données.} Deux sources de données coexistent. Les données internes du portefeuille de réassurance sont chargées en mémoire au démarrage depuis des fichiers Excel via \textbf{Pandas}, permettant un filtrage en temps quasi réel sans sollicitation disque. Les données structurées (utilisateurs, journaux d'activité, référentiel des pays africains et quatre tables thématiques de données de marché) sont stockées dans une base \textbf{MySQL} accédée via l'ORM \textbf{SQLAlchemy}.
+
+\subsection{Modèle multicritère d'attractivité : les cinq dimensions}
+
+Le modèle externe d'attractivité s'appuie sur cinq dimensions complémentaires, synthétisées dans le tableau~\ref{tab:dimensions_scar}.
+
+\begin{table}[H]
+\centering
+\caption{Les cinq dimensions du modèle multicritère SCAR}
+\label{tab:dimensions_scar}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}Xp{3cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Indicateurs} & \textbf{Sources} \\
+\midrule
+\textbf{Économique} & PIB nominal, taux de croissance du PIB, inflation, PIB par habitant (PPP), solde courant, degré d'intégration régionale & FMI (WEO), traités commerciaux \\
+\midrule
+\textbf{Marché Assurance} & Volume de primes (Vie + Non-Vie), taux de pénétration, densité d'assurance, répartition Vie/Non-Vie, taux de croissance du marché, ratio S/P & Axco, FANAF \\
+\midrule
+\textbf{Réglementaire} & Qualité réglementaire (WGI), stabilité politique (WGI), ouverture du compte de capital (Kaopen), flux IDE & Banque Mondiale, Chinn-Ito, UNCTAD \\
+\midrule
+\textbf{Concurrentielle} & Nombre de réassureurs actifs, part de marché Top~3 & FANAF, Axco, Atlas Magazine \\
+\midrule
+\textbf{Interne} & Primes nettes Atlantic Re, ULR, résultat, nombre de cédantes, historique sinistres & Données internes Atlantic Re \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+%  CONCEPTION MULTIDIMENSIONNELLE
+% ============================================================
+\subsection{Modélisation multidimensionnelle des données}
+
+La modélisation des données du projet suit un schéma en étoile (\textit{star schema}) adapté à l'analyse décisionnelle, avec une table de faits centrale et plusieurs tables de dimensions.
+
+\subsubsection{Schéma en étoile --- Axe 2 (données externes)}
+
+La figure~\ref{fig:star_schema} illustre le schéma en étoile des données externes africaines.
+
+\begin{figure}[H]
+\centering
+\caption{Schéma en étoile des données de marché africain (Axe 2)}
+\label{fig:star_schema}
+\begin{tikzpicture}[
+  fact/.style={draw, fill=blue!15, rounded corners=3pt, minimum width=4cm, minimum height=1.6cm, align=center, font=\small},
+  dim/.style={draw, fill=yellow!15, rounded corners=3pt, minimum width=3.5cm, minimum height=1.2cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=2.5mm]}, thick, gray!70},
+  node distance=2cm
+]
+  % Fact table
+  \node[fact] (fact) {\textbf{Fait : Indicateur Marché}\\ pays\_id, annee\_id\\ valeur, source, fiabilité};
+
+  % Dimension tables
+  \node[dim, above left=1.8cm and 2cm of fact] (dpays) {\textbf{Dim : Pays}\\ nom, ISO3, région\\ zone\_CIMA, ZLECAf};
+  \node[dim, above right=1.8cm and 2cm of fact] (dtime) {\textbf{Dim : Temps}\\ année, trimestre\\ exercice};
+  \node[dim, below left=1.8cm and 2cm of fact] (dindic) {\textbf{Dim : Indicateur}\\ nom, dimension\\ unité, direction};
+  \node[dim, below right=1.8cm and 2cm of fact] (dsource) {\textbf{Dim : Source}\\ organisme, fiabilité\\ date\_extraction};
+
+  % Arrows
+  \draw[arr] (dpays)  -- (fact);
+  \draw[arr] (dtime)  -- (fact);
+  \draw[arr] (dindic) -- (fact);
+  \draw[arr] (dsource) -- (fact);
+
+\end{tikzpicture}
+\end{figure}
+
+\subsubsection{Tables de dimension détaillées}
+
+Le tableau~\ref{tab:dim_pays} détaille la table de dimension \textit{Pays}, qui constitue le référentiel géographique central du projet.
+
+\begin{table}[H]
+\centering
+\caption{Table de dimension \texttt{ref\_pays} --- Référentiel des pays couverts}
+\label{tab:dim_pays}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}p{2cm}X@{}}
+\toprule
+\textbf{Attribut} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id}        & INT (PK) & Identifiant unique auto-incrémenté \\
+\texttt{nom}       & VARCHAR  & Nom du pays en français (ex: « Côte d'Ivoire ») \\
+\texttt{iso3}      & CHAR(3)  & Code ISO 3166-1 alpha-3 (ex: « CIV ») \\
+\texttt{region}    & VARCHAR  & Région africaine (Afrique de l'Ouest, du Nord, Centrale, de l'Est, Australe) \\
+\texttt{zone\_cima}& BOOLEAN  & Appartenance à la zone CIMA \\
+\texttt{zlecaf}    & BOOLEAN  & Ratification de la ZLECAf \\
+\texttt{mapping\_pays\_risque} & VARCHAR & Correspondance avec le nom utilisé dans les données internes Axe 1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Le tableau~\ref{tab:tables_faits} synthétise les quatre tables de faits thématiques stockant les données de marché africain.
+
+\begin{table}[H]
+\centering
+\caption{Tables de faits thématiques --- Données de marché africain}
+\label{tab:tables_faits}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}p{5cm}X@{}}
+\toprule
+\textbf{Table} & \textbf{Indicateurs} & \textbf{Source} \\
+\midrule
+\texttt{ext\_marche\_non\_vie} & primes\_emises\_mn\_usd, taux\_penetration\_pct, densite\_assurance\_usd, croissance\_primes\_pct, ratio\_sp\_pct & Axco Navigator \\
+\midrule
+\texttt{ext\_marche\_vie} & primes\_emises\_mn\_usd, taux\_penetration\_pct, densite\_assurance\_usd, croissance\_primes\_pct & Axco Navigator \\
+\midrule
+\texttt{ext\_macroeconomie} & gdp\_mn, gdp\_per\_capita, gdp\_growth\_pct, inflation\_rate\_pct, current\_account\_mn, integration\_regionale\_score & FMI WEO, Traités \\
+\midrule
+\texttt{ext\_gouvernance} & political\_stability, regulatory\_quality, fdi\_inflows\_pct\_gdp, kaopen & BM WGI, Chinn-Ito, UNCTAD \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+%  DIAGRAMMES UML
+% ============================================================
+\subsection{Diagrammes de cas d'utilisation}
+
+Les diagrammes de cas d'utilisation ci-après modélisent les interactions entre les acteurs identifiés et les fonctionnalités du système en adoptant la notation UML~2.5, incluant les relations \texttt{<<include>>} pour les dépendances obligatoires et \texttt{<<extend>>} pour les extensions optionnelles. Les acteurs sont regroupés par sous-système afin de refléter la séparation fonctionnelle des deux axes du projet.
+
+\subsubsection{Sous-système A --- Axe Digitalisation}
+
+La figure~\ref{fig:usecase_axe1} présente le diagramme de cas d'utilisation de l'Axe~Digitalisation. Trois profils d'acteurs interagissent avec le système selon un modèle de permissions hiérarchique : le \textbf{Lecteur} dispose d'un accès en consultation, le \textbf{Souscripteur} hérite des droits du lecteur et y ajoute les capacités d'analyse avancée et d'export, et l'\textbf{Administrateur} dispose de l'ensemble des droits, enrichis des fonctions de gestion des utilisateurs et de supervision.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de cas d'utilisation --- Sous-système A (Axe Digitalisation)}
+\label{fig:usecase_axe1}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.8cm and 2.5cm,
+  actor/.style={font=\small},
+  uc/.style={draw, ellipse, fill=umluc, draw=umlucborder, text width=2.8cm, minimum height=0.8cm, align=center, font=\scriptsize, inner sep=2pt},
+  sysbox/.style={draw=umlucborder, thick, rounded corners=8pt, inner sep=16pt},
+  conn/.style={-, thick, umlucborder},
+  incl/.style={-{Stealth[length=2mm]}, dashed, thick, umlucborder!70},
+  extd/.style={-{Stealth[length=2mm]}, dashed, thick, red!50!gray},
+  genlz/.style={-{Stealth[length=3mm, open]}, thick, umlucborder},
+  lbl/.style={font=\tiny\itshape, text=gray!60!black, fill=white, inner sep=1pt},
+]
+
+  % --- Matrice des Use Cases ---
+  \matrix[column sep=1.8cm, row sep=0.5cm] (m) {
+    & \node[uc] (auth) {S'authentifier}; & \\
+    \node[uc] (dash) {Consulter le Dashboard KPI}; & \node[uc] (comp) {Comparer des entités}; & \node[uc] (users) {Gérer utilisateurs et rôles}; \\
+    \node[uc] (filter) {Filtrer les données}; & \node[uc] (retro) {Gérer la rétrocession}; & \node[uc] (logs) {Consulter le journal d'activité}; \\
+    \node[uc] (geo) {Analyser un marché}; & \node[uc] (tty) {Piloter les cibles TTY}; & \node[uc] (config) {Configurer les sources}; \\
+    \node[uc] (ced) {Analyser une cédante}; & \node[uc] (fac) {Saturation FAC}; & \node[uc] (export) {Exporter données}; \\
+    \node[uc] (broker) {Analyser un courtier}; & \node[uc] (score) {Scorer les marchés}; & \\
+  };
+  
+  % --- Contour du système ---
+  \node[sysbox, fit=(auth)(dash)(score)(config), inner xsep=1.5cm, inner ysep=0.8cm] (sys) {};
+  \node[anchor=north, font=\small\bfseries, umlucborder] at (sys.north) {Écosystème Digital Atlantic Re --- Axe 1};
+  
+  % --- Acteurs isolés et construits avec TikZ ---
+  \node[left=3cm of dash, align=center] (lecteur) {
+    \tikz{
+      \draw[thick] (0,0.4) circle (0.15);
+      \draw[thick] (0,0.25) -- (0,-0.3) coordinate (b);
+      \draw[thick] (0,0.15) -- (-0.25,0) (0,0.15) -- (0.25,0);
+      \draw[thick] (b) -- (-0.2,-0.6) (b) -- (0.2,-0.6);
+    }\\
+    \textbf{Lecteur}
+  };
+
+  \node[left=3cm of ced, align=center] (sousc) {
+    \tikz{
+      \draw[thick] (0,0.4) circle (0.15);
+      \draw[thick] (0,0.25) -- (0,-0.3) coordinate (b);
+      \draw[thick] (0,0.15) -- (-0.25,0) (0,0.15) -- (0.25,0);
+      \draw[thick] (b) -- (-0.2,-0.6) (b) -- (0.2,-0.6);
+    }\\
+    \textbf{Souscripteur}
+  };
+
+  \node[right=3cm of logs, align=center] (adm) {
+    \tikz{
+      \draw[thick] (0,0.4) circle (0.15);
+      \draw[thick] (0,0.25) -- (0,-0.3) coordinate (b);
+      \draw[thick] (0,0.15) -- (-0.25,0) (0,0.15) -- (0.25,0);
+      \draw[thick] (b) -- (-0.2,-0.6) (b) -- (0.2,-0.6);
+    }\\
+    \textbf{Administrateur}
+  };
+
+  % --- Connexions Acteurs / Cas d'utilisation ---
+  \draw[genlz] (sousc.north) -- (lecteur.south);
+  
+  \draw[conn] (lecteur.east) -- (dash.west);
+  \draw[conn] (lecteur.east) -- (filter.west);
+  \draw[conn] (lecteur.east) -- (geo.west);
+
+  \draw[conn] (sousc.east) -- (ced.west);
+  \draw[conn] (sousc.east) -- (broker.west);
+  
+  % Connexions vers la colonne centrale en évitant la première colonne
+  \draw[conn] (sousc.east) to[out=10, in=180] (comp.west);
+  \draw[conn] (sousc.east) to[out=5, in=180] (retro.west);
+  \draw[conn] (sousc.east) to[out=0, in=180] (tty.west);
+  \draw[conn] (sousc.east) to[out=-5, in=180] (fac.west);
+  \draw[conn] (sousc.east) to[out=-10, in=180] (score.west);
+  \draw[conn] (sousc.east) to[out=-15, in=180] (export.west);
+
+  \draw[conn] (adm.west) -- (users.east);
+  \draw[conn] (adm.west) -- (logs.east);
+  \draw[conn] (adm.west) -- (config.east);
+
+  % --- Includes et Extends ---
+  \draw[incl] (dash.north east) -- node[lbl] {<<include>>} (auth.south west);
+  \draw[incl] (filter.north east) to[bend left=15] node[lbl, pos=0.3] {<<include>>} (auth.south);
+  \draw[extd] (export.north) -- node[lbl] {<<extend>>} (filter.south east);
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsubsection{Sous-système B --- Axe Modélisation}
+
+La figure~\ref{fig:usecase_axe2} présente le diagramme de cas d'utilisation de l'Axe~Modélisation. Deux profils d'acteurs sont identifiés : l'\textbf{Analyste Business Développement}, qui utilise les modules de consultation et de visualisation, et le \textbf{Directeur Technique}, qui dispose en outre de la capacité de calibrer les paramètres du modèle de scoring.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de cas d'utilisation --- Sous-système B (Axe Modélisation)}
+\label{fig:usecase_axe2}
+\begin{tikzpicture}[
+  node distance=0.8cm and 2.5cm,
+  actor/.style={font=\small},
+  uc/.style={draw, ellipse, fill=cyan!8, draw=umlucborder, text width=2.6cm, minimum height=0.8cm, align=center, font=\scriptsize, inner sep=2pt},
+  sysbox/.style={draw=umlucborder, thick, rounded corners=8pt, inner sep=14pt},
+  conn/.style={-, thick, umlucborder},
+  incl/.style={-{Stealth[length=2mm]}, dashed, thick, umlucborder!70},
+  extd/.style={-{Stealth[length=2mm]}, dashed, thick, red!50!gray},
+  genlz/.style={-{Stealth[length=3mm, open]}, thick, umlucborder},
+  lbl/.style={font=\tiny\itshape, text=gray!60!black, fill=white, inner sep=1pt},
+]
+
+  % --- Matrice des Use Cases ---
+  \matrix[column sep=2cm, row sep=0.6cm] (m) {
+    & \node[uc] (auth2) {S'authentifier}; & \\
+    \node[uc] (carto) {Explorer les cartographies}; & \node[uc] (score) {Visualiser le classement SCAR}; \\
+    \node[uc] (fiche) {Consulter la fiche pays}; & \node[uc] (calib) {Calibrer les poids du modèle}; \\
+    \node[uc] (compp) {Comparer plusieurs pays}; & \node[uc] (class) {Consulter le classement final}; \\
+    \node[uc] (cross) {Croiser données int/ext}; & \node[uc] (reco) {Générer les recommandations}; \\
+  };
+
+  % System Box
+  \node[sysbox, fit=(auth2)(carto)(reco)(cross), inner xsep=1.5cm, inner ysep=0.8cm] (sys) {};
+  \node[anchor=north, font=\small\bfseries, umlucborder] at (sys.north) {Pipeline Data Science \& Modélisation SCAR --- Axe 2};
+
+  % --- Acteurs ---
+  \node[left=3cm of fiche, align=center] (analyste) {
+    \tikz{
+      \draw[thick] (0,0.4) circle (0.15);
+      \draw[thick] (0,0.25) -- (0,-0.3) coordinate (b);
+      \draw[thick] (0,0.15) -- (-0.25,0) (0,0.15) -- (0.25,0);
+      \draw[thick] (b) -- (-0.2,-0.6) (b) -- (0.2,-0.6);
+    }\\
+    \textbf{Analyste BD}
+  };
+
+  \node[right=3cm of calib, align=center] (dir) {
+    \tikz{
+      \draw[thick] (0,0.4) circle (0.15);
+      \draw[thick] (0,0.25) -- (0,-0.3) coordinate (b);
+      \draw[thick] (0,0.15) -- (-0.25,0) (0,0.15) -- (0.25,0);
+      \draw[thick] (b) -- (-0.2,-0.6) (b) -- (0.2,-0.6);
+    }\\
+    \textbf{Directeur Tech.}
+  };
+
+  % --- Connexions Acteurs ---
+  \draw[genlz] (dir.south) to[bend left=30] (analyste.south);
+
+  \draw[conn] (analyste.east) -- (carto.west);
+  \draw[conn] (analyste.east) -- (fiche.west);
+  \draw[conn] (analyste.east) -- (compp.west);
+  \draw[conn] (analyste.east) -- (cross.west);
+
+  \draw[conn] (dir.west) -- (score.east);
+  \draw[conn] (dir.west) -- (calib.east);
+  \draw[conn] (dir.west) -- (class.east);
+  \draw[conn] (dir.west) -- (reco.east);
+
+  % --- Includes et Extends ---
+  \draw[incl] (carto.north east) -- node[lbl] {<<include>>} (auth2.south west);
+  \draw[incl] (score.north west) -- node[lbl] {<<include>>} (auth2.south east);
+  \draw[extd] (reco.north) -- node[lbl] {<<extend>>} (class.south);
+
+\end{tikzpicture}
+\end{figure}
+
+% ============================================================
+%  DIAGRAMME DE CLASSES
+% ============================================================
+\subsection{Diagramme de classes}
+
+La figure~\ref{fig:class_diagram} présente le diagramme de classes du système, structuré en trois packages correspondant aux trois couches de l'architecture. Les classes sont directement issues du code source et reflètent les modèles SQLAlchemy et les services implémentés.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de classes du système --- Entités et services principaux}
+\label{fig:class_diagram}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=1.5cm and 2cm,
+  classbox/.style={draw, thick, draw=umlclassborder, rounded corners=3pt, inner sep=0pt, fill=white},
+  svcbox/.style={draw, thick, draw=green!50!black, rounded corners=3pt, inner sep=0pt, fill=white},
+  assoc/.style={-, thick},
+  comp/.style={-{Diamond[length=3mm, width=2mm, fill=black]}, thick},
+  agg/.style={-{Diamond[length=3mm, width=2mm]}, thick},
+  dep/.style={-{Stealth[length=2.5mm]}, dashed, thick, gray!60},
+  mult/.style={font=\tiny, text=gray!80!black, fill=white, inner sep=2pt},
+]
+
+  % --- Modèles d'authentification ---
+  \node[classbox] (user) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large User}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - username : String(50) \\
+      - hashed\_password : String(255) \\
+      - role : String(50) \\
+      - active : Boolean \\
+      \hline
+      + authenticate() : JWT \\
+      + has\_permission(action) : Bool
+    \end{tabular}
+  };
+
+  \node[classbox, below=1.5cm of user] (log) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large ActivityLog}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - timestamp : DateTime \\
+      - username : String(100) \\
+      - action : String(100) \\
+      - detail : Text
+    \end{tabular}
+  };
+
+  \draw[comp] (user.south) -- node[mult, right] {génère (1..*)} (log.north);
+
+  % --- Modèles Axe 2 ---
+  \node[classbox, right=2cm of user] (refpays) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large RefPays}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - nom\_pays : String(100) \\
+      - code\_iso3 : CHAR(3) \\
+      - region : String(50) \\
+      \hline
+      + get\_mapping() : String
+    \end{tabular}
+  };
+
+  \node[classbox, below=1.5cm of refpays] (extnv) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large ExtMarcheNonVie}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - pays\_id (FK) \\
+      - annee : SmallInteger \\
+      - primes\_emises\_mn\_usd : Float \\
+      - ratio\_sp\_pct : Float
+    \end{tabular}
+  };
+
+  \node[classbox, right=2cm of extnv] (extgouv) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large ExtGouvernance}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - pays\_id (FK) \\
+      - annee : SmallInteger \\
+      - political\_stability : Float \\
+      - regulatory\_quality : Float
+    \end{tabular}
+  };
+
+  \node[classbox, below=1.5cm of extnv] (extmacro) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{umlclasshead}\textcolor{white}{\textbf{\strut \large ExtMacroeconomie}}} \\
+      \hline
+      \underline{- id : Integer (PK)} \\
+      - pays\_id (FK) \\
+      - annee : SmallInteger \\
+      - gdp\_mn : Float \\
+      - inflation\_rate\_pct : Float
+    \end{tabular}
+  };
+
+  \draw[agg] (refpays.south) -- node[mult, right] {1..*} (extnv.north);
+  \draw[agg] (refpays.south) to[out=-30, in=90] node[mult, left, pos=0.8] {1..*} (extgouv.north);
+  \draw[agg] (refpays.south west) to[bend right=25] node[mult, left] {1..*} (extmacro.west);
+
+  % --- Services ---
+  \node[svcbox, right=2cm of refpays] (dsvc) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{green!45!black}\textcolor{white}{\textbf{\strut \large <<service>> DataService}}} \\
+      \hline
+      - df : pd.DataFrame \\
+      - retro\_df : pd.DataFrame \\
+      \hline
+      + load\_data(path) : void \\
+      + apply\_filters(params) : DataFrame \\
+      + get\_kpis(df) : Dict
+    \end{tabular}
+  };
+
+  \node[svcbox, below=1.5cm of dsvc] (cmsvc) {
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}p{5cm}@{}}
+      \multicolumn{1}{@{}c@{}}{\cellcolor{green!45!black}\textcolor{white}{\textbf{\strut \large <<service>> CedanteMatching}}} \\
+      \hline
+      - similarity\_threshold : float \\
+      - cache : Dict \\
+      \hline
+      + match(name) : List[Match] \\
+      + reconcile\_all() : Table \\
+      + compute\_diversification() : float
+    \end{tabular}
+  };
+
+  \draw[dep] (dsvc.south) -- node[mult, right] {utilise} (cmsvc.north);
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+% ============================================================
+%  DIAGRAMMES DE SÉQUENCE — VERSION PROFESSIONNELLE
+% ============================================================
+\subsection{Diagrammes de séquence}
+
+Deux diagrammes de séquence sont présentés afin d'illustrer les flux de données caractéristiques des deux axes du projet.
+
+\subsubsection{Séquence 1 : Consultation du Dashboard avec filtres (Axe 1)}
+
+La figure~\ref{fig:sequence_dashboard} détaille le flux d'interactions lors de la consultation du tableau de bord avec application de filtres multicritères. Ce scénario constitue le cas d'utilisation le plus fréquent de la plate-forme.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de séquence --- Consultation du Dashboard avec filtres (Axe 1)}
+\label{fig:sequence_dashboard}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  part/.style={draw, thick, fill=umlseq, minimum width=2.4cm, minimum height=0.75cm, font=\scriptsize\bfseries, align=center},
+  msg/.style={-{Stealth[length=2.5mm]}, thick, font=\tiny},
+  ret/.style={-{Stealth[length=2.5mm]}, dashed, thick, font=\tiny},
+  selfmsg/.style={-{Stealth[length=2mm]}, thick, font=\tiny, rounded corners=3pt},
+  lifeline/.style={dashed, gray!40},
+  act/.style={draw, thin, fill=#1, minimum width=0.35cm},
+  frag/.style={draw, thick, gray!50, rounded corners=2pt},
+  fraglbl/.style={fill=gray!15, font=\tiny\bfseries, inner sep=2pt},
+  note/.style={draw, thin, fill=yellow!15, rounded corners=2pt, font=\tiny, align=left, text width=2.5cm, inner sep=3pt},
+]
+  % Participants
+  \node[part] (U)  at (0, 0)    {Utilisateur};
+  \node[part] (R)  at (3.5, 0)  {React\\Frontend};
+  \node[part] (A)  at (7, 0)    {FastAPI\\Router};
+  \node[part] (S)  at (10.5, 0) {DataService};
+  \node[part] (P)  at (14, 0)   {Pandas\\DataFrame};
+  \node[part] (L)  at (17, 0)   {ActivityLog\\(MySQL)};
+
+  % Lifelines
+  \foreach \n in {U,R,A,S,P,L} {
+    \draw[lifeline] (\n.south) -- ++(0, -12);
+  }
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de séquence --- Consultation du Dashboard avec filtres (Axe 1)}
+\label{fig:sequence_dashboard}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  partU/.style={draw, thick, fill=gray!10, draw=gray!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partR/.style={draw, thick, fill=blue!10, draw=blue!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partA/.style={draw, thick, fill=green!10, draw=green!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partS/.style={draw, thick, fill=orange!10, draw=orange!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partP/.style={draw, thick, fill=red!8, draw=red!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partL/.style={draw, thick, fill=purple!8, draw=purple!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  msg/.style={-{Stealth[length=2.5mm]}, thick, font=\tiny\bfseries},
+  ret/.style={-{Stealth[length=2.5mm]}, dashed, thick, font=\tiny\itshape, text=gray!70!black},
+  selfmsg/.style={-{Stealth[length=2mm]}, thick, font=\tiny, rounded corners=3pt},
+  lifeline/.style={dashed, thick, gray!40},
+  frag/.style={draw, thick, gray!50, rounded corners=4pt, fill=blue!3, fill opacity=0.3},
+  fraglbl/.style={fill=blue!15, draw=gray!50, thick, rounded corners=2pt, font=\tiny\bfseries, inner sep=3pt},
+  note/.style={draw, thin, fill=yellow!15, rounded corners=3pt, font=\tiny, align=left, text width=2.8cm, inner sep=4pt},
+]
+  % Participants
+  \node[partU] (U)  at (0, 0)    {Utilisateur};
+  \node[partR] (R)  at (3.6, 0)  {React\\Frontend};
+  \node[partA] (A)  at (7.2, 0)  {FastAPI\\Router};
+  \node[partS] (S)  at (10.8, 0) {DataService};
+  \node[partP] (P)  at (14.4, 0) {Pandas\\DataFrame};
+  \node[partL] (L)  at (17.5, 0) {ActivityLog\\(MySQL)};
+
+  % Lifelines
+  \foreach \n in {U,R,A,S,P,L} {
+    \draw[lifeline] (\n.south) -- ++(0, -11);
+  }
+
+  % Activation bars
+  \fill[blue!15, draw=blue!70!black]   (3.42, -1.0) rectangle (3.78, -9.5);
+  \fill[green!15, draw=green!70!black]  (7.02, -2.0) rectangle (7.38, -8.0);
+  \fill[orange!15, draw=orange!70!black] (10.62,-2.8) rectangle (10.98,-6.2);
+  \fill[red!15, draw=red!70!black]    (14.22,-3.6) rectangle (14.58,-5.0);
+  \fill[purple!15, draw=purple!70!black] (17.32,-7.0) rectangle (17.68,-7.8);
+
+  % --- Fragment ALT : Authentifié ---
+  \fill[blue!3, draw=gray!50, thick, rounded corners=4pt] (-0.8, -1.15) rectangle (18.2, -8.3);
+  \node[fraglbl, anchor=north west] at (-0.8, -1.15) {alt [JWT Valide]};
+
+  % Messages
+  \draw[msg] (0, -1.0) -- node[above] {1: Sélectionner les filtres} (3.42, -1.0);
+
+  \draw[msg] (3.78, -2.0) -- node[above] {2: GET /api/kpis?filters=\{...\}} (7.02, -2.0);
+  \node[note, anchor=west] at (7.6,-2.4) {Validation Token\\Intégration requêtes};
+
+  \draw[msg] (7.38, -2.8) -- node[above] {3: apply\_filters(params)} (10.62, -2.8);
+
+  \draw[msg] (10.98, -3.6) -- node[above] {4: df.query(expression)} (14.22, -3.6);
+
+  \draw[ret] (14.22, -4.5) -- node[above] {5: Sous-ensemble DataFrame (Filtré)} (10.98, -4.5);
+
+  % Self-message : calcul KPI
+  \draw[selfmsg] (10.98, -5.2) -- ++(1.4,0) -- ++(0,-0.6) -- node[right, pos=0.2] {6: Calculer KPIs} ++(-1.4,0);
+
+  \draw[ret] (10.62, -6.0) -- node[above] {7: \{chiffres, graphiques\}} (7.38, -6.0);
+
+  % Log activity
+  \draw[msg] (7.38, -7.0) -- node[above] {8: INSERT (Activity Log)} (17.32, -7.0);
+  \draw[ret] (17.32, -7.7) -- node[above] {9: Acquittement} (7.38, -7.7);
+
+  \draw[ret] (7.02, -8.0) -- node[above] {10: HTTP 200 OK (Données JSON)} (3.78, -8.0);
+
+  % Self-message : React re-render
+  \draw[selfmsg] (3.78, -8.5) -- ++(1.2,0) -- ++(0,-0.5) -- node[right, pos=0.2] {11: Mise à jour UI} ++(-1.2,0);
+
+  \draw[ret] (3.42, -9.5) -- node[above] {12: Affichage Dashboard} (0, -9.5);
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsubsection{Séquence 2 : Analyse d'une cédante avec matching intelligent (Axe 1)}
+
+La figure~\ref{fig:sequence_cedante} illustre le flux d'interactions spécifique à l'analyse d'une cédante, mettant en évidence le mécanisme de réconciliation intelligente des dénominations.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de séquence --- Analyse cédante avec matching intelligent}
+\label{fig:sequence_cedante}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  partU/.style={draw, thick, fill=gray!10, draw=gray!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partR/.style={draw, thick, fill=blue!10, draw=blue!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partA/.style={draw, thick, fill=green!10, draw=green!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partM/.style={draw, thick, fill=orange!10, draw=orange!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  partD/.style={draw, thick, fill=red!8, draw=red!70!black, rounded corners=4pt, minimum width=2.4cm, minimum height=0.8cm, font=\scriptsize\bfseries, align=center},
+  msg/.style={-{Stealth[length=2.5mm]}, thick, font=\tiny\bfseries},
+  ret/.style={-{Stealth[length=2.5mm]}, dashed, thick, font=\tiny\itshape, text=gray!70!black},
+  selfmsg/.style={-{Stealth[length=2mm]}, thick, font=\tiny, rounded corners=3pt},
+  lifeline/.style={dashed, thick, gray!40},
+  frag/.style={draw, thick, gray!50, rounded corners=4pt, fill=blue!3, fill opacity=0.3},
+  fraglbl/.style={fill=blue!15, draw=gray!50, thick, rounded corners=2pt, font=\tiny\bfseries, inner sep=3pt},
+  note/.style={draw, thin, fill=yellow!15, rounded corners=3pt, font=\tiny, align=left, text width=2.8cm, inner sep=4pt},
+]
+  % Participants
+  \node[partU] (U) at (0, 0)     {Souscripteur};
+  \node[partR] (R) at (3.8, 0)   {React\\Application};
+  \node[partA] (A) at (7.6, 0)   {Router API\\(FastAPI)};
+  \node[partM] (M) at (11.4, 0)  {Matching\\Service};
+  \node[partD] (D) at (15.2, 0)  {Data Service\\(Pandas)};
+
+  % Lifelines
+  \foreach \n in {U,R,A,M,D} {
+    \draw[lifeline] (\n.south) -- ++(0, -11.5);
+  }
+
+  % Activations
+  \fill[blue!15, draw=blue!70!black]   (3.62, -1.0) rectangle (3.98, -10.5);
+  \fill[green!15, draw=green!70!black]  (7.42, -1.8) rectangle (7.78, -8.5);
+  \fill[orange!15, draw=orange!70!black] (11.22,-2.6) rectangle (11.58,-6.5);
+  \fill[orange!15, draw=orange!70!black] (11.22,-7.0) rectangle (11.58,-8.0);
+  \fill[red!15, draw=red!70!black]    (15.02,-3.4) rectangle (15.38,-4.4);
+  \fill[red!15, draw=red!70!black]    (15.02,-7.3) rectangle (15.38,-8.0);
+
+  % Messages
+  \draw[msg] (0, -1.0)   -- node[above] {1: Rechercher cédante ``S.A.H.A.M''} (3.62, -1.0);
+
+  \draw[msg] (3.98, -1.8) -- node[above] {2: GET /api/cedantes/search?q=S.A.H.A.M} (7.42, -1.8);
+
+  \draw[msg] (7.78, -2.6) -- node[above] {3: match\_name(``S.A.H.A.M'')} (11.22, -2.6);
+
+  % Fragment Pipeline Matching
+  \fill[blue!3, draw=gray!50, thick, rounded corners=4pt] (11, -3.1) rectangle (16, -6.6);
+  \node[fraglbl, anchor=north west] at (11, -3.1) {Algorithme de Similarité};
+
+  \draw[msg] (11.58, -3.4) -- node[above] {4: getAllCedantes()} (15.02, -3.4);
+  \draw[ret] (15.02, -4.0) -- node[above] {5: [``SAHAM'', ``Saham Ass...'']} (11.58, -4.0);
+
+  % Self-message : similarity
+  \draw[selfmsg] (11.58, -4.6) -- ++(1.5,0) -- ++(0,-0.6) -- node[right, pos=0.2] {6: NLP (Jaro, TF-IDF)} ++(-1.5,0);
+
+  \node[note, anchor=west] at (11.8, -5.9) {Tolérance > 85\%\\Identification de\\3 alias unifiés.};
+
+  \draw[ret] (11.22, -6.2) -- node[above] {7: resolvedNames = [``SAHAM'']} (7.78, -6.2);
+
+  \draw[msg] (7.78, -7.0) -- node[above] {8: pull\_kpis(resolvedNames)} (11.22, -7.0);
+  \draw[msg] (11.58, -7.4) -- node[above] {9: group\_by() \& aggregate()} (15.02, -7.4);
+  \draw[ret] (15.02, -8.0) -- node[above] {10: Résumé technique consolidé} (11.58, -8.0);
+
+  \draw[ret] (11.22, -8.3) -- node[above] {11: Données JSON formatées} (7.78, -8.3);
+  \draw[ret] (7.42, -8.5) -- node[above] {12: Payload Response (200 OK)} (3.98, -8.5);
+
+  % Self-message : render
+  \draw[selfmsg] (3.98, -9.2) -- ++(1.4,0) -- ++(0,-0.6) -- node[right, pos=0.2] {13: Rendu JSX} ++(-1.4,0);
+
+  \draw[ret] (3.62, -10.2) -- node[above] {14: Affichage du profil complet} (0, -10.2);
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+Le tableau~\ref{tab:cas_utilisation_detail} détaille la description textuelle des cas d'utilisation principaux des deux sous-systèmes.
+
+\begin{table}[H]
+\centering
+\caption{Description textuelle des cas d'utilisation principaux}
+\label{tab:cas_utilisation_detail}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}p{2.3cm}X@{}}
+\toprule
+\textbf{Cas d'utilisation} & \textbf{Acteurs} & \textbf{Description} \\
+\midrule
+Consulter le Dashboard & Tous (authentifiés) & L'utilisateur accède au tableau de bord affichant les KPI consolidés du portefeuille (primes, résultat, ULR, contrats), la carte d'exposition mondiale, les répartitions par branche et type de contrat, ainsi que les alertes de sinistralité. Les indicateurs se mettent à jour dynamiquement à chaque modification de filtre. \\
+\midrule
+Analyser une cédante & Souscripteur, Admin & L'utilisateur saisit le nom d'une cédante ; le service de matching réconcilie automatiquement les variantes orthographiques par pipeline de similarité textuelle (Jaro-Winkler, TF-IDF). Le profil restitué inclut l'historique pluriannuel, la répartition par branche, l'indice de diversification et le résultat technique. \\
+\midrule
+Gérer la rétrocession & Souscripteur, Admin & Le système restitue l'inventaire des affaires rétrocédées avec calcul de l'EPI, de la PMD et du taux de placement. L'analyse par sécurité et par partenaire permet d'évaluer le niveau de saturation de la relation par branche. \\
+\midrule
+Explorer les cartographies & Analyste, Directeur & L'utilisateur sélectionne un indicateur et une année ; le système génère une carte choroplèthe de l'Afrique avec légende dynamique, classement Top~10, séries temporelles, matrice pays$\times$années et distribution statistique. \\
+\midrule
+Calibrer le SCAR & Directeur Technique & Le directeur ajuste les pondérations des cinq dimensions d'attractivité ; le système recalcule le score composite, met à jour le classement et génère les recommandations (\textit{en cours de développement}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Modèle de données interne (Axe 1)}
+
+Le modèle de données de l'Axe~1 repose sur un DataFrame Pandas chargé en mémoire au démarrage et structuré comme suit :
+
+\begin{table}[H]
+\centering
+\caption{Structure du DataFrame principal --- Portefeuille de réassurance}
+\label{tab:dataframe_structure}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.8cm}p{2cm}X@{}}
+\toprule
+\textbf{Colonne} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{POLICY\_ID}       & str    & Identifiant unique de la police \\
+\texttt{INT\_SPC}          & str    & Type de contrat : FAC, TTY ou TTE \\
+\texttt{INT\_BRANCHE}      & str    & Branche d'assurance (Auto, RC, Incendie, Corps\ldots) \\
+\texttt{INT\_CEDANTE}      & str    & Nom normalisé de la cédante \\
+\texttt{INT\_BROKER}       & str    & Nom normalisé du courtier \\
+\texttt{PAYS\_RISQUE}      & str    & Pays du risque couvert \\
+\texttt{PAYS\_CEDANTE}     & str    & Pays siège de la cédante \\
+\texttt{UNDERWRITING\_YEAR}& int    & Année de souscription \\
+\texttt{WRITTEN\_PREMIUM}  & float  & Prime écrite (MAD) \\
+\texttt{ULR}               & float  & Ultimate Loss Ratio \\
+\texttt{RESULTAT}          & float  & Résultat technique net \\
+\texttt{SUM\_INSURED}      & float  & Capitaux assurés \\
+\texttt{COMMISSION}        & float  & Taux de commission (\%) \\
+\texttt{SHARE\_WRITTEN}    & float  & Part souscrite (\%) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Bilan du chapitre}
+
+Ce chapitre a posé l'ensemble du cadre conceptuel, analytique et de conception du projet. L'approche
+itérative d'analyse des besoins en trois cycles a permis de formaliser à la fois les besoins explicites
+de la commande et les besoins cachés détectés lors de l'immersion --- ces derniers
+étant à l'origine de l'élargissement du PFE à la digitalisation. Les seize besoins fonctionnels et sept besoins non fonctionnels ont été détaillés, priorisés selon la méthode MoSCoW et synthétisés dans des tableaux récapitulatifs. La conception a été formalisée à travers l'architecture logique trois-tiers, la modélisation multidimensionnelle en étoile, les diagrammes de cas d'utilisation UML identifiant les acteurs et leurs interactions, le diagramme de classes simplifié et le diagramme de séquence illustrant le flux de données. Ces choix de conception guident les décisions d'architecture et d'implémentation détaillées au chapitre suivant.
+
+\clearpage
+
+% ============================================================
+%  CHAPITRE 3 : OUTILS, ALGORITHMES ET ARCHITECTURE TECHNIQUE
+% ============================================================
+
+\end{document}

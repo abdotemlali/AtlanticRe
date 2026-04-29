@@ -117,8 +117,9 @@ MACRO_COLS: Dict[str, str] = {
     "Integration_Regionale_Score": "integration_regionale_score",
 }
 
-# Mapping noms de pays français (CSV africa_eco_integration) -> noms anglais (ref_pays)
-MACRO_PAYS_FR_TO_EN: Dict[str, str] = {
+# Mapping noms de pays français (tous CSV) -> noms anglais (ref_pays)
+# Utilisé pour non_vie, vie, gouv ET macro (tous les CSV ont les pays en français)
+PAYS_FR_TO_EN: Dict[str, str] = {
     "Afrique du Sud": "SOUTH AFRICA",
     "Algérie":        "ALGERIE",
     "Angola":          "ANGOLA",
@@ -154,6 +155,9 @@ MACRO_PAYS_FR_TO_EN: Dict[str, str] = {
     "Égypte":          "EGYPT",
     "Éthiopie":        "ETHIOPIA",
 }
+
+# Alias pour rétrocompatibilité
+MACRO_PAYS_FR_TO_EN = PAYS_FR_TO_EN
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

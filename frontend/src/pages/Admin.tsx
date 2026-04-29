@@ -205,6 +205,7 @@ export default function Admin() {
   const [config, setConfig] = useState<{ excel_file_path: string; retro_excel_file_path: string; fcm_partenaires_file_path: string }>({ excel_file_path: '', retro_excel_file_path: '', fcm_partenaires_file_path: '' })
   const [retroRefreshing, setRetroRefreshing] = useState(false)
   const [fcmRefreshing, setFcmRefreshing] = useState(false)
+  const [mainRefreshing, setMainRefreshing] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({ username: '', full_name: '', email: '', role: 'lecteur' as User['role'] })
@@ -299,6 +300,18 @@ export default function Admin() {
       toast.error(e?.response?.data?.detail || 'Erreur lors du rechargement FCM')
     } finally {
       setFcmRefreshing(false)
+    }
+  }
+
+  const refreshMainData = async () => {
+    setMainRefreshing(true)
+    try {
+      const res = await api.post('/data/refresh')
+      toast.success(`Données internes actualisées — ${res.data?.row_count?.toLocaleString('fr-FR') ?? '?'} lignes chargées`)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erreur lors du rechargement des données internes')
+    } finally {
+      setMainRefreshing(false)
     }
   }
 
@@ -487,7 +500,24 @@ export default function Admin() {
                 Exemple : <span className="font-mono">\\\\serveur\\dossier\\Template_data.xlsx</span>
               </p>
             </div>
-            <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder</button>
+            <div className="flex gap-2">
+              <button onClick={updateConfig} className="btn-primary text-xs"><Check size={12} />Sauvegarder le chemin</button>
+              <button
+                onClick={refreshMainData}
+                disabled={mainRefreshing}
+                className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(83,54%,27%), hsl(83,52%,36%))',
+                  color: 'white',
+                  border: 'none',
+                  cursor: mainRefreshing ? 'wait' : 'pointer',
+                  opacity: mainRefreshing ? 0.6 : 1,
+                }}
+              >
+                <RefreshCw size={12} className={mainRefreshing ? 'animate-spin' : ''} />
+                {mainRefreshing ? 'Chargement…' : 'Actualiser les données internes'}
+              </button>
+            </div>
           </div>
 
           {/* Excel FCM Partenaires FAC-to-FAC */}

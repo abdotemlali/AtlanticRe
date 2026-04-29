@@ -669,18 +669,42 @@ export default function CartographieMacro() {
             </div>
             <div className="bg-white rounded-xl p-5" style={{ border: '1px solid hsl(0,0%,92%)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
               <ResponsiveContainer width="100%" height={420}>
-                <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
+                <ComposedChart data={countryTimeseries as any[]} margin={{ top: 10, right: 80, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  {/* Axe gauche : PIB en Mn USD */}
                   <YAxis yAxisId="left" tickFormatter={fmtBn} tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }} />
+                  {/* Axe droit : Croissance % et Inflation % — domaine auto serré sur les % */}
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={v => `${v.toFixed(1)}%`}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    domain={['auto', 'auto']}
+                    allowDataOverflow={false}
+                  />
+                  {/* Axe droit2 (masqué) : Compte courant en Mn USD — évite l'écrasement de l'échelle % */}
+                  <YAxis
+                    yAxisId="right2"
+                    orientation="right"
+                    tickFormatter={fmtBn}
+                    tick={{ fontSize: 9, fill: '#c4b5fd' }}
+                    width={0}
+                    hide
+                  />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #D1D9E0', fontSize: 12 }}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'PIB') return [fmtBn(value), name]
+                      if (name === 'Compte courant (Mn)') return [fmtBn(value), name]
+                      return [`${Number(value).toFixed(1)}%`, name]
+                    }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: '0%', fontSize: 9, fill: '#94a3b8' }} />
                   <Bar yAxisId="left" dataKey="gdp_mn" name="PIB" fill="#1B3F6B" fillOpacity={0.6} barSize={20} />
                   <Line yAxisId="right" type="monotone" dataKey="gdp_growth_pct" name="Croissance PIB" stroke="#1E8449" strokeWidth={2.5} dot={{ r: 4 }} />
-                  <Line yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation" stroke="#E8940C" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line yAxisId="right" type="monotone" dataKey="current_account_mn" name="Compte courant (Mn)" stroke="#8E44AD" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="inflation_rate_pct" name="Inflation" stroke="#E8940C" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line yAxisId="right2" type="monotone" dataKey="current_account_mn" name="Compte courant (Mn)" stroke="#8E44AD" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

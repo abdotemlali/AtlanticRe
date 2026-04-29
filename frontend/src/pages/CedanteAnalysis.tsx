@@ -490,7 +490,8 @@ export default function CedanteAnalysis() {
           <button
             onClick={() => {
               setFilters((f: any) => ({ ...f, cedante: [selectedCedante] }))
-              navigate('/', { state: { tab: 'contrats' } })
+              sessionStorage.setItem('dashboard_tab', 'contrats')
+              navigate('/dashboard')
             }}
             className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap"
             style={{ background: 'var(--color-navy-muted, hsla(209,28%,24%,0.08))', color: 'var(--color-navy)', border: '1px solid var(--color-gray-200)' }}

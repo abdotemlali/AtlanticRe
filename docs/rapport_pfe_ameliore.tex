@@ -1,0 +1,2775 @@
+﻿% ============================================================
+%  RAPPORT DE PFE — ATLANTIC RE / EMI
+%  Temlali Abderrahmane & Smaiki Anas — 2025-2026
+%  Compilable Overleaf : pdflatex
+%  Bibliographie : natbib + thebibliography intégrée
+% ============================================================
+
+\documentclass[12pt,a4paper]{report}
+
+% ── Encodage & langue ────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+
+% ── Typographie ──────────────────────────────────────────────
+\usepackage{lmodern}
+
+% ── Mise en page ─────────────────────────────────────────────
+\usepackage[top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm]{geometry}
+
+% ── En-têtes / pieds de page ─────────────────────────────────
+\usepackage{fancyhdr}
+
+% ── Couleurs ─────────────────────────────────────────────────
+\usepackage[table]{xcolor}
+
+% ── Tableaux ─────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{array}
+
+% ── Figures & flottants ──────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+% ── Listes ───────────────────────────────────────────────────
+\usepackage{enumitem}
+
+% ── Maths ────────────────────────────────────────────────────
+\usepackage{amsmath}
+
+% ── Hyperliens ───────────────────────────────────────────────
+\usepackage[hidelinks]{hyperref}
+
+% ── Bibliographie natbib ─────────────────────────────────────
+\usepackage[authoryear,round]{natbib}
+
+% ── TikZ pour les diagrammes UML ─────────────────────────────
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes, arrows.meta, fit, calc, decorations.markings}
+\usepackage[underline=false]{pgf-umlsd}
+
+% ── Couleurs de planning ─────────────────────────────────────
+\definecolor{phase1}{RGB}{220,230,242}
+\definecolor{phase2}{RGB}{226,239,218}
+\definecolor{phase3}{RGB}{255,242,204}
+\definecolor{phase4}{RGB}{242,220,219}
+\definecolor{phase5}{RGB}{230,220,245}
+\definecolor{phase6}{RGB}{220,240,240}
+\definecolor{phase7}{RGB}{255,228,196}
+\definecolor{phase8}{RGB}{228,228,228}
+
+% ── Couleurs UML ─────────────────────────────────────────────
+\definecolor{umlactor}{RGB}{44,62,80}
+\definecolor{umluc}{RGB}{230,240,255}
+\definecolor{umlucborder}{RGB}{52,73,94}
+\definecolor{umlclass}{RGB}{255,253,230}
+\definecolor{umlclassborder}{RGB}{41,128,185}
+\definecolor{umlclasshead}{RGB}{41,128,185}
+\definecolor{umlseq}{RGB}{236,240,241}
+
+% ── Style fancyhdr ───────────────────────────────────────────
+\setlength{\headheight}{13.6pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small Atlantic Re --- Rapport de PFE}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Redéfinition sobre des chapitres ─────────────────────────
+\makeatletter
+\def\@makechapterhead#1{%
+  \vspace*{-10pt}%
+  {\parindent\z@ \raggedright
+    \normalfont\Large\bfseries \thechapter\quad #1
+    \par\nobreak
+    \vskip 4pt
+    \hrule height 0.8pt
+  }%
+  \vspace{16pt}%
+  \markboth{\MakeUppercase{#1}}{}%
+}
+\def\@makeschapterhead#1{%
+  \vspace*{-10pt}%
+  {\parindent\z@ \raggedright
+    \normalfont\Large\bfseries #1
+    \par\nobreak
+    \vskip 4pt
+    \hrule height 0.8pt
+  }%
+  \vspace{16pt}%
+  \markboth{\MakeUppercase{#1}}{}%
+}
+\makeatother
+
+% ============================================================
+\begin{document}
+% ============================================================
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% ============================================================
+%  PAGE DE GARDE
+% ============================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+
+\begin{minipage}[c]{0.35\textwidth}
+  \centering
+  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{EMI}}\\[0.3cm]
+  {\small École Mohammadia d'Ingénieurs}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.35\textwidth}
+  \centering
+  \framebox[4.5cm]{\rule{0pt}{2cm}\textbf{Atlantic Re}}\\[0.3cm]
+  {\small Atlantic Re -- Filiale de CDG}
+\end{minipage}
+
+\vspace{1.2cm}
+{\large \textbf{UNIVERSITÉ MOHAMMED V}}\\[0.1cm]
+{\large \textbf{ÉCOLE MOHAMMADIA D'INGÉNIEURS}}
+
+\vspace{0.5cm}
+\hrulefill
+\vspace{0.3cm}
+
+{\normalsize \textbf{Département : Génie Informatique}}\\[0.1cm]
+{\normalsize \textbf{Section : IDSI -- Ingénierie Digitale et Systèmes Intelligents}}
+\vspace{1.2cm}
+
+{\normalsize Rapport de Projet de Fin d'Études}\\[0.1cm]
+{\normalsize \textbf{N\textsuperscript{o} GI-2026-XY}}
+\vspace{0.6cm}
+
+\setlength{\fboxsep}{12pt}
+\fbox{%
+  \begin{minipage}{0.82\textwidth}
+    \begin{center}
+      \large \textbf{Modélisation stratégique et digitalisation de l'expansion africaine}\\[0.2cm]
+      \large \textbf{d'un réassureur international à horizon 2030}
+    \end{center}
+  \end{minipage}%
+}
+
+\vfill
+
+\begin{minipage}[t]{0.45\textwidth}
+  \centering
+  \textbf{Réalisé par :}\\[0.4cm]
+  TEMLALI Abderrahmane\\
+  SMAIKI Anas
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+  \centering
+  \textbf{Dirigé par :}\\[0.4cm]
+  Pr. Asmae RETBI (EMI)\\
+  M. Amine RYANE (Atlantic Re)
+\end{minipage}
+
+\vspace{1.5cm}
+{\normalsize Année universitaire 2025--2026}
+\end{center}
+\end{titlepage}
+
+% ============================================================
+%  REMERCIEMENTS
+% ============================================================
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+
+Nous adressons nos sincères remerciements à \textbf{M. Amine Ryane}, encadrant
+entreprise au sein d'Atlantic Re, pour sa disponibilité, ses orientations stratégiques
+et la confiance accordée tout au long de ce projet. Son accompagnement dans la
+définition du périmètre, sa maîtrise des enjeux métier et sa capacité à nous guider
+dans les arbitrages techniques et fonctionnels ont été déterminants dans la richesse
+des livrables produits.
+
+Nous remercions chaleureusement \textbf{Pr. Asmae Retbi}, encadrante académique à
+l'EMI, pour son suivi rigoureux, ses conseils méthodologiques et son soutien lors des
+phases critiques du projet.
+
+Nos remerciements vont également à \textbf{l'équipe du Pôle Business Développement
+d'Atlantic Re} pour son accueil et les échanges qui ont nourri notre compréhension
+du métier de réassureur, ainsi qu'à l'ensemble des \textbf{professeurs du Département
+Génie Informatique de l'EMI} pour la formation dispensée durant notre cursus.
+
+Enfin, nous exprimons toute notre gratitude à nos \textbf{familles} pour leur
+soutien indéfectible.
+
+\clearpage
+
+% ============================================================
+%  RÉSUMÉ — FRANÇAIS
+% ============================================================
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+Ce projet de fin d'études a été réalisé au sein du Pôle Business Développement
+d'Atlantic Re, réassureur international filiale du Groupe CDG, dans le cadre du
+plan stratégique Reach2030 visant l'expansion ciblée sur le continent africain.
+
+Le projet s'articule autour de \textbf{trois axes complémentaires et indissociables}.
+Le \textbf{premier axe} porte sur la conception d'un pipeline ETL automatisé
+permettant de centraliser, sur une seule plateforme, l'ensemble des données
+externes nécessaires à l'analyse des marchés africains à partir de sources
+hétérogènes (Axco, Banque Mondiale, FMI, FANAF, publications spécialisées).
+Le \textbf{deuxième axe} concerne le développement d'une plateforme de réassurance
+offrant aux équipes un portail structuré de consultation et d'exploitation des
+données internes du portefeuille, enrichi par le croisement avec les données
+externes produites par le pipeline. Le \textbf{troisième axe} est consacré à la
+construction d'un modèle de Machine Learning multicritère pour le scoring, les
+projections et les recommandations d'entrée en marché.
+
+\textbf{Mots-clés :} réassurance, Afrique, pipeline ETL, data science, machine learning,
+scoring multicritère, gouvernance des données, plateforme web, expansion stratégique.
+
+
+\clearpage
+
+% ============================================================
+%  ABSTRACT — ANGLAIS
+% ============================================================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This final-year project was carried out within the Business Development Division of
+Atlantic Re, an international reinsurer and subsidiary of the CDG Group, as part of
+the Reach2030 strategic plan targeting expansion across the African continent.
+
+The project is built around \textbf{three complementary and inseparable pillars}.
+The \textbf{first pillar} focuses on designing an automated ETL pipeline that
+consolidates, on a single platform, all external data required for African market
+analysis from heterogeneous sources (Axco, World Bank, IMF, FANAF, specialised
+publications). The \textbf{second pillar} involves developing a reinsurance platform
+providing teams with a structured portal for consulting and leveraging internal
+portfolio data, enriched through cross-referencing with external data produced by
+the pipeline. The \textbf{third pillar} is dedicated to building a multi-criteria
+Machine Learning model for scoring, projections and market entry recommendations.
+
+\textbf{Keywords:} reinsurance, Africa, ETL pipeline, data science, machine learning,
+multi-criteria scoring, data governance, web platform, strategic expansion.
+scoring, data governance, web platform, strategic expansion.
+
+\clearpage
+
+% ============================================================
+%  TABLES
+% ============================================================
+\tableofcontents\clearpage
+\listoffigures
+\addcontentsline{toc}{chapter}{Liste des figures}
+\clearpage
+\listoftables
+\addcontentsline{toc}{chapter}{Liste des tableaux}
+\clearpage
+
+% ============================================================
+%  LISTE DES ABRÉVIATIONS
+% ============================================================
+\chapter*{Liste des abréviations}
+\addcontentsline{toc}{chapter}{Liste des abréviations}
+
+\begin{center}
+\begin{tabular}{@{}p{3cm}p{11.5cm}@{}}
+\toprule
+\textbf{Abréviation} & \textbf{Signification} \\
+\midrule
+ACAPS   & Autorité de Contrôle des Assurances et de la Prévoyance Sociale (Maroc) \\
+API     & Application Programming Interface \\
+AXCO    & AXCO Insurance Intelligence (base de données sectorielle) \\
+CDG     & Caisse de Dépôt et de Gestion \\
+CEDEAO  & Communauté Économique des États de l'Afrique de l'Ouest \\
+CIMA    & Conférence Interafricaine des Marchés d'Assurances \\
+CORS    & Cross-Origin Resource Sharing \\
+CRUD    & Create, Read, Update, Delete \\
+EAC     & East African Community \\
+EMI     & École Mohammadia d'Ingénieurs \\
+FANAF   & Fédération des Sociétés d'Assurances de Droit National Africaines \\
+FDI     & Foreign Direct Investment (Investissement Direct Étranger) \\
+FMI     & Fonds Monétaire International \\
+FX      & Foreign Exchange (risque de change) \\
+GBM     & Gradient Boosting Machine \\
+IDSI    & Ingénierie Digitale et Systèmes Intelligents \\
+IPEC    & Insurance and Pensions Commission (Zimbabwe) \\
+JWT     & JSON Web Token \\
+KPI     & Key Performance Indicator \\
+LOCO    & Leave-One-Country-Out \\
+ML      & Machine Learning \\
+MVP     & Minimum Viable Product \\
+NAICOM  & National Insurance Commission (Nigeria) \\
+NIC     & National Insurance Commission (Ghana) \\
+ORM     & Object-Relational Mapping \\
+PFE     & Projet de Fin d'Études \\
+PPP     & Parité de Pouvoir d'Achat \\
+RBAC    & Role-Based Access Control \\
+REST    & Representational State Transfer \\
+RF      & Random Forest \\
+SADC    & Southern African Development Community \\
+SCAR    & Scoring par Corrélation Ajustée et Robustesse (appellation initiale du modèle, reformulé en modèle de Machine Learning multicritère) \\
+SCR     & Société Centrale de Réassurance (ancienne dénomination d'Atlantic Re) \\
+S/P     & Sinistres sur Primes (ratio de sinistralité) \\
+ULR     & Ultimate Loss Ratio (ratio sinistres à terme) \\
+UI/UX   & User Interface / User Experience \\
+UML     & Unified Modeling Language \\
+WEO     & World Economic Outlook \\
+WGI     & Worldwide Governance Indicators (Banque Mondiale) \\
+ZLECAf  & Zone de Libre-Échange Continentale Africaine \\
+\bottomrule
+\end{tabular}
+\end{center}
+\clearpage
+
+% ============================================================
+%  CORPS : numérotation arabe
+% ============================================================
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% ============================================================
+%  INTRODUCTION GÉNÉRALE
+% ============================================================
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+
+Le continent africain représente aujourd'hui l'une des dernières grandes frontières
+de croissance pour le secteur de la réassurance mondiale. Avec un taux de pénétration
+de l'assurance inférieur à 3\,\% du PIB en Afrique subsaharienne --- contre plus de
+7\,\% au niveau mondial \citep{SwissRe2023} --- et des économies portées par une
+croissance démographique soutenue, des projets d'infrastructure massifs et une
+exposition croissante aux risques climatiques, l'asymétrie entre besoins de couverture
+et capacité assurantielle déployée constitue pour un réassureur une opportunité
+commerciale et technique de premier ordre.
+
+C'est dans cette logique qu'Atlantic Re --- réassureur international, filiale du
+Groupe CDG opérant dans plus de 60 pays auprès de plus de 400 clients --- a engagé,
+dans le cadre de son plan stratégique \textbf{Reach2030}, une stratégie d'expansion
+ciblée sur le continent africain. Avec un chiffre d'affaires atteignant
+\textbf{4~039 MDH} et un résultat net de \textbf{419 MDH} au titre de l'exercice
+2025, un ratio combiné de \textbf{92,3\,\%} et un ratio de solvabilité S2 de
+\textbf{215\,\%}, Atlantic Re dispose des bases financières et techniques pour
+accélérer cette expansion. L'enjeu est désormais concret : identifier, parmi les
+marchés africains Vie et Non-Vie aux profils très hétérogènes, ceux qui offrent la
+meilleure combinaison de potentiel de primes, de rentabilité technique, de stabilité
+réglementaire et de dynamisme économique.
+
+Ce projet de fin d'études s'inscrit dans cette commande stratégique et s'articule
+autour de \textbf{trois axes complémentaires}. Le premier axe porte sur la
+\textbf{centralisation des données externes} : la construction d'un pipeline ETL
+automatisé et reproductible permettant de rassembler, sur une seule plateforme,
+l'ensemble des données nécessaires à l'analyse des marchés africains --- une valeur
+ajoutée majeure pour un département qui fonctionnait jusqu'alors par collectes
+manuelles dispersées. Le deuxième axe concerne la \textbf{plateforme de réassurance} :
+un portail digital offrant aux équipes la consultation structurée des données internes
+du portefeuille et leur croisement avec les données externes issues du pipeline. Le
+troisième axe est dédié à la \textbf{modélisation prédictive par Machine Learning} :
+un modèle multicritère produisant un classement opérationnel des marchés africains
+assorti de recommandations stratégiques.
+
+Le rapport s'organise en quatre chapitres. Le \textbf{Chapitre~1} présente Atlantic
+Re, son contexte stratégique africain et les trois axes du projet. Le
+\textbf{Chapitre~2} expose les fondements métier de la réassurance et l'analyse des
+besoins structurée selon les trois axes. Le \textbf{Chapitre~3} formalise la
+conception complète de l'application, justifie les choix technologiques et détaille
+le pipeline de données externes ainsi que le modèle de Machine Learning multicritère.
+Le \textbf{Chapitre~4} détaille les réalisations, les résultats obtenus et leur
+validation.
+
+\clearpage
+
+% ============================================================
+%  CHAPITRE 1 : CONTEXTE GÉNÉRAL DU PROJET
+% ============================================================
+\chapter{Contexte général du projet}
+\label{chap:contexte}
+
+\section{Atlantic Re : un réassureur international à ancrage marocain}
+
+\subsection{Le Groupe CDG, actionnaire de référence}
+
+La Caisse de Dépôt et de Gestion (CDG) est l'institution financière publique de
+référence au Maroc, fondée en 1959. Institution de long terme, elle joue un rôle
+structurant dans le financement des grandes infrastructures nationales et porte un
+portefeuille de filiales couvrant la finance, l'assurance et l'investissement. Elle
+détient plus de 94\,\% du capital d'Atlantic Re, dont elle constitue l'actionnaire
+stratégique et le socle de crédibilité institutionnelle.
+
+\subsection{Profil et périmètre mondial d'Atlantic Re}
+
+Atlantic Re trouve ses racines dans la \textbf{Société Centrale de Réassurance
+(SCR)}, première compagnie de réassurance du Maroc, créée en \textbf{1960}. Pendant
+plus de six décennies, la SCR a occupé une position prépondérante sur le marché
+marocain avant d'étendre ses activités à l'international. En \textbf{2024}, le
+rebranding en \textbf{Atlantic Re} traduit l'envergure désormais multinationale de
+la structure, dont les opérations couvrent l'Afrique, le Moyen-Orient et l'Asie.
+Elle souscrit des risques en branches Vie et Non-Vie, couvrant des lignes d'affaires
+aussi diverses que l'incendie, le transport, l'automobile, la responsabilité civile,
+les risques techniques, le décès et la prévoyance.
+
+Au terme de l'exercice 2025, Atlantic Re enregistre une progression soutenue de son
+activité, confirmant la dynamique engagée dans le cadre de son plan stratégique
+\textbf{Reach2030}. Le tableau~\ref{tab:kpi_atlanticre} synthétise les indicateurs
+clés de performance publiés.
+
+\begin{table}[H]
+\centering
+\caption{Indicateurs clés de performance d'Atlantic Re --- Exercice 2025}
+\label{tab:kpi_atlanticre}
+\small
+\begin{tabularx}{\textwidth}{@{}p{5cm}p{3cm}X@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Valeur 2025} & \textbf{Commentaire} \\
+\midrule
+Chiffre d'affaires            & \textbf{4~039 MDH}  & En dépassement des projections annuelles \\
+Résultat net                  & \textbf{419 MDH}    & Impact positif du plan Reach2030 \\
+Ratio combiné                 & \textbf{92,3\,\%}   & Sinistralité favorable ; renforcement de la prudence \\
+Ratio de solvabilité S2       & \textbf{215\,\%}    & En hausse de 9 points vs exercice précédent \\
+ROE (Return On Equity)        & \textbf{13,4\,\%}   & Rendement annualisé des capitaux propres \\
+Présence géographique         & \textbf{+60 pays}   & Couverture multinationale \\
+Portefeuille clients          & \textbf{+400 clients} & Confiance renouvelée des partenaires \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Ces performances s'inscrivent dans la continuité de la dynamique de développement
+engagée par Atlantic Re, portée par le renforcement de sa présence sur les marchés
+internationaux, la consolidation de sa politique de souscription et la valorisation
+de ses placements financiers. Le ratio de solvabilité S2 à 215\,\% --- en hausse de
+9 points --- témoigne du renforcement des fonds propres économiques et d'une maîtrise
+accrue des capitaux sous risques, deux prérequis essentiels à toute stratégie
+d'expansion internationale.
+
+
+
+\subsection{Le Pôle Business Développement : cadre d'accueil du stage}
+
+Le stage se déroule au sein du \textbf{Pôle Business Développement} de la Direction
+Technique et Développement d'Atlantic Re, sur une durée de \textbf{quatre mois}
+(février--juin 2026). Ce pôle est en charge de l'identification et de l'analyse des
+opportunités de développement commercial sur les marchés existants et potentiels. Il
+produit les études de marché qui alimentent les décisions de souscription de la
+direction générale. C'est dans ce cadre que s'inscrit la commande initiale du stage :
+fournir un modèle quantitatif de priorisation des marchés africains à l'horizon 2030.
+
+\section{Contexte stratégique et objectif du PFE}
+
+\subsection{Le marché africain : une opportunité structurelle}
+
+Le marché africain de l'assurance Vie et Non-Vie est en transformation profonde. La
+croissance démographique, l'urbanisation accélérée, les grands projets d'infrastructure
+et la montée en puissance des risques climatiques créent une demande structurelle
+de couverture assurantielle que les capacités locales peinent à satisfaire seules.
+Cette situation génère un besoin de réassurance que des acteurs comme Atlantic Re
+sont en position de capter, à condition de disposer d'une information fiable et
+d'un outil de priorisation stratégique des marchés .
+
+C'est précisément dans ce cadre que s'inscrit le plan stratégique \textbf{Reach2030}
+d'Atlantic Re, qui fixe l'expansion africaine comme axe de croissance prioritaire à
+l'horizon 2030. Avec un ratio de solvabilité S2 établi à 215\,\% et un ROE de
+13,4\,\% pour l'exercice 2025, Atlantic Re dispose d'une assise financière solide
+pour financer cette expansion, tout en maintenant une discipline technique illustrée
+par un ratio combiné de 92,3\,\%. La couverture actuelle de plus de 60 pays et un
+portefeuille dépassant 400 clients témoignent de la capacité opérationnelle du
+réassureur à opérer dans des environnements réglementaires et économiques variés.
+
+\subsection{La problématique et les trois axes du projet}
+
+Atlantic Re opère sur plusieurs marchés africains mais sans modèle formalisé
+permettant de comparer objectivement leurs profils d'attractivité, de rentabilité
+et de risque. Par ailleurs, les données nécessaires à cette analyse sont dispersées
+entre des sources externes hétérogènes (Axco, Banque Mondiale, FMI, FANAF) et des
+bases internes non outillées pour la consultation analytique. La problématique
+s'articule donc autour d'un triple défi~:
+
+\begin{enumerate}[leftmargin=1.5cm, itemsep=4pt]
+  \item \textbf{Centraliser les données externes} --- rassembler, harmoniser et maintenir un référentiel unifié des marchés africains à partir de sources hétérogènes, aujourd'hui exploitées de manière ponctuelle et non reproductible.
+  \item \textbf{Outiller l'exploitation des données internes} --- fournir aux équipes du Pôle Business Développement un portail structuré de consultation, de filtrage multicritère et de croisement des données internes avec les données externes.
+  \item \textbf{Produire un classement opérationnel} --- construire un modèle de Machine Learning multicritère qui classe les marchés africains par attractivité et génère des recommandations stratégiques exploitables dans le cadre du plan Reach2030.
+\end{enumerate}
+
+Ces trois défis définissent les \textbf{trois axes du projet}, conçus comme complémentaires et indissociables : l'Axe~1 (pipeline ETL) alimente l'Axe~2 (plateforme de réassurance) en données externes, tandis que l'Axe~3 (modélisation prédictive) exploite les deux premiers pour produire le livrable stratégique final.
+
+% ============================================================
+%  SECTION 1.3 — OBJECTIFS
+% ============================================================
+\section{Objectifs du projet}
+
+Le projet poursuit les objectifs opérationnels suivants, structurés selon les trois axes :
+
+\paragraph{Axe 1 --- Pipeline ETL de données externes.}
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+  \item \textbf{Concevoir et développer un pipeline automatisé de récupération de données externes} couvrant les marchés africains, en intégrant plusieurs sources hétérogènes (bases de données institutionnelles, interfaces programmatiques, rapports sectoriels) et en garantissant la reproductibilité, la traçabilité et la fraîcheur du référentiel de données produit.
+  \item \textbf{Mettre en œuvre une stratégie de traitement des valeurs manquantes} par imputation hiérarchique (interpolation temporelle, inférence régionale, apprentissage supervisé), avec annotation systématique de la fiabilité de chaque valeur.
+\end{itemize}
+
+\paragraph{Axe 2 --- Plateforme de réassurance.}
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+  \item \textbf{Auditer et assainir la base de données interne d'Atlantic Re} afin d'établir un diagnostic complet de la qualité du portefeuille et de produire un référentiel de données normalisé.
+  \item \textbf{Concevoir et développer un écosystème digital de gouvernance de la donnée} offrant aux équipes un portail structuré de consultation, de filtrage multicritère et d'export des indicateurs clés de performance du portefeuille.
+  \item \textbf{Développer des tableaux de bord cartographiques interactifs} permettant de visualiser et comparer l'attractivité des marchés selon quatre dimensions (Non-Vie, Vie, Macroéconomie, Gouvernance).
+  \item \textbf{Mettre en place un croisement entre les données internes et externes} pour évaluer l'exposition relative d'Atlantic Re sur chaque marché africain.
+\end{itemize}
+
+\paragraph{Axe 3 --- Prédiction et modélisation ML.}
+\begin{itemize}[leftmargin=1.5cm, itemsep=6pt]
+  \item \textbf{Construire et calibrer un modèle de Machine Learning multicritère} pour produire un classement opérationnel des marchés africains, assorti de recommandations stratégiques directement exploitables par la direction dans le cadre du plan Reach2030 .
+\end{itemize}
+
+
+
+
+
+% ============================================================
+%  SECTION 1.4 — MÉTHODES DE TRAVAIL
+% ============================================================
+\section{Méthodes de travail}
+
+\subsection{Approche Agile adaptée}
+
+Le projet a été conduit selon une approche \textbf{Agile adaptée}, inspirée du cadre Scrum mais ajustée au contexte d'un PFE de quatre mois réalisé par un binôme. Cette méthodologie repose sur un découpage du travail en \textbf{sprints de deux à quatre semaines}, chacun produisant un livrable partiel démontrable et validable par l'encadrant entreprise. L'adoption de cette démarche itérative et incrémentale se justifie par trois facteurs principaux : la nature exploratoire du projet --- dont le périmètre a évolué au terme de la phase d'immersion ---, la nécessité de livrables intermédiaires pour maintenir la confiance du commanditaire, et la complémentarité des deux axes du projet qui nécessitent un parallélisme de tâches maîtrisé entre les deux membres du binôme.
+
+\subsection{Rituels et outils de gestion}
+
+Les rituels suivants ont structuré le suivi du projet :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=4pt]
+  \item \textbf{Point hebdomadaire avec l'encadrant entreprise} : revue des livrables de la semaine, validation des orientations, arbitrage des priorités et synchronisation avec les contraintes métier du Pôle Business Développement.
+  \item \textbf{Point hebdomadaire avec l'encadrante académique} : revue des avancements méthodologiques, validation de la rigueur scientifique des choix réalisés et ajustement du plan de rédaction du rapport.
+  
+  \item \textbf{Contrôle de version du code source} : l'ensemble des productions numériques du projet est versionné sur un dépôt privé avec des historiques traçables et des revues de code croisées entre les deux membres.
+  \item \textbf{Tableau de suivi des activités} : les livrables et les tâches associées sont suivis via un tableau de bord Kanban maintenu tout au long du projet, permettant de visualiser l'avancement en temps réel.
+\end{itemize}
+
+\subsection{Cycle de développement}
+
+Chaque sprint suit un cycle en quatre temps : (1)~\textbf{planification} --- définition des objectifs du sprint et des critères d'acceptation ; (2)~\textbf{réalisation} --- développement itératif des composants avec intégration régulière des productions des deux membres ; (3)~\textbf{revue} --- démonstration des livrables au commanditaire et recueil du retour métier ; (4)~\textbf{rétrospective} --- identification des ajustements de processus pour le sprint suivant. Ce cycle garantit que les livrables évoluent en fonction du retour terrain et que les risques sont détectés au plus tôt.
+
+\clearpage
+% ============================================================
+%  SECTION 1.5 — PLANNING DU PROJET
+% ============================================================
+\section{Planning du projet}
+
+Les tableaux~\ref{tab:planning} et~\ref{tab:planning_suite} présentent le planning détaillé du projet, organisé en huit sprints couvrant la totalité de la durée du stage (février à juin 2026). Ce planning reflète la trajectoire réelle du projet, incluant l'élargissement du périmètre intervenu au terme du Sprint~0 et la décomposition fine des activités en livrables intermédiaires validables.
+
+\begin{table}[H]
+\centering
+\caption{Planning détaillé du projet par sprints (1/2)}
+\label{tab:planning}
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{@{}p{1.7cm}p{2.9cm}X@{}}
+\toprule
+\textbf{Sprint} & \textbf{Période} & \textbf{Activités et livrables} \\
+\midrule
+
+\rowcolor{phase1}
+\textbf{Sprint 0} \newline \textit{Immersion \& Cadrage}
+& 03 fév. -- 21 fév. \newline (3 semaines)
+& \textbullet\ Découverte du métier de réassureur et du Pôle Business Développement \newline
+  \textbullet\ Étude du plan stratégique Reach2030 et des enjeux de l'expansion africaine \newline
+  \textbullet\ Audit de la base de données interne : diagnostic qualité et identification des problèmes structurels \newline
+  \textbullet\ Audit des sources de données et définition de la stratégie ETL \newline
+  \textbf{Livrable :} rapport d'audit interne + note de cadrage validée \\
+
+\midrule
+\rowcolor{phase2}
+\textbf{Sprint 1} \newline \textit{Analyse des besoins \& Conception}
+& 24 fév. -- 07 mars \newline (2 semaines)
+& \textbullet\ Formalisation des besoins explicites et cachés selon la méthode MoSCoW \newline
+  \textbullet\ Cartographie des acteurs et des flux de données internes \newline
+  \textbullet\ Conception de l'architecture logique du système et du modèle de données \newline
+  \textbullet\ Élaboration des diagrammes UML (cas d'utilisation, classes, séquence) \newline
+  \textbf{Livrable :} cahier des charges validé par les parties prenantes \\
+
+\midrule
+\rowcolor{phase3}
+\textbf{Sprint 2} \newline \textit{Architecture \& Infrastructure}
+& 10 mars -- 21 mars \newline (2 semaines)
+& \textbullet\ Définition de l'architecture technique et des composants du système \newline
+  \textbullet\ Mise en place de l'environnement de développement et du contrôle de version \newline
+  \textbullet\ Conception du modèle de sécurité et de gestion des accès par profils \newline
+  \textbullet\ Développement du service de chargement et de normalisation des données internes \newline
+  \textbf{Livrable :} infrastructure opérationnelle et premier écran fonctionnel \\
+
+\midrule
+\rowcolor{phase4}
+\textbf{Sprint 3} \newline \textit{Portail --- Tableau de bord \& Filtrage}
+& 24 mars -- 11 avr. \newline (3 semaines)
+& \textbullet\ Développement du tableau de bord principal avec indicateurs clés du portefeuille \newline
+  \textbullet\ Mise en place du système de filtrage multicritère (pays, branche, exercice, cédante\ldots) \newline
+  \textbullet\ Développement des visualisations interactives associées aux filtres \newline
+  \textbullet\ Gestion des utilisateurs, des rôles et journal d'activité \newline
+  \textbullet\ Export des données filtrées aux formats standards \newline
+  \textbf{Livrable :} tableau de bord interactif opérationnel et validé \\
+
+\midrule
+\rowcolor{phase5}
+\textbf{Sprint 4} \newline \textit{Portail --- Modules métier avancés}
+& 14 avr. -- 02 mai \newline (3 semaines)
+& \textbullet\ Module d'analyse par cédante avec réconciliation intelligente des dénominations \newline
+  \textbullet\ Module d'analyse par courtier avec indicateurs de performance \newline
+  \textbullet\ Module de comparaison directe entre marchés \newline
+  \textbullet\ Module de pilotage des parts cibles et de saturation des affaires facultatives \newline
+  \textbullet\ Module de rétrocession avec analyse des partenaires \newline
+  \textbf{Livrable :} portail de gouvernance complet (MVP Axe 1) \\
+
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Planning détaillé du projet par sprints (2/2)}
+\label{tab:planning_suite}
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{@{}p{1.7cm}p{2.9cm}X@{}}
+\toprule
+\textbf{Sprint} & \textbf{Période} & \textbf{Activités et livrables} \\
+\midrule
+
+\rowcolor{phase6}
+\textbf{Sprint 5} \newline \textit{Données externes \& Cartographies}
+& 05 mai -- 30 mai \newline (4 semaines)
+& \textbullet\ Conception et développement du pipeline de récupération de données externes multi-sources \newline
+  \textbullet\ Intégration des sources : fichiers institutionnels, API publiques, rapports sectoriels \newline
+  \textbullet\ Harmonisation des nomenclatures et traitement des valeurs manquantes \newline
+  \textbullet\ Développement des quatre modules cartographiques thématiques (Non-Vie, Vie, Macro, Gouvernance) \newline
+  \textbullet\ Module d'analyse par pays et module de comparaison côte-à-côte \newline
+  \textbullet\ Croisement des données internes et externes par marché \newline
+  \textbf{Livrable :} pipeline de données opérationnel et visualisations cartographiques validées \\
+
+\midrule
+\rowcolor{phase7}
+\textbf{Sprint 6} \newline \textit{Modélisation prédictive}
+& 02 juin -- 13 juin \newline (2 semaines)
+& \textbullet\ Construction et calibration du modèle de Machine Learning multicritère \newline
+  \textbullet\ Validation statistique des résultats (procédure Leave-One-Country-Out) \newline
+  \textbullet\ Production du classement opérationnel des marchés africains \newline
+  \textbullet\ Génération des recommandations stratégiques par marché \newline
+  \textit{Note : cette phase est en cours de réalisation au moment de la rédaction du rapport} \newline
+  \textbf{Livrable :} classement ML et note de recommandations stratégiques \\
+
+\midrule
+\rowcolor{phase8}
+\textbf{Sprint 7} \newline \textit{Intégration \& Clôture}
+& 16 juin -- 27 juin \newline (2 semaines)
+& \textbullet\ Tests d'intégration et corrections sur l'ensemble du système \newline
+  \textbullet\ Validation métier des résultats avec l'encadrant entreprise \newline
+  \textbullet\ Finalisation de la documentation et du rapport de PFE \newline
+  \textbullet\ Préparation et répétition de la soutenance \newline
+  \textbf{Livrable :} rapport final, application livrée et présentation soutenance \\
+
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La figure~\ref{fig:gantt} présente le diagramme de Gantt du projet.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de Gantt --- Planning du projet (Février -- Juin 2026)}
+\label{fig:gantt}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[x=0.6cm, y=0.8cm]
+
+  % ── Unités : 1 unité x = 1 semaine ; 20 semaines au total
+  % ── Colonne libellés : x = -12 à 0  |  Timeline : x = 0 à 20
+  % ── Mois : Fév(0-4) Mars(4-8) Avr(8-12) Mai(12-16) Juin(16-20)
+
+  % ─── Fonds alternés par mois ────────────────────────────────
+  \fill[gray!10] (0,0) rectangle (4,9);
+  \fill[white]   (4,0) rectangle (8,9);
+  \fill[gray!10] (8,0) rectangle (12,9);
+  \fill[white]   (12,0) rectangle (16,9);
+  \fill[gray!10] (16,0) rectangle (20,9);
+
+  % ─── En-tête ────────────────────────────────────────────────
+  \fill[gray!65] (-12,8) rectangle (20,9);
+  \node[font=\small\bfseries, text=white, anchor=west] at (-11.8,8.5)
+    {Phase / Sprint};
+  \foreach \x/\lbl in {0/Février, 4/Mars, 8/Avril, 12/Mai, 16/Juin} {
+    \node[font=\small\bfseries, text=white] at (\x+2,8.5) {\lbl};
+  }
+
+  % ─── Séparateurs verticaux mois (en-tête) ───────────────────
+  \foreach \x in {0,4,8,12,16} {
+    \draw[gray!40] (\x,8) -- (\x,9);
+  }
+
+  % ─── Grille horizontale (lignes de rangées) ─────────────────
+  \foreach \y in {0,1,...,8} {
+    \draw[gray!35, thin] (-12,\y) -- (20,\y);
+  }
+
+  % ─── Grille verticale semaines (très fine) ──────────────────
+  \foreach \w in {1,2,3,5,6,7,9,10,11,13,14,15,17,18,19} {
+    \draw[gray!18, very thin] (\w,0) -- (\w,8);
+  }
+  \foreach \x in {0,4,8,12,16,20} {
+    \draw[gray!45] (\x,0) -- (\x,8);
+  }
+
+  % ─── Séparateur colonne libellés / timeline ─────────────────
+  \draw[gray!55, semithick] (0,0) -- (0,9);
+
+  % ─── Bordure extérieure ─────────────────────────────────────
+  \draw[gray!55, semithick] (-12,0) rectangle (20,9);
+
+  % ─── Libellés des sprints (colonne gauche, clipped) ─────────
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,7.5)
+    {S0 --- Immersion \& Cadrage};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,6.5)
+    {S1 --- Analyse \& Conception};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,5.5)
+    {S2 --- Architecture \& Infrastructure};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,4.5)
+    {S3 --- Portail : Tableau de bord};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,3.5)
+    {S4 --- Portail : Modules métier};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,2.5)
+    {S5 --- Données ext. \& Cartographies};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,1.5)
+    {S6 --- Modélisation prédictive};
+  \node[font=\scriptsize\bfseries, anchor=west, text width=11.5cm] at (-11.8,0.5)
+    {S7 --- Intégration \& Clôture};
+
+  % ─── Barres de sprints ──────────────────────────────────────
+  % S0 : sem. 0–3
+  \fill[phase1, draw=phase1!55!black, rounded corners=2pt]
+    (0.04,7.12) rectangle (3,7.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (1.5,7.5) {3 sem.};
+
+  % S1 : sem. 3–5
+  \fill[phase2, draw=phase2!55!black, rounded corners=2pt]
+    (3,6.12) rectangle (5,6.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (4,6.5) {2 sem.};
+
+  % S2 : sem. 5–7
+  \fill[phase3, draw=phase3!55!black, rounded corners=2pt]
+    (5,5.12) rectangle (7,5.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (6,5.5) {2 sem.};
+
+  % S3 : sem. 7–10
+  \fill[phase4, draw=phase4!55!black, rounded corners=2pt]
+    (7,4.12) rectangle (10,4.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (8.5,4.5) {3 sem.};
+
+  % S4 : sem. 10–13
+  \fill[phase5, draw=phase5!55!black, rounded corners=2pt]
+    (10,3.12) rectangle (13,3.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (11.5,3.5) {3 sem.};
+
+  % S5 : sem. 13–17
+  \fill[phase6, draw=phase6!55!black, rounded corners=2pt]
+    (13,2.12) rectangle (17,2.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (15,2.5) {4 sem.};
+
+  % S6 : sem. 17–19
+  \fill[phase7, draw=phase7!55!black, rounded corners=2pt]
+    (17,1.12) rectangle (19,1.88);
+  \node[font=\tiny\bfseries, text=gray!20!black] at (18,1.5) {2 sem.};
+
+  % S7 : sem. 18–20
+  \fill[phase8, draw=gray!55, rounded corners=2pt]
+    (18,0.12) rectangle (20,0.88);
+  \node[font=\tiny\bfseries, text=gray!30!black] at (19,0.5) {2 sem.};
+
+  % ─── Jalons ─────────────────────────────────────────────────
+  % ? Validation des 3 axes (fin S0 - sem. 3)
+  \node[diamond, fill=red!72, draw=red!80!black, inner sep=2.2pt] at (3,7.5) {};
+  \node[font=\tiny\bfseries, text=red!70!black, anchor=south west] at (3.15,7.6)
+    {Validation des 3 axes};
+
+  % ◆ MVP Axe 1 livré (fin S4 — sem. 13)
+  \node[diamond, fill=blue!65, draw=blue!80!black, inner sep=2.2pt] at (13,3.5) {};
+  \node[font=\tiny\bfseries, text=blue!65!black, anchor=south west] at (13.15,3.6)
+    {MVP Axe 1};
+
+  % ◆ Axe 2 complet (fin S5 — sem. 17)
+  \node[diamond, fill=green!55!black, draw=green!65!black, inner sep=2.2pt] at (17,2.5) {};
+  \node[font=\tiny\bfseries, text=green!55!black, anchor=south west] at (17.15,2.6)
+    {Axe 2 complet};
+
+  % ◆ Soutenance (fin S7 — sem. 20)
+  \node[diamond, fill=orange!80, draw=orange!75!black, inner sep=2.2pt] at (20,0.5) {};
+  \node[font=\tiny\bfseries, text=orange!70!black, anchor=south east] at (19.9,0.6)
+    {Soutenance};
+
+  % ─── Légende jalons ─────────────────────────────────────────
+  \node[font=\tiny, anchor=west] at (-11.5,-0.55) {%
+    \textbf{Jalons :}
+    \quad
+    \tikz[baseline=-0.6ex]\node[diamond,fill=red!72,draw=red!80!black,inner sep=1.4pt]{};~Validation Axes
+    \quad
+    \tikz[baseline=-0.6ex]\node[diamond,fill=blue!65,draw=blue!80!black,inner sep=1.4pt]{};~MVP Axe 1
+    \quad
+    \tikz[baseline=-0.6ex]\node[diamond,fill=green!55!black,draw=green!65!black,inner sep=1.4pt]{};~Axe 2 complet
+    \quad
+    \tikz[baseline=-0.6ex]\node[diamond,fill=orange!80,draw=orange!75!black,inner sep=1.4pt]{};~Soutenance
+  };
+
+\end{tikzpicture}%
+}
+\end{figure}
+
+\section{Bilan du chapitre}
+
+Ce premier chapitre a posé le cadre institutionnel et stratégique du projet. La
+problématique a été formulée autour d'un triple défi --- centraliser les données
+externes, outiller l'exploitation des données internes, produire un classement
+prédictif --- donnant lieu aux trois axes complémentaires du projet. Les objectifs
+opérationnels, la méthodologie de travail agile et le planning en huit sprints
+ont été présentés. Le chapitre suivant établit les fondements métier et analytiques
+nécessaires à la compréhension de ces trois axes.
+\clearpage
+
+% ============================================================
+%  CHAPITRE 2 : FONDEMENTS MÉTIER ET ANALYSE DES BESOINS
+% ============================================================
+\chapter{Fondements métier et analyse des besoins}
+\label{chap:metier}
+
+Ce chapitre remplit deux fonctions. Il pose d'abord le cadre conceptuel
+du métier de la réassurance et définit les termes techniques qui seront mobilisés
+tout au long du rapport. Il expose ensuite l'analyse des besoins conduite de manière
+itérative, structurée selon les trois axes du projet. La conception détaillée de l'application fait l'objet du chapitre suivant.
+
+\section{Cadre général de la réassurance}
+
+\subsection{Définition et fonctions économiques}
+
+La réassurance est le mécanisme par lequel une compagnie d'assurance --- la
+\textit{cédante} --- transfère à un réassureur une fraction des risques souscrits,
+en contrepartie d'une prime. Cette mécanique remplit trois fonctions essentielles
+pour la cédante : augmenter sa \textbf{capacité de souscription} au-delà de ses
+fonds propres, protéger son \textbf{compte technique} contre les sinistres sévères
+ou accumulés, et lisser ses \textbf{résultats} dans la durée \citep{Outreville2013}.
+La cédante reste vis-à-vis de l'assuré l'unique interlocuteur contractuel : le
+réassureur n'a aucune relation directe avec l'assuré final.
+
+\subsection{Le périmètre d'analyse : Traités et Facultatives}
+
+Le système doit permettre aux souscripteurs d'Atlantic Re de piloter deux types d'affaires, qui font l'objet d'un traitement fonctionnel distinct dans l'application :
+\begin{itemize}[leftmargin=1.5cm, itemsep=2pt]
+  \item \textbf{Les traités (TTY) :} Ce sont des accords globaux annuels. L'objectif du système pour ces affaires est de fournir une aide à la décision lors des renouvellements, en calculant une \textit{part cible} optimale à souscrire, basée sur la rentabilité historique du traité.
+  \item \textbf{Les facultatives (FAC) :} Ce sont des affaires négociées risque par risque. L'objectif analytique ici est différent : le système doit mettre en évidence le \textit{niveau d'engagement} et la saturation des risques, afin d'éviter qu'Atlantic Re ne s'expose excessivement sur un même marché ou partenaire.
+\end{itemize}
+
+\subsection{Le référentiel des partenaires}
+
+La plateforme doit centraliser l'évaluation des deux partenaires commerciaux d'Atlantic Re : la \textbf{cédante} (qui transfère le risque) et le \textbf{courtier} (qui apporte l'affaire). 
+L'objectif métier est d'obtenir une vision à 360 degrés de la rentabilité de chaque partenaire. Sachant que dans les fichiers sources de l'entreprise, un même partenaire peut apparaître sous plusieurs identifiants ou orthographes différentes, le système doit impérativement prévoir une étape de nettoyage et de consolidation. Sans ce référentiel unifié, il est impossible pour l'équipe d'Atlantic Re d'évaluer le volume réel de primes ou la sinistralité d'un grand compte.
+
+\section{Indicateurs métiers et sources de données}
+
+Le projet s'inscrit dans un double objectif : piloter le portefeuille existant et identifier les futurs marchés africains rentables à l’horizon 2030. L'application doit donc s'appuyer sur deux flux distincts de données.
+
+\subsection{Le suivi de la performance interne}
+
+Pour la gestion quotidienne du portefeuille, les souscripteurs doivent analyser les données réelles. Le système doit agréger les données historiques pour restituer, à la maille d'une cédante, d'un pays ou d'une branche, les trois indicateurs cardinaux de la réassurance :
+\begin{itemize}[leftmargin=1.5cm, itemsep=2pt]
+  \item \textbf{La Prime Écrite :} Mesure le chiffre d'affaires. Le système doit convertir toutes les transactions dans une devise unique (Dirham Marocain - MAD) pour permettre les comparaisons.
+  \item \textbf{L'Ultimate Loss Ratio (ULR) :} Mesure structurelle de la sinistralité. Le système doit mettre en évidence les ULR dépassant le seuil critique (généralement 100\,\%), signifiant qu'une affaire est déficitaire.
+  \item \textbf{Le Résultat Net :} Définit la marge financière finale dégagée par Atlantic Re après paiement des sinistres et des commissions de courtage.
+\end{itemize}
+
+\subsection{Les sources externes pour l'expansion africaine}
+
+Pour la stratégie d'expansion vers les 34 marchés africains couverts par le pipeline (dont 33 retenus pour la modélisation prédictive, l'Afrique du Sud étant exclue du scoring en raison de son poids atypique), l'historique interne est insuffisant. Le système doit intégrer un moteur d'évaluation des marchés qui s'alimente de données externes exhaustives. L'objectif est de capter des informations reflétant non seulement le secteur de l'assurance, mais aussi la stabilité géopolitique et économique. Le tableau~\ref{tab:sources_externes} synthétise les quatre sources que l'application doit intégrer.
+
+\begin{table}[H]
+\centering
+\caption{Sources externes et leur utilité dans la prévision}
+\label{tab:sources_externes}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}X@{}}
+\toprule
+\textbf{Source} & \textbf{Finalité dans le système d'évaluation} \\
+\midrule
+\textbf{Axco Navigator} & Permet au système de mesurer si un marché de l'assurance est assez grand (Primes), s'il est mature (Densité) et s'il a encore de la marge de croissance (Taux de pénétration au PIB).\\
+\textbf{Banque Mondiale \newline (WGI, WDI)} & Permet d'intégrer le risque pays. Un marché peut être grand, mais si sa stabilité politique ou réglementaire s'effondre, le système doit le pénaliser dans son score.\\
+\textbf{FMI (WEO)} & Fournit les indicateurs macroéconomiques (Croissance PIB, Inflation). Le système s'en sert pour évaluer le dynamisme du pays à l'horizon 2030.\\
+\textbf{UNCTAD/Chinn-Ito} & Indique au système si le compte de capital du pays est ouvert (Kaopen). C'est crucial : Atlantic Re doit savoir si elle pourra rapatrier ses bénéfices en devises librement.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La méthode de prévision repose sur un système de \textit{scoring multicritère}. Le système doit collecter ces données externes, les croiser avec le portefeuille interne grâce à une clé commune (le pays), et appliquer des règles de pondération validées avec l'équipe de direction. Le résultat final attendu par les décideurs est de classer chaque marché dans l'une des recommandations stratégiques : \textit{Attractif}, \textit{Neutre} ou \textit{À Éviter}.
+
+% ============================================================
+%  SECTION 2.3 — ANALYSE DES BESOINS (très détaillée)
+% ============================================================
+\section{Analyse des besoins}
+
+\subsection{Approche méthodologique}
+
+L'analyse des besoins a été conduite selon une démarche \textbf{itérative en trois cycles}, structurée de manière à garantir que les solutions développées répondent aux attentes du commanditaire et aux réalités opérationnelles du terrain. La figure~\ref{fig:cycles_besoins} illustre cette démarche.
+
+\begin{figure}[H]
+\centering
+\caption{Démarche itérative d'analyse des besoins en trois cycles}
+\label{fig:cycles_besoins}
+\begin{tikzpicture}[
+  cycle/.style={draw, rounded corners=6pt, minimum width=4.5cm, minimum height=2.2cm, align=center, font=\small, inner sep=8pt},
+  arr/.style={-{Stealth[length=3mm]}, thick, gray!70},
+]
+  \node[cycle, fill=blue!10, draw=blue!40] (c1) at (0,0) {\textbf{Cycle 1}\\Cadrage stratégique\\\scriptsize Semaines 1--2\\\scriptsize\itshape Entretiens, Reach2030, audit};
+  \node[cycle, fill=orange!10, draw=orange!40] (c2) at (5.5,0) {\textbf{Cycle 2}\\Analyse opérationnelle\\\scriptsize Semaines 2--3\\\scriptsize\itshape Observation terrain, données};
+  \node[cycle, fill=green!10, draw=green!40] (c3) at (11,0) {\textbf{Cycle 3}\\Validation MoSCoW\\\scriptsize Semaine 3\\\scriptsize\itshape Priorisation et validation};
+  \draw[arr] (c1) -- (c2);
+  \draw[arr] (c2) -- (c3);
+  \node[font=\scriptsize\itshape, below=0.3cm of c1, blue!60!black] {Vision stratégique};
+  \node[font=\scriptsize\itshape, below=0.3cm of c2, orange!60!black] {Diagnostic opérationnel};
+  \node[font=\scriptsize\itshape, below=0.3cm of c3, green!60!black] {Liste consolidée BF+BNF};
+\end{tikzpicture}
+\end{figure}
+
+\textbf{Cycle 1 --- Cadrage stratégique (semaines 1--2).} Ce premier cycle vise à formaliser la commande stratégique et à identifier les données nécessaires. Les techniques mobilisées sont : (i)~des entretiens semi-directifs avec l'encadrant pour appréhender la vision du plan Reach2030 et les livrables attendus ; (ii)~l'étude documentaire des rapports annuels d'Atlantic~Re et des publications sectorielles (Swiss~Re Sigma, FANAF, Atlas~Magazine) ; (iii)~l'audit de la base de données interne pour évaluer la qualité et la structure du portefeuille. Ce cycle produit le diagnostic initial et la cartographie des trois axes du projet.
+
+\textbf{Cycle 2 --- Analyse opérationnelle (semaines 2--3).} Ce deuxième cycle approfondit l'analyse en confrontant les objectifs stratégiques aux réalités opérationnelles du Pôle Business Développement. L'observation du terrain révèle les pratiques existantes (extractions manuelles, nomenclatures hétérogènes, absence de filtrage structuré) et permet de spécifier les fonctionnalités nécessaires pour chacun des trois axes. Ce cycle produit la liste détaillée des besoins fonctionnels.
+
+\textbf{Cycle 3 --- Validation et consolidation (semaine 3).} Ce troisième cycle consolide l'ensemble des besoins, les priorise selon la méthode MoSCoW (\textit{Must have / Should have / Could have / Won't have}) et les fait valider formellement par l'encadrant entreprise. Il aboutit à la liste consolidée présentée ci-après.
+
+% ============================================================
+%  BESOINS FONCTIONNELS DÉTAILLÉS
+% ============================================================
+% ============================================================
+\subsection{Besoins fonctionnels consolidés}
+
+L'expression des besoins fonctionnels est structurée selon les \textbf{trois axes du projet}. Chaque besoin est identifié par un code unique (BF.$n$) et priorisé selon la méthode MoSCoW. Les choix de conception et d'implémentation sont détaillés au chapitre~\ref{chap:implementation}.
+
+\subsubsection{Axe 1 --- Pipeline ETL et préparation de la donnée}
+
+Cet axe constitue la fondation \textit{data} du projet. Sa fonction est de fournir une base de vérité unique (SSOT - Single Source Of Truth) pour nourrir les modèles de prévision .
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=5pt]
+  \item \textbf{BF.1 --- Extraction et règle de primauté des sources} \hfill \textsc{Must} \\ Le système doit ingérer des données disparates (Axco, Banque Mondiale, FMI, UNCTAD). Puisque différentes sources peuvent couvrir la même information économique (ex: le PIB calculé par le FMI vs par Axco), le système doit appliquer une \textbf{règle de priorité stricte} : les données purement macro-économiques du FMI priment sur Axco, tandis qu'Axco reste la référence exclusive pour les métriques assurantielles sectorielles. Toute entité géographique doit être réconciliée autour du code ISO-3.
+  
+  \item \textbf{BF.2 --- Imputation intelligente et Backcasting} \hfill \textsc{Must} \\ Les bases publiques africaines sont souvent parsemées de \"trous\" (données manquantes sur certaines années). Le système ne doit pas exclure un pays de l'analyse pour autant. Il doit appliquer une interpolation linéaire si l'année manquante est encadrée par des années valides, ou utiliser une méthode de \textit{backcasting} basée sur la croissance régionale moyenne si le trou se situe en fin/début de période. Ces données reconstituées doivent être visuellement \"taggées\" comme telles dans l'interface, pour que l'utilisateur en connaisse le degré de fiabilité.
+\end{itemize}
+
+\subsubsection{Axe 2 --- Plateforme de pilotage, de cartographie et de rétrocession}
+
+Cet axe est l'environnement de travail quotidien des souscripteurs. Il fusionne le Suivi du Portefeuille Interne et l'Analyse des Marchés Externes.
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=5pt]
+  \item \textbf{BF.3 --- Tableau de bord et seuils d'alerte} \hfill \textsc{Must} \\ Le Dashboard doit agréger plusieurs dizaines de milliers de contrats en temps réel. Pour être actionnable, le système doit instancier des \textbf{règles colorimétriques conditionnelles} sur les métriques clés : un \textit{Ultimate Loss Ratio} (ULR) strictement inférieur à 70\,\% doit s'afficher en vert, entre 70\,\% et 100\,\% en orange, et au-delà de 100\,\% en rouge. Cela permet aux souscripteurs de repérer visuellement les portefeuilles déficitaires (hémorragiques) d'un seul coup d'œil.
+  
+  \item \textbf{BF.4 --- Moteur de filtrage contextuel} \hfill \textsc{Must} \\ L'interface doit proposer 15 dimensions de filtrage (Branche, Pays, Courtier, Type de contrat, etc.). Ce filtrage doit être \textbf{contextuel} (en cascade) : si l'utilisateur filtre sur \"Branche Vie\", la liste déroulante des \"Pays\" ne doit proposer que les pays où Atlantic Re possède effectivement des affaires \"Vie\". De plus, l'état complet des filtres doit pouvoir être sérialisé dans l'URL pour permettre le partage de vues analytiques exactes entre collègues.
+  
+  \item \textbf{BF.5 --- Console de réconciliation des partenaires} \hfill \textsc{Should} \\ Dans le système source SAP, un même courtier ou cédante peut cumuler 5 à 10 variations syntaxiques (ex: \"Saham Re\", \"SAHAM ASS.\"). Le système doit appliquer une règle mathématique de similarité textuelle : toute correspondance supérieure à 85\,\% de similarité doit déclencher une proposition (ou exécution automatique) de \textbf{fusion des entités}. Cela garantit qu'Atlantic Re calcule la vraie rentabilité holistique d'un partenaire sans saucissonnage.
+  
+  \item \textbf{BF.6 --- Cartographies choroplèthes interactives} \hfill \textsc{Must} \\ Le continent africain présente un outlier extrême : l'Afrique du Sud, qui génère à elle seule près de 80\,\% des primes du continent. Le système doit donc intégrer pour ces cartes un affichage à \textbf{échelle logarithmique} (ou proposer d'exclure purement l'Afrique du Sud) afin de ne pas écraser les écarts visuels entre les 33 autres marchés émergents.
+  
+  \item \textbf{BF.7 --- Moteur de règles pour les cibles TTY} \hfill \textsc{Should} \\ Pour le pilotage de la Rétrocession en Traité (TTY), l'outil ne doit pas se limiter à afficher les parts historiques. Il doit intégrer un moteur de calcul de la \textit{Part Cible} idéale pour le prochain renouvellement, selon un arbre de règles précis : Bonus (+1 point de part) si l'ULR < 60\,\%, \textbf{Malus} (-1 point) si ULR > 80\,\%, tout en appliquant une règle de plafond strict (capping) n'autorisant jamais une hausse de part supérieure à +2 points par renouvellement, afin de limiter la volatilité géopolitique du portefeuille.
+\end{itemize}
+
+\subsubsection{Axe 3 --- Prédiction, Modélisation et Recommandations (ML)}
+
+Cet axe constitue le livrable scientifique central du projet. Il exploite les données centralisées par les deux axes précédents pour projeter l'attractivité future des marchés africains à l'horizon 2030, conformément à la stratégie \textit{Reach2030}.
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=5pt]
+  \item \textbf{BF.8 --- Prédiction multivariable à horizon 2030} \hfill \textsc{Must} \\ Le système doit projeter, pour chacun des 33 marchés du panel de modélisation, six variables cibles (croissance du PIB, PIB par habitant, taux de pénétration Non-Vie, taux de pénétration Vie, ratio sinistres/primes, indicateurs de gouvernance) à horizon 2030, en s'appuyant sur les séries historiques 2015--2024. Les projections doivent utiliser des modèles adaptés à la nature de chaque variable (composante tendancielle, saisonnière, non-linéaire) et intégrer des \textbf{bornes économiques plausibles} pour éviter les dérives.
+
+  \item \textbf{BF.9 --- Quantification de l'incertitude} \hfill \textsc{Must} \\ Chaque projection doit être assortie d'un \textbf{intervalle de confiance empiriquement valide} (80\,\% et 95\,\%). Le système ne doit pas se limiter à un point de prédiction unique : les décideurs doivent visualiser l'enveloppe d'incertitude associée à chaque variable et chaque marché, condition indispensable à une prise de décision éclairée engageant des montants significatifs.
+
+  \item \textbf{BF.10 --- Tests de cohérence économique automatiques} \hfill \textsc{Should} \\ Avant toute exploitation des résultats, le pipeline doit exécuter automatiquement une batterie de \textbf{tests de sanité} vérifiant la plausibilité économique des projections (croissances annuelles bornées, cohérence des ratios, couverture des intervalles de confiance). Toute anomalie détectée doit déclencher une alerte explicite afin de prévenir la diffusion de résultats aberrants.
+
+  \item \textbf{BF.11 --- Normalisation et scoring multicritère} \hfill \textsc{Must} \\ Le système doit manipuler plus de 18 variables aux unités radicalement différentes (millions de dollars de PIB, pourcentages d'inflation, indice WGI contraint entre $-2{,}5$ et $+2{,}5$). L'algorithme doit appliquer une fonction de \textbf{Min-Max Scaling} stricte pour ramener chaque métrique sur un référentiel commun (0 à 100), garantissant que les pondérations stratégiques décidées par les dirigeants seront respectées mathématiquement, sans biais de grandeur.
+
+  \item \textbf{BF.12 --- Score composite et classification} \hfill \textsc{Must} \\ Le système doit agréger les projections normalisées en un \textbf{score d'attractivité composite 0--100} par marché, puis affecter un badge catégoriel : \textit{ATTRACTIF} ($\ge 70$), \textit{NEUTRE} (40--70), ou \textit{À ÉVITER} ($< 40$). La pondération des cinq dimensions (macroéconomique, sectorielle Non-Vie, sectorielle Vie, gouvernance, compétitivité) doit être explicite et calibrée en accord avec l'équipe du Pôle Business Développement.
+
+  \item \textbf{BF.13 --- Matrice de décision ``What-If''} \hfill \textsc{Should} \\ Le résultat final ne doit pas être un tableau statique, mais une \textbf{matrice décisionnelle dynamique}. Le système doit permettre aux dirigeants de modifier les poids de chaque dimension en temps réel (scénarios \textit{What-if}) et de visualiser instantanément le reclassement des marchés --- permettant par exemple de simuler l'impact d'un changement de priorité stratégique (accentuation du poids de la gouvernance dans un contexte de risque géopolitique accru).
+\end{itemize}
+
+
+% ============================================================
+%  BESOINS NON FONCTIONNELS DÉTAILLÉS
+% ============================================================
+\subsection{Besoins non fonctionnels}
+
+Les exigences non fonctionnelles définissent les qualités intrinsèques attendues du système. Elles sont formulées en termes d'objectifs mesurables et constituent des critères de recette vérifiables lors de la phase de tests.
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=4pt]
+  \item \textbf{BNF.1 --- Performance et réactivité.} Temps de réponse inférieur à deux secondes pour toute restitution filtrée ; chargement initial inférieur à trois secondes ; fluidité constante sur les tableaux volumineux.
+
+  \item \textbf{BNF.2 --- Sécurité et confidentialité.} Zéro transit de données par des services tiers ; authentification forte avec expiration des sessions ; secrets non stockés en clair ; limitation de débit.
+
+  \item \textbf{BNF.3 --- Portabilité et autonomie.} Exploitation intégrale au sein de l'infrastructure d'Atlantic Re ; indépendance de tout service cloud externe.
+
+  \item \textbf{BNF.4 --- Maintenabilité et évolutivité.} Architecture en couches faiblement couplées ; code auto-documenté ; logique métier isolée de la présentation et de l'accès aux données.
+
+  \item \textbf{BNF.5 --- Traçabilité et auditabilité.} Annotation de toute valeur calculée par sa source et sa fiabilité ; journal d'activité horodaté et immuable.
+
+  \item \textbf{BNF.6 --- Reproductibilité du pipeline.} Pipeline rejouable à volonté ; procédures idempotentes ; environnement d'exécution entièrement décrit.
+
+  \item \textbf{BNF.7 --- Ergonomie.} Interface conforme à la charte graphique d'Atlantic Re ; visualisations interactives ; navigation intuitive sur résolutions professionnelles.
+
+  \item \textbf{BNF.8 --- Qualité des résultats.} Indicateurs réconciliables avec les procédures internes ; métriques d'évaluation algorithmique publiées.
+\end{itemize}
+
+
+
+
+
+
+
+
+
+\subsection{Synthèse MoSCoW des besoins}
+
+Le tableau~\ref{tab:moscow} présente la synthèse des 13 besoins fonctionnels et 8 besoins non fonctionnels, classés selon la méthode MoSCoW.
+
+\begin{table}[H]
+\centering
+\caption{Priorisation MoSCoW des besoins fonctionnels et non fonctionnels}
+\label{tab:moscow}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}p{1cm}Xp{1.8cm}p{1.4cm}@{}}
+\toprule
+\textbf{Code} & \textbf{Besoin} & \textbf{Axe} & \textbf{Priorité} \\
+\midrule
+BF.1  & Extraction et règle de primauté des sources     & Axe 1 (ETL) & \textsc{Must} \\
+BF.2  & Imputation intelligente et Backcasting           & Axe 1 (ETL) & \textsc{Must} \\
+\midrule
+BF.3  & Tableau de bord et seuils d'alerte               & Axe 2       & \textsc{Must} \\
+BF.4  & Moteur de filtrage contextuel en cascade          & Axe 2       & \textsc{Must} \\
+BF.5  & Console de réconciliation des partenaires         & Axe 2       & \textsc{Should} \\
+BF.6  & Cartographies choroplèthes interactives           & Axe 2       & \textsc{Must} \\
+BF.7  & Moteur de règles pour les cibles TTY              & Axe 2       & \textsc{Should} \\
+\midrule
+BF.8  & Prédiction multivariable à horizon 2030           & Axe 3 (ML)  & \textsc{Must} \\
+BF.9  & Quantification de l'incertitude (IC 80/95\,\%)    & Axe 3 (ML)  & \textsc{Must} \\
+BF.10 & Tests de cohérence économique automatiques         & Axe 3 (ML)  & \textsc{Should} \\
+BF.11 & Normalisation et scoring multicritère             & Axe 3 (ML)  & \textsc{Must} \\
+BF.12 & Score composite et classification                 & Axe 3 (ML)  & \textsc{Must} \\
+BF.13 & Matrice de décision What-If                       & Axe 3 (ML)  & \textsc{Should} \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Besoins non fonctionnels}} \\
+\midrule
+BNF.1 & Performance et réactivité ($<2$s)                 & Transversal & \textsc{Must} \\
+BNF.2 & Sécurité et confidentialité (JWT, rate-limiting)  & Transversal & \textsc{Must} \\
+BNF.3 & Portabilité et autonomie (zéro cloud)             & Transversal & \textsc{Must} \\
+BNF.4 & Maintenabilité et lisibilité du code              & Transversal & \textsc{Should} \\
+BNF.5 & Ergonomie et accessibilité                        & Transversal & \textsc{Must} \\
+BNF.6 & Fiabilité et traçabilité                          & Transversal & \textsc{Must} \\
+BNF.7 & Évolutivité                                       & Transversal & \textsc{Could} \\
+BNF.8 & Conformité réglementaire                          & Transversal & \textsc{Must} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\textbf{Décompte :} 9~\textsc{Must}, 4~\textsc{Should}, 0~\textsc{Could} parmi les besoins fonctionnels ; 6~\textsc{Must}, 1~\textsc{Should}, 1~\textsc{Could} parmi les besoins non fonctionnels.
+
+% ============================================================
+%  BILAN DU CHAPITRE 2
+% ============================================================
+\section{Bilan du chapitre}
+
+Ce chapitre a posé l'ensemble du cadre métier et analytique du projet. L'analyse
+des besoins, conduite en trois cycles itératifs, a permis de formaliser treize besoins
+fonctionnels (BF.1 à BF.13) et huit besoins non fonctionnels (BNF.1 à BNF.8), structurés selon les trois axes du
+projet (Pipeline ETL, Plateforme de réassurance, Modélisation ML) et priorisés
+selon la méthode MoSCoW. Ces exigences constituent le socle sur lequel repose
+la conception détaillée de l'application, présentée au chapitre suivant.
+\clearpage
+
+% ============================================================
+%  CHAPITRE 3 : CONCEPTION ET CHOIX TECHNOLOGIQUES
+% ============================================================
+\chapter{Conception et architecture du système}
+\label{chap:conception}
+
+Ce chapitre formalise la conception du système dans ses trois dimensions constitutives : l'architecture logicielle et les choix technologiques, le pipeline de données externes, et la modélisation prédictive des marchés africains. Chaque décision est ancrée dans une exigence métier identifiée au chapitre précédent, et le résultat final s'inscrit directement dans la commande stratégique du plan Reach2030.
+
+% ────────────────────────────────────────────────────────────
+%  3.1 — ARCHITECTURE GÉNÉRALE
+% ────────────────────────────────────────────────────────────
+\section{Architecture générale du système}
+
+\subsection{Vue d'ensemble}
+
+L'architecture retenue suit un modèle \textbf{trois-tiers} (présentation, métier, données), décomposé en couches faiblement couplées dont la figure~\ref{fig:archi_generale} présente la vue synoptique. Ce choix se justifie par trois exigences concomitantes : la séparation des données sensibles du portefeuille de l'interface utilisateur (BNF.2) ; la capacité à servir simultanément les requêtes de consultation et les calculs analytiques sans dégradation (BNF.1) ; et l'évolutivité indépendante de chaque couche (BNF.4).
+
+\begin{figure}[H]
+\centering
+\caption{Architecture générale trois-tiers du système AtlanticRe}
+\label{fig:archi_generale}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  layer/.style={draw, rounded corners=5pt, minimum width=11cm, minimum height=1.2cm, align=center, font=\small\bfseries, inner sep=6pt},
+  sublabel/.style={font=\scriptsize\itshape, text=gray!60!black},
+  arr/.style={-{Stealth[length=3mm]}, thick, gray!55},
+  note/.style={font=\tiny, align=left, text width=3.2cm},
+]
+% ── Couche Présentation ──────────────────────────────────────
+\node[layer, fill=blue!8, draw=blue!35] (pres) at (0,0)
+  {Couche Présentation \hfill \normalfont\scriptsize React 18 + TypeScript + Vite};
+\node[sublabel, below=-1pt of pres, anchor=north]
+  {31 pages — Dashboard · Filtrage · Cartographies · Scoring · Administration};
+% ── Couche Métier ────────────────────────────────────────────
+\node[layer, fill=orange!8, draw=orange!40] (metier) at (0,-2.2)
+  {Couche Métier \hfill \normalfont\scriptsize FastAPI + Python 3.12};
+\node[sublabel, below=-1pt of metier, anchor=north]
+  {22 routeurs · 25 services · Matching flou · \textbf{Moteur ML} · JWT · Rate-limiting};
+% ── Couche Données ───────────────────────────────────────────
+\node[layer, fill=green!8, draw=green!40] (data) at (0,-4.4)
+  {Couche Données \hfill \normalfont\scriptsize MySQL + Pandas (Excel)};
+\node[sublabel, below=-1pt of data, anchor=north]
+  {Portefeuille interne (Pandas) · Référentiel pays · 4 tables thématiques · Journal d'activité};
+% ── Flèches bidirectionnelles ────────────────────────────────
+\draw[arr] (pres.south) -- node[right, font=\tiny]{API REST / JSON} (metier.north);
+\draw[arr] (metier.south) -- node[right, font=\tiny]{ORM / Pandas} (data.north);
+\draw[arr, bend right=40] (metier.north) -- (pres.south);
+\draw[arr, bend right=40] (data.north) -- (metier.south);
+% ── Annotations latérales ────────────────────────────────────
+\node[note, right=0.4cm of pres]
+  {\textbf{CORS} contrôlé\\\textbf{JWT} bearer token\\\textbf{31 pages} SPA};
+\node[note, right=0.4cm of metier]
+  {\textbf{Scoring ML} multicritère\\\textbf{Matching} flou\\\textbf{Pipeline ETL}};
+\node[note, right=0.4cm of data]
+  {\textbf{MySQL} — données structurées\\\textbf{Pandas} — portefeuille\\\textbf{Idempotence} pipeline};
+\end{tikzpicture}%
+}
+\end{figure}
+
+\paragraph{Couche Présentation.} Application mono-page de 31~pages réparties en deux sous-systèmes : les modules de pilotage du portefeuille interne (Axe~1 : Dashboard, Analyse globale, Cédante, Courtier, Comparaison, Rétrocession, Cibles TTY, Saturation FAC, Exposition) et les modules d'analyse des marchés africains (Axe~2 : quatre cartographies thématiques, Fiche pays, Comparaison transnationale, Scoring ML, Vue unifiée).
+
+\paragraph{Couche Métier.} Serveur applicatif exposant une API REST organisée en 22~routeurs thématiques et 25~services métier. Le \textbf{Moteur de Modélisation Prédictive} constitue le c\oe{}ur analytique de cette couche : il orchestre le pipeline de prédiction en 13~étapes et produit le score d'attractivité composite des 33~marchés africains. Les middlewares JWT, rate-limiting et journalisation s'appliquent transversalement à toutes les routes.
+
+\paragraph{Couche Données.} Deux sources coexistent : les données internes du portefeuille, traitées via Pandas au démarrage pour un filtrage en temps quasi réel, et la base MySQL hébergeant les données structurées (référentiel pays, quatre tables thématiques, utilisateurs, journaux).
+
+\subsection{Flux de données inter-couches}
+
+La figure~\ref{fig:flux_donnees} détaille les flux de données entre les axes du projet et les couches de l'architecture.
+
+\begin{figure}[H]
+\centering
+\caption{Flux de données inter-couches et inter-axes}
+\label{fig:flux_donnees}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=2.4cm, minimum height=0.7cm, align=center, font=\scriptsize, inner sep=4pt},
+  srcbox/.style={box, fill=gray!12, draw=gray!50},
+  procbox/.style={box, fill=blue!10, draw=blue!35},
+  storeBox/.style={box, fill=green!10, draw=green!40},
+  uibox/.style={box, fill=orange!10, draw=orange!40},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  redarr/.style={-{Stealth[length=2mm]}, thick, red!60!black},
+]
+\node[srcbox] (axco)  at (0, 0)    {Axco (Excel)};
+\node[srcbox] (fmi)   at (0,-1)    {FMI WEO (CSV)};
+\node[srcbox] (wgi)   at (0,-2)    {BM WGI (API)};
+\node[srcbox] (fanaf) at (0,-3)    {FANAF (PDF)};
+\node[srcbox] (intdb) at (0,-4.5)  {DB Interne (Excel)};
+\node[procbox] (etl) at (3.8,-1.2) {Pipeline ETL};
+\node[procbox] (norm) at (3.8,-2.8) {Normalisation\\Imputation};
+\node[storeBox] (mysql) at (7.2,-1.2) {MySQL};
+\node[storeBox] (mem)   at (7.2,-3.5) {DataFrame Pandas};
+\node[procbox] (scoring) at (10.4,-1.2) {Moteur ML};
+\node[procbox] (kpi)     at (10.4,-3.5) {Services KPI};
+\node[uibox] (ui) at (13,-2.3) {Interface};
+\foreach \src in {axco, fmi, wgi, fanaf}
+  \draw[arr, gray!60] (\src.east) -- (etl.west);
+\draw[arr, gray!60] (etl.south) -- (norm.north);
+\draw[arr] (norm.east) -- (mysql.west);
+\draw[arr, gray!60] (intdb.east) -| (mem.west);
+\draw[arr] (mysql.east) -- (scoring.west);
+\draw[arr] (mem.east) -- (kpi.west);
+\draw[redarr, dashed] (mysql.south) -- node[right, font=\tiny, text=red!70!black]{Croisement} (mem.north);
+\draw[arr] (scoring.east) -- (ui.north west);
+\draw[arr] (kpi.east) -- (ui.south west);
+\draw[decorate, decoration={brace, amplitude=4pt, mirror}] (-0.8,-0.15) -- (-0.8,-3.15)
+  node[midway, left=5pt, font=\tiny\bfseries, text=blue!60!black, align=center]{Axe 1\\ETL};
+\draw[decorate, decoration={brace, amplitude=4pt, mirror}] (-0.8,-4.2) -- (-0.8,-4.8)
+  node[midway, left=5pt, font=\tiny\bfseries, text=green!55!black, align=center]{Axe 2\\Portef.};
+\draw[decorate, decoration={brace, amplitude=4pt}] (9.5, 0.15) -- (10.9, 0.15)
+  node[midway, above=5pt, font=\tiny\bfseries, text=red!55!black, align=center]{Axe 3\\ML};
+\end{tikzpicture}%
+}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────
+%  3.2 — CHOIX TECHNOLOGIQUES
+% ────────────────────────────────────────────────────────────
+\section{Choix technologiques}
+
+Les technologies retenues résultent d'un arbitrage entre maturité, performance, adéquation au contexte métier et cohérence de l'écosystème. Le tableau~\ref{tab:stack_tech} synthétise la pile complète par couche.
+
+\begin{table}[H]
+\centering
+\caption{Pile technologique du système par couche}
+\label{tab:stack_tech}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}p{3cm}X@{}}
+\toprule
+\textbf{Couche} & \textbf{Technologie} & \textbf{Rôle et justification} \\
+\midrule
+\multirow{4}{*}{\textbf{Frontend}}
+ & React 18 + Vite & Interface mono-page (31 pages) ; rechargement instantané en développement ; composition modulaire des composants. \\
+ & TypeScript & Typage statique sur un frontend de 31 pages — prévention des régressions au refactoring. \\
+ & Recharts & Graphiques déclaratifs (barres, lignes, radar, camembert) intégrés nativement à l'écosystème React. \\
+ & React Simple Maps & Rendu des cartes choroplèthes africaines à partir de données TopoJSON. \\
+ & Framer Motion & Micro-animations et transitions ; amélioration de l'expérience analytique sans surcoût de développement. \\
+\midrule
+\multirow{4}{*}{\textbf{Backend}}
+ & FastAPI & Framework REST asynchrone ; validation automatique des entrées (Pydantic) ; documentation OpenAPI générée ; adapté aux requêtes analytiques concurrentes. \\
+ & SQLAlchemy 2.0 & ORM garantissant l'abstraction de la couche d'accès aux données et la portabilité vers d'autres SGBD. \\
+ & Pandas / NumPy & Traitement du portefeuille interne ; calculs KPI ; jointures et agrégations multi-critères. \\
+ & Pydantic 2 & Contrats d'interface stricts entre le frontend et le backend ; sérialisation/validation bidirectionnelle. \\
+\midrule
+\multirow{4}{*}{\shortstack[l]{\textbf{Data}\\\textbf{Science}}}
+ & scikit-learn & Normalisation, régression Ridge, validation croisée ; socle du pipeline ML. \\
+ & XGBoost & Correction des résidus non-linéaires sur le modèle sinistres/primes (S/P). \\
+ & RapidFuzz + Jellyfish & Matching flou multi-algorithmes (Levenshtein, Jaro-Winkler, phonétique) pour la réconciliation des noms de cédantes. \\
+ & statsmodels & Modèles ARIMA pour la composante temporelle des variables prédites. \\
+\midrule
+\multirow{2}{*}{\textbf{Sécurité}}
+ & JWT (python-jose) & Authentification stateless par jetons signés avec expiration et révocation. \\
+ & bcrypt & Hachage salé des mots de passe ; résistance aux attaques par dictionnaire. \\
+\midrule
+\multirow{2}{*}{\shortstack[l]{\textbf{Base de}\\\textbf{données}}}
+ & MySQL & Stockage des données structurées : référentiel pays, 4 tables thématiques, utilisateurs, journaux. \\
+ & Fichiers Excel & Source brute du portefeuille interne ; exploitée au démarrage via Pandas. \\
+\midrule
+\multirow{2}{*}{\textbf{DevOps}}
+ & Git / GitHub & Gestion de version et contrôle de code croisé entre membres du binôme. \\
+ & Vite & Build frontend optimisé ; Hot Module Replacement pour le développement itératif. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La figure~\ref{fig:tech_interop} situe chaque technologie dans sa couche et illustre les interfaces entre composants.
+
+\begin{figure}[H]
+\centering
+\caption{Interactions entre composants technologiques}
+\label{fig:tech_interop}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  comp/.style={draw, rounded corners=2pt, minimum width=2cm, minimum height=0.65cm, align=center, font=\tiny\bfseries, inner sep=3pt},
+  front/.style={comp, fill=blue!10, draw=blue!40},
+  back/.style={comp, fill=orange!10, draw=orange!40},
+  ds/.style={comp, fill=red!8, draw=red!35},
+  db/.style={comp, fill=green!10, draw=green!40},
+  sec/.style={comp, fill=gray!12, draw=gray!45},
+  arr/.style={-{Stealth[length=1.8mm]}, thick, gray!60},
+  dblarr/.style={{Stealth[length=1.8mm]}-{Stealth[length=1.8mm]}, thick, gray!60},
+  lbl/.style={font=\tiny, gray!60!black},
+]
+\node[front] (react)    at (0,  0)  {React 18};
+\node[front] (ts)       at (0, -0.9){TypeScript};
+\node[front] (recharts) at (0, -1.8){Recharts};
+\node[front] (maps)     at (0, -2.7){Simple Maps};
+\node[front] (motion)   at (0, -3.6){Framer Motion};
+\node[font=\scriptsize\bfseries, blue!50!black] at (0, 0.6) {Frontend};
+\draw[blue!20, thick, rounded corners=4pt] (-1.3,-4.15) rectangle (1.3, 0.4);
+\node[back] (fastapi)    at (4,  0)  {FastAPI};
+\node[back] (pydantic)   at (4, -0.9){Pydantic 2};
+\node[back] (sqlalch)    at (4, -1.8){SQLAlchemy};
+\node[back] (pandas)     at (4, -2.7){Pandas/NumPy};
+\node[sec]  (jwt)        at (4, -3.6){JWT + bcrypt};
+\node[font=\scriptsize\bfseries, orange!55!black] at (4, 0.6) {Métier};
+\draw[orange!20, thick, rounded corners=4pt] (2.7,-4.15) rectangle (5.3, 0.4);
+\node[ds] (sklearn)   at (8,  0)  {scikit-learn};
+\node[ds] (xgb)       at (8, -0.9){XGBoost};
+\node[ds] (arima)     at (8, -1.8){ARIMA};
+\node[ds] (gpr)       at (8, -2.7){Gaussian Proc.};
+\node[ds] (rfuzz)     at (8, -3.6){RapidFuzz};
+\node[font=\scriptsize\bfseries, red!50!black] at (8, 0.6) {Data Science};
+\draw[red!15, thick, rounded corners=4pt] (6.7,-4.15) rectangle (9.3, 0.4);
+\node[db] (mysql)   at (11.5, -0.9){MySQL};
+\node[db] (excel)   at (11.5, -2.7){Excel / Pandas};
+\node[font=\scriptsize\bfseries, green!50!black] at (11.5, 0.6) {Données};
+\draw[green!15, thick, rounded corners=4pt] (10.2,-4.15) rectangle (12.8, 0.4);
+\draw[dblarr] (react.east) -- node[above, lbl]{JSON/REST} (fastapi.west);
+\draw[dblarr] (pandas.east) -- (sklearn.west);
+\draw[dblarr] (pandas.east) -- (xgb.west);
+\draw[arr] (pandas.east) |- (arima.west);
+\draw[arr] (pandas.east) |- (gpr.west);
+\draw[dblarr] (sqlalch.east) -- (mysql.west);
+\draw[dblarr] (pandas.east) -| (excel.west);
+\draw[arr] (sklearn.east) -- (mysql.west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────
+%  3.3 — AXE 1 : PIPELINE ETL ET PRÉPARATION DE LA DONNÉE
+% ────────────────────────────────────────────────────────────
+\section{Axe 1 --- Pipeline ETL et préparation de la donnée}
+
+
+\subsection{Motivations et périmètre}
+
+Le Pôle Business Développement fonctionnait par collectes ponctuelles et manuelles de données, sans reproductibilité ni traçabilité. Le pipeline automatisé conçu dans le cadre de l'Axe~1 lève ces trois déficits : (i)~reproductibilité à chaque mise à jour annuelle des sources, (ii)~traçabilité de l'origine et de la fiabilité de chaque valeur, (iii)~automatisation des étapes de nettoyage et de réconciliation géographique.
+
+Le périmètre du pipeline couvre \textbf{34 pays africains} sélectionnés selon trois critères : existence d'un marché d'assurance structuré avec régulateur identifié, pertinence stratégique pour le plan Reach2030, et disponibilité de données sur au moins quatre des cinq dimensions du modèle. L'Afrique du Sud est incluse dans la collecte et les cartographies, mais \textbf{exclue du panel de modélisation prédictive} (section~\ref{sec:ml_pipeline}) pour éviter un biais d'échelle --- elle représente à elle seule $\approx$\,80\,\% des primes continentales, ce qui fausserait la normalisation Min-Max des 33 autres marchés.
+
+\subsection{Architecture ETL}
+
+La figure~\ref{fig:pipeline_etl} présente l'architecture complète du pipeline Extract-Transform-Load.
+
+\begin{figure}[H]
+\centering
+\caption{Architecture du pipeline ETL multi-sources}
+\label{fig:pipeline_etl}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  srcNode/.style={draw, rounded corners=2pt, fill=gray!12, draw=gray!50, minimum width=2.2cm, minimum height=0.6cm, align=center, font=\scriptsize},
+  stepNode/.style={draw, rounded corners=3pt, fill=blue!10, draw=blue!40, minimum width=2.6cm, minimum height=0.65cm, align=center, font=\scriptsize\bfseries, inner sep=3pt},
+  storeNode/.style={draw, rounded corners=3pt, fill=green!10, draw=green!40, minimum width=2.4cm, minimum height=0.55cm, align=center, font=\scriptsize},
+  phaseBox/.style={draw, dashed, rounded corners=4pt, inner sep=5pt},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+]
+\node[srcNode] (axco)   at (0, 0)   {Axco (Excel)};
+\node[srcNode] (fmi)    at (0,-0.9) {FMI WEO (CSV)};
+\node[srcNode] (wgi)    at (0,-1.8) {BM WGI (API)};
+\node[srcNode] (fanaf)  at (0,-2.7) {FANAF (PDF)};
+\node[srcNode] (atlas)  at (0,-3.6) {Atlas / Swiss Re};
+\node[phaseBox, gray!25, fit=(axco)(atlas), inner sep=6pt] (srcphase) {};
+\node[font=\tiny\bfseries, gray!55!black, anchor=south] at (srcphase.north) {Sources};
+\node[stepNode] (ext_excel) at (3.8, 0)   {Parseur Excel};
+\node[stepNode] (ext_api)   at (3.8,-1.8) {Client API};
+\node[stepNode] (ext_pdf)   at (3.8,-3.6) {Scraper PDF};
+\node[phaseBox, blue!15, fit=(ext_excel)(ext_pdf), inner sep=6pt] (extphase) {};
+\node[font=\tiny\bfseries, blue!55!black, anchor=south] at (extphase.north) {Extract};
+\node[stepNode, fill=orange!10, draw=orange!40] (recod) at (7.4,-0.9)
+  {Réconciliation ISO-3};
+\node[stepNode, fill=orange!10, draw=orange!40] (conv)  at (7.4,-1.8)
+  {Conversion d'unités};
+\node[stepNode, fill=orange!10, draw=orange!40] (impute) at (7.4,-2.7)
+  {Imputation (3 niv.)};
+\node[stepNode, fill=orange!10, draw=orange!40] (annot) at (7.4,-3.6)
+  {Annot. fiabilité};
+\node[phaseBox, orange!15, fit=(recod)(annot), inner sep=6pt] (tphase) {};
+\node[font=\tiny\bfseries, orange!55!black, anchor=south] at (tphase.north) {Transform};
+\node[storeNode] (mysql_nv) at (11, 0)   {\texttt{ext\_marche\_non\_vie}};
+\node[storeNode] (mysql_v)  at (11,-0.9) {\texttt{ext\_marche\_vie}};
+\node[storeNode] (mysql_m)  at (11,-1.8) {\texttt{ext\_macroeconomie}};
+\node[storeNode] (mysql_g)  at (11,-2.7) {\texttt{ext\_gouvernance}};
+\node[storeNode] (mysql_ref)at (11,-3.6) {\texttt{ref\_pays}};
+\node[phaseBox, green!15, fit=(mysql_nv)(mysql_ref), inner sep=6pt] (lphase) {};
+\node[font=\tiny\bfseries, green!55!black, anchor=south] at (lphase.north) {Load (MySQL)};
+\draw[arr] (axco.east)  -- (ext_excel.west);
+\draw[arr] (fmi.east)   -- (ext_excel.west);
+\draw[arr] (wgi.east)   -- (ext_api.west);
+\draw[arr] (fanaf.east) -- (ext_pdf.west);
+\draw[arr] (atlas.east) -- (ext_pdf.west);
+\draw[arr] (ext_excel.east) -- (recod.west);
+\draw[arr] (ext_api.east)   -- (recod.west);
+\draw[arr] (ext_pdf.east)   -- (recod.west);
+\draw[arr] (recod.south) -- (conv.north);
+\draw[arr] (conv.south) -- (impute.north);
+\draw[arr] (impute.south) -- (annot.north);
+\draw[arr] (annot.east) |- (mysql_nv.west);
+\draw[arr] (annot.east) |- (mysql_v.west);
+\draw[arr] (annot.east) |- (mysql_m.west);
+\draw[arr] (annot.east) |- (mysql_g.west);
+\draw[arr] (recod.east) |- (mysql_ref.west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsection{Sources de données et justification métier}
+
+\begin{table}[H]
+\centering
+\caption{Sources du pipeline : couverture et justification}
+\label{tab:sources_pipeline}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.5cm}p{2.5cm}Xp{2.5cm}@{}}
+\toprule
+\textbf{Source} & \textbf{Dimension} & \textbf{Justification} & \textbf{Méthode} \\
+\midrule
+\textbf{Axco Navigator} & Marché assurance (Vie / Non-Vie) & Référence mondiale de l'industrie pour les primes, la pénétration et la sinistralité par pays. Déjà utilisée par Atlantic Re dans ses études internes. & Fichiers Excel \\
+\midrule
+\textbf{FMI --- WEO} & Macroéconomie & Seule source publique produisant des projections à cinq ans permettant d'intégrer la dynamique de croissance future dans le modèle. & CSV structuré \\
+\midrule
+\textbf{BM WGI} & Gouvernance & Indicateurs composites comparables sur 200+ pays (six dimensions) ; utilisés par les agences de notation et les investisseurs institutionnels. & API REST \\
+\midrule
+\textbf{FANAF} & Zone CIMA (14 pays) & Source complémentaire indispensable où Axco est parfois incomplet sur les marchés francophones. & Rapports PDF \\
+\midrule
+\textbf{Atlas Mag. / Swiss Re} \citep{AtlasMagazine2023, SwissRe2023} & Validation croisée & Recoupement des données primaires et identification des tendances émergentes. & Semi-auto. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Gestion hiérarchique des valeurs manquantes}
+\label{sec:imputation}
+
+Sur les 34 pays du panel, seuls 12 disposent de données complètes sur les cinq dimensions et les dix exercices couverts. La figure~\ref{fig:imputation_schema} illustre la stratégie d'imputation en trois niveaux.
+
+\begin{figure}[H]
+\centering
+\caption{Stratégie d'imputation hiérarchique des données manquantes}
+\label{fig:imputation_schema}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  decision/.style={diamond, draw, fill=yellow!15, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, inner sep=1pt, aspect=2},
+  action/.style={draw, rounded corners=3pt, fill=blue!10, draw=blue!40, minimum width=3.5cm, minimum height=0.7cm, align=center, font=\scriptsize, inner sep=4pt},
+  result/.style={draw, rounded corners=3pt, fill=green!10, draw=green!40, minimum width=2cm, minimum height=0.55cm, align=center, font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!60},
+  yes/.style={font=\tiny\bfseries, green!55!black},
+  no/.style={font=\tiny\bfseries, red!55!black},
+]
+\node[decision] (d1) at (0, 0) {Données encadrées\\temporellement ?};
+\node[action] (a1) at (4.5, 0) {\textbf{Niv. 1 :} Interpolation\\linéaire / spline};
+\node[decision] (d2) at (0, -1.8) {Zone réglementaire\\partagée ?};
+\node[action] (a2) at (4.5, -1.8) {\textbf{Niv. 2 :} Médiane\\régionale (CIMA / SADC)};
+\node[action] (a3) at (4.5, -3.6) {\textbf{Niv. 3 :} Régression\\supervisée};
+\node[result] (r1) at (8.5, 0)   {Fiab. : \textbf{A}};
+\node[result] (r2) at (8.5,-1.8) {Fiab. : \textbf{B}};
+\node[result] (r3) at (8.5,-3.6) {Fiab. : \textbf{C}};
+\draw[arr] (d1.east) -- node[above, yes]{Oui} (a1.west);
+\draw[arr] (d1.south) -- node[right, no]{Non} (d2.north);
+\draw[arr] (d2.east) -- node[above, yes]{Oui} (a2.west);
+\draw[arr] (d2.south) -- node[right, no]{Non} ++(0,-0.9) -- (a3.west);
+\draw[arr] (a1.east) -- (r1.west);
+\draw[arr] (a2.east) -- (r2.west);
+\draw[arr] (a3.east) -- (r3.west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+Chaque valeur imputée est annotée en base de données par sa méthode de production et son indice de fiabilité (A / B / C), permettant à l'interface de signaler visuellement les données estimées. Cette traçabilité est une exigence non négociable dans un contexte de réassurance où les décisions d'entrée en marché engagent des montants significatifs.
+
+
+
+\subsection{Schéma en étoile --- données externes (Axe 1)}
+
+La modélisation des données externes suit un schéma en étoile (\textit{star schema}) adapté à l'analyse décisionnelle. La figure~\ref{fig:star_schema} illustre ce schéma.
+
+\begin{figure}[H]
+\centering
+\caption{Schéma en étoile des données de marché africain (Axe 1 ETL)}
+\label{fig:star_schema}
+\resizebox{0.85\textwidth}{!}{%
+\begin{tikzpicture}[
+  fact/.style={draw, fill=blue!15, draw=blue!50, rounded corners=3pt, minimum width=4cm, minimum height=1.4cm, align=center, font=\small, thick},
+  dim/.style={draw, fill=yellow!12, draw=yellow!60!black, rounded corners=3pt, minimum width=3.2cm, minimum height=1cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=2.5mm]}, thick, gray!65},
+  fklbl/.style={font=\tiny\itshape, gray!55!black},
+]
+  \node[fact] (fact) {\textbf{Fait : Indicateur Marché}\\\ pays\_id, annee\_id\\\ valeur, source, fiabilité};
+  \node[dim, above left=1.4cm and 2cm of fact] (dpays) {\textbf{Dim : Pays}\\\ nom, ISO3, région};
+  \node[dim, above right=1.4cm and 2cm of fact] (dtime) {\textbf{Dim : Temps}\\\ année, exercice};
+  \node[dim, below left=1.4cm and 2cm of fact] (dindic) {\textbf{Dim : Indicateur}\\\ nom, unité, direction};
+  \node[dim, below right=1.4cm and 2cm of fact] (dsource) {\textbf{Dim : Source}\\\ organisme, fiabilité};
+  \draw[arr] (dpays)  -- node[fklbl, above, sloped]{FK pays\_id} (fact);
+  \draw[arr] (dtime)  -- node[fklbl, above, sloped]{FK annee\_id} (fact);
+  \draw[arr] (dindic) -- node[fklbl, below, sloped]{FK indic\_id} (fact);
+  \draw[arr] (dsource) -- node[fklbl, below, sloped]{FK source\_id} (fact);
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsection{Tables de faits thématiques}
+
+Le tableau~\ref{tab:tables_faits} synthétise les quatre tables de faits thématiques alimentées par le pipeline ETL.
+
+\begin{table}[H]
+\centering
+\caption{Tables de faits thématiques --- Données de marché africain}
+\label{tab:tables_faits}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.5cm}p{5cm}X@{}}
+\toprule
+\textbf{Table} & \textbf{Indicateurs} & \textbf{Source} \\
+\midrule
+\texttt{ext\_marche\_non\_vie} & primes\_emises\_mn\_usd, taux\_penetration\_pct, densite\_assurance\_usd, croissance\_primes\_pct, ratio\_sp\_pct & Axco Navigator \\
+\midrule
+\texttt{ext\_marche\_vie} & primes\_emises\_mn\_usd, taux\_penetration\_pct, densite\_assurance\_usd, croissance\_primes\_pct & Axco Navigator \\
+\midrule
+\texttt{ext\_macroeconomie} & gdp\_mn, gdp\_per\_capita, gdp\_growth\_pct, inflation\_rate\_pct, current\_account\_mn, integration\_regionale\_score & FMI WEO, Traités \\
+\midrule
+\texttt{ext\_gouvernance} & political\_stability, regulatory\_quality, fdi\_inflows\_pct\_gdp, kaopen & BM WGI, Chinn-Ito, UNCTAD \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+% ────────────────────────────────────────────────────────────
+%  3.4 — AXE 2 : PLATEFORME DE PILOTAGE, DE CARTOGRAPHIE ET DE RÉTROCESSION
+% ────────────────────────────────────────────────────────────
+\section{Axe 2 --- Plateforme de pilotage, de cartographie et de rétrocession}
+
+La plateforme de réassurance constitue l'environnement de travail quotidien des souscripteurs du Pôle Business Développement. Cette section détaille les choix de conception répondant aux besoins fonctionnels BF.3 à BF.7 identifiés au chapitre précédent.
+
+\subsection{Modèle de données interne}
+
+Le portefeuille interne est exploité via Pandas au démarrage de l'application. Le tableau~\ref{tab:dataset_structure} présente la structure du jeu de données principal, dont chaque ligne représente un contrat de réassurance.
+
+\begin{table}[H]
+\centering
+\caption{Structure du jeu de données principal --- Portefeuille de réassurance}
+\label{tab:dataset_structure}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.8cm}p{2cm}X@{}}
+\toprule
+\textbf{Colonne} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{POLICY\_ID}       & str    & Identifiant unique de la police \\
+\texttt{INT\_SPC}         & str    & Type de contrat : FAC, TTY ou TTE \\
+\texttt{INT\_BRANCHE}     & str    & Branche d'assurance (Auto, RC, Incendie, Corps\ldots) \\
+\texttt{INT\_CEDANTE}     & str    & Nom normalisé de la cédante \\
+\texttt{INT\_BROKER}      & str    & Nom normalisé du courtier \\
+\texttt{PAYS\_RISQUE}     & str    & Pays du risque couvert \\
+\texttt{PAYS\_CEDANTE}    & str    & Pays siège de la cédante \\
+\texttt{UNDERWRITING\_YEAR}& int   & Année de souscription \\
+\texttt{WRITTEN\_PREMIUM} & float  & Prime écrite (MAD) \\
+\texttt{ULR}              & float  & Ultimate Loss Ratio \\
+\texttt{RESULTAT}         & float  & Résultat technique net \\
+\texttt{SUM\_INSURED}     & float  & Capitaux assurés \\
+\texttt{COMMISSION}       & float  & Taux de commission (\%) \\
+\texttt{SHARE\_WRITTEN}   & float  & Part souscrite (\%) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Conception du tableau de bord et seuils d'alerte (BF.3)}
+
+Le Dashboard central agrège les données de plusieurs dizaines de milliers de contrats en indicateurs synthétiques (KPI). La conception retenue repose sur trois principes :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Agrégation multicritère :} Les 12 cartes KPI du Dashboard affichent les indicateurs consolidés (primes écrites, résultat net, ULR moyen, nombre de polices) calculés dynamiquement en fonction des filtres actifs.
+  \item \textbf{Codage colorimétrique conditionnel :} Chaque KPI applique des seuils d'alerte visuels --- l'ULR s'affiche en vert si $<70\,\%$, en orange entre $70\,\%$ et $100\,\%$, et en rouge au-delà de $100\,\%$ --- permettant aux souscripteurs de repérer instantanément les portefeuilles déficitaires.
+  \item \textbf{Visualisations complémentaires :} Graphiques en barres, lignes et camemberts (via Recharts) illustrant la répartition par branche, par pays et l'évolution temporelle.
+\end{itemize}
+
+\subsection{Moteur de filtrage contextuel (BF.4)}
+
+Le système de filtrage contextuel en cascade constitue l'un des éléments de conception les plus structurants. Sa conception répond à trois contraintes :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Filtrage en cascade :} Les 15 dimensions de filtrage (Branche, Pays, Courtier, Cédante, Type de contrat, Exercice, \ldots) sont interdépendantes : la sélection d'un filtre restreint les valeurs proposées dans les filtres suivants aux seules entrées effectivement présentes dans le sous-ensemble filtré.
+  \item \textbf{Sérialisation dans l'URL :} L'état complet des filtres est encodé dans les paramètres de l'URL, permettant le partage de vues analytiques exactes entre collègues par simple copie de lien.
+  \item \textbf{Persistance de session :} Les filtres actifs sont conservés lors de la navigation intra-module, évitant à l'utilisateur de reconfigurer sa vue à chaque changement de page.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\caption{Principe du filtrage contextuel en cascade}
+\label{fig:filtrage_cascade}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  filter/.style={draw, rounded corners=3pt, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  f1/.style={filter, fill=blue!12, draw=blue!45},
+  f2/.style={filter, fill=orange!12, draw=orange!45},
+  f3/.style={filter, fill=green!12, draw=green!45},
+  f4/.style={filter, fill=purple!10, draw=purple!40},
+  databox/.style={draw, rounded corners=2pt, fill=gray!8, draw=gray!40, minimum width=2cm, minimum height=0.5cm, align=center, font=\tiny},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+  redarr/.style={-{Stealth[length=2mm]}, thick, red!50},
+]
+  \node[f1] (branche) at (0, 0) {Branche\\Non-Vie};
+  \node[f2] (pays) at (3.5, 0) {Pays\\(filtré)};
+  \node[f3] (cedante) at (7, 0) {Cédante\\(filtrée)};
+  \node[f4] (exercice) at (10.5, 0) {Exercice\\(filtré)};
+
+  \node[databox] (d1) at (0, -1.2) {17 pays};
+  \node[databox] (d2) at (3.5, -1.2) {43 cédantes};
+  \node[databox] (d3) at (7, -1.2) {8 exercices};
+  \node[databox] (d4) at (10.5, -1.2) {2\,847 contrats};
+
+  \draw[arr] (branche.east) -- node[above, font=\tiny]{restreint} (pays.west);
+  \draw[arr] (pays.east) -- node[above, font=\tiny]{restreint} (cedante.west);
+  \draw[arr] (cedante.east) -- node[above, font=\tiny]{restreint} (exercice.west);
+
+  \draw[arr, gray!40] (branche.south) -- (d1.north);
+  \draw[arr, gray!40] (pays.south) -- (d2.north);
+  \draw[arr, gray!40] (cedante.south) -- (d3.north);
+  \draw[arr, gray!40] (exercice.south) -- (d4.north);
+
+  \node[draw, dashed, rounded corners=4pt, gray!35, inner sep=6pt, fit=(branche)(exercice)(d1)(d4)] {};
+  \node[font=\tiny\itshape, gray!55!black] at (5.25, -2) {Chaque sélection restreint les filtres suivants aux valeurs effectivement présentes};
+
+  \node[draw, rounded corners=3pt, fill=blue!8, draw=blue!30, minimum width=3cm, minimum height=0.5cm, font=\tiny, align=center] (url) at (5.25, -2.7) {État sérialisé dans l'URL $\rightarrow$ partage par lien};
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+\subsection{Console de réconciliation des partenaires (BF.5)}
+
+La réconciliation des noms de cédantes et courtiers est conçue comme un pipeline multi-algorithmes visant à résoudre les variations syntaxiques des noms de partenaires dans les fichiers sources SAP :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Pipeline de similarité :} Application séquentielle de trois algorithmes complémentaires --- distance de Jaro-Winkler (sensible aux préfixes), similarité TF-IDF (robuste aux abréviations), et correspondance phonétique Soundex --- dont les scores sont fusionnés en un indice de confiance pondéré.
+  \item \textbf{Seuil de fusion automatique :} Toute correspondance supérieure à $85\,\%$ de similarité déclenche une proposition de fusion des entités. Ce seuil, calibré empiriquement sur le référentiel Atlantic Re, minimise les faux positifs tout en couvrant les variantes courantes (ex : \og SAHAM Re \fg{}, \og SAHAM ASS. \fg{}, \og Saham Assurance \fg{}).
+  \item \textbf{Impact métier :} La consolidation permet de calculer la rentabilité holistique d'un partenaire --- primes cumulées, ULR pondéré, résultat net --- sans fractionnement artificiel dû aux doublons.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\caption{Pipeline multi-algorithmes de réconciliation des noms de partenaires}
+\label{fig:reconciliation_pipeline}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=2.6cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  inp/.style={box, fill=gray!12, draw=gray!50},
+  algo/.style={box, fill=blue!10, draw=blue!40},
+  fuse/.style={box, fill=orange!12, draw=orange!45},
+  dec/.style={diamond, draw, fill=yellow!15, draw=yellow!60!black, minimum width=2cm, minimum height=0.5cm, align=center, font=\scriptsize\bfseries, inner sep=1pt, aspect=2.2},
+  out/.style={box, fill=green!10, draw=green!40},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+  yes/.style={font=\tiny\bfseries, green!55!black},
+  no/.style={font=\tiny\bfseries, red!55!black},
+]
+  \node[inp] (input) at (0, 0) {Nom brut SAP\\\og SAHAM ASS. \fg{}};
+
+  \node[algo] (jw) at (3.5, 0.8) {Jaro-Winkler\\(préfixes)};
+  \node[algo] (tfidf) at (3.5, 0) {TF-IDF\\(abréviations)};
+  \node[algo] (sound) at (3.5, -0.8) {Soundex\\(phonétique)};
+
+  \node[fuse] (fusion) at (7, 0) {Score fusionné\\pondéré};
+  \node[dec] (seuil) at (10, 0) {$\geq 85\,\%$ ?};
+  \node[out] (merge) at (13, 0.7) {Fusion\\automatique};
+  \node[out, fill=red!8, draw=red!35] (manual) at (13, -0.7) {Rejet ou\\revue manuelle};
+
+  \draw[arr] (input.east) |- (jw.west);
+  \draw[arr] (input.east) -- (tfidf.west);
+  \draw[arr] (input.east) |- (sound.west);
+
+  \draw[arr] (jw.east) -| (fusion.north);
+  \draw[arr] (tfidf.east) -- (fusion.west);
+  \draw[arr] (sound.east) -| (fusion.south);
+
+  \draw[arr] (fusion.east) -- (seuil.west);
+  \draw[arr] (seuil.east) |- node[above, yes, pos=0.3]{Oui} (merge.west);
+  \draw[arr] (seuil.east) |- node[below, no, pos=0.3]{Non} (manual.west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+\subsection{Cartographies choroplèthes interactives (BF.6)}
+
+Les quatre modules cartographiques (Non-Vie, Vie, Macroéconomie, Gouvernance) exploitent des cartes choroplèthes du continent africain. La conception intègre deux contraintes spécifiques au domaine :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Échelle adaptative :} L'Afrique du Sud représentant $\approx80\,\%$ des primes continentales, les cartographies proposent un mode d'affichage à échelle logarithmique (ou exclusion optionnelle de l'Afrique du Sud) pour préserver la lisibilité des écarts entre les 33 autres marchés.
+  \item \textbf{Navigation par onglets :} Chaque module cartographique est découpé en onglets thématiques avec indicateurs de progression, permettant une exploration structurée des indicateurs par dimension.
+  \item \textbf{Fiche pays détaillée :} Un clic sur un pays ouvre une vue analytique complète (historique, projections, comparaison régionale) consolidant les données des quatre dimensions.
+\end{itemize}
+
+\subsection{Moteur de règles pour les cibles TTY (BF.7)}
+
+Le module de pilotage des Cibles TTY (Traités) intègre un moteur de calcul de la \textit{Part Cible} idéale pour le prochain renouvellement, selon un arbre de règles métier :
+
+\begin{itemize}[leftmargin=1.5cm, itemsep=3pt]
+  \item \textbf{Règle Bonus/Malus :} $+1$ point de part si ULR $< 60\,\%$ ; $-1$ point si ULR $> 80\,\%$.
+  \item \textbf{Plafonnement (capping) :} Hausse maximale de $+2$ points par renouvellement, limitant la volatilité géopolitique du portefeuille.
+  \item \textbf{Module saturation FAC :} Calcul du niveau d'engagement cumulé par marché et par partenaire sur les affaires facultatives, avec alerte de concentration.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\caption{Arbre de décision --- Calcul de la part cible TTY au renouvellement}
+\label{fig:arbre_tty}
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+  dec/.style={diamond, draw, fill=yellow!12, draw=yellow!55!black, minimum width=2.5cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries, inner sep=1pt, aspect=2.2},
+  action/.style={draw, rounded corners=3pt, minimum width=3cm, minimum height=0.65cm, align=center, font=\scriptsize, inner sep=4pt},
+  bonus/.style={action, fill=green!15, draw=green!50},
+  malus/.style={action, fill=red!12, draw=red!45},
+  neutre/.style={action, fill=gray!10, draw=gray!45},
+  cap/.style={action, fill=orange!12, draw=orange!50},
+  result/.style={draw, rounded corners=3pt, fill=blue!10, draw=blue!40, minimum width=3.5cm, minimum height=0.65cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+  yes/.style={font=\tiny\bfseries, green!55!black},
+  no/.style={font=\tiny\bfseries, red!55!black},
+]
+  \node[dec] (d1) at (0, 0) {ULR $< 60\,\%$ ?};
+  \node[bonus] (b1) at (4, 0) {\textbf{Bonus :} $+1$ pt de part};
+  \node[dec] (d2) at (0, -1.8) {ULR $> 80\,\%$ ?};
+  \node[malus] (m1) at (4, -1.8) {\textbf{Malus :} $-1$ pt de part};
+  \node[neutre] (n1) at (4, -3.4) {\textbf{Neutre :} part inchangée};
+
+  \node[cap] (capping) at (8.5, -0.9) {\textbf{Capping :} $\Delta \leq +2$ pts\\par renouvellement};
+  \node[result] (res) at (8.5, -2.8) {\textbf{Part Cible}\\$= \text{Part}_{n-1} + \Delta_{\text{plafonné}}$};
+
+  \draw[arr] (d1.east) -- node[above, yes]{Oui} (b1.west);
+  \draw[arr] (d1.south) -- node[right, no]{Non} (d2.north);
+  \draw[arr] (d2.east) -- node[above, yes]{Oui} (m1.west);
+  \draw[arr] (d2.south) -- node[right, no]{Non} ++(0,-0.8) -- (n1.west);
+
+  \draw[arr] (b1.east) -| (capping.north);
+  \draw[arr] (m1.east) -- (capping.west);
+  \draw[arr] (n1.east) -| (capping.south);
+  \draw[arr] (capping.south) -- (res.north);
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+\subsection{Diagramme de cas d'utilisation}
+
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de cas d'utilisation --- Sous-système A (Plateforme Réassurance)}
+\label{fig:usecase_axe1}
+\resizebox{0.75\textwidth}{!}{%
+\begin{tikzpicture}[
+  pics/stickman/.style={code={
+    \draw[thick] (0,0.3) circle (0.18);
+    \draw[thick] (0,0.12) -- (0,-0.25);
+    \draw[thick] (-0.22,-0.02) -- (0.22,-0.02);
+    \draw[thick] (0,-0.25) -- (-0.16,-0.5);
+    \draw[thick] (0,-0.25) -- (0.16,-0.5);
+  }},
+  uc/.style={draw, ellipse, fill=umluc, draw=umlucborder,
+             minimum width=3.6cm, minimum height=0.8cm,
+             align=center, font=\scriptsize, inner sep=2pt},
+  sysbox/.style={draw=umlucborder, thick, rounded corners=6pt, inner sep=10pt},
+  conn/.style={-, thick, umlucborder!70},
+  incl/.style={-{Stealth[length=2mm]}, dashed, thick, umlucborder!60},
+]
+  \node[sysbox, minimum width=7cm, minimum height=13cm, anchor=center] (sys) at (0,-5.5) {};
+  \node[font=\footnotesize\bfseries, umlucborder, anchor=north]
+    at (sys.north) {Écosystème Digital --- Axe 2 (Portail)};
+  \node[uc] (uc01) at (0,  0.0) {S'authentifier};
+  \node[uc] (uc02) at (0, -1.2) {Consulter le Dashboard};
+  \node[uc] (uc03) at (0, -2.4) {Filtrer les données};
+  \node[uc] (uc04) at (0, -3.6) {Analyser un marché};
+  \node[uc] (uc05) at (0, -4.8) {Analyser une cédante};
+  \node[uc] (uc06) at (0, -6.0) {Analyser un courtier};
+  \node[uc] (uc07) at (0, -7.2) {Gérer la rétrocession};
+  \node[uc] (uc08) at (0, -8.4) {Exporter (Excel/PDF)};
+  \node[uc] (uc09) at (0, -9.6) {Gérer les utilisateurs};
+  \node[uc] (uc10) at (0,-10.8) {Consulter les logs};
+  \draw[incl] (uc02) -- node[right, font=\tiny\itshape, pos=0.5]
+    {<<include>>} (uc01);
+  \pic at (-5.5, -1.8) {stickman};
+  \node[font=\scriptsize\bfseries] at (-5.5, -2.6) {Lecteur};
+  \draw[conn] (-5.1, -1.8) -- (uc02.west);
+  \draw[conn] (-5.1, -1.8) -- (uc03.west);
+  \draw[conn] (-5.1, -1.8) -- (uc04.west);
+  \pic at (-5.5, -6.6) {stickman};
+  \node[font=\scriptsize\bfseries] at (-5.5, -7.4) {Souscripteur};
+  \draw[conn] (-5.1, -6.6) -- (uc05.west);
+  \draw[conn] (-5.1, -6.6) -- (uc06.west);
+  \draw[conn] (-5.1, -6.6) -- (uc07.west);
+  \draw[conn] (-5.1, -6.6) -- (uc08.west);
+  \draw[-{Stealth[length=3mm, open]}, thick, umlucborder]
+    (-5.5, -6.1) -- (-5.5, -2.9);
+  \pic at (5.5, -9.0) {stickman};
+  \node[font=\scriptsize\bfseries] at (5.5, -9.8) {Administrateur};
+  \draw[conn] (5.1, -9.0) -- (uc09.east);
+  \draw[conn] (5.1, -9.0) -- (uc10.east);
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsection{Diagramme de séquence --- Analyse d'une cédante avant renouvellement}
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de séquence --- Évaluation d'une cédante avant renouvellement}
+\label{fig:sequence_cedante}
+\resizebox{0.95\textwidth}{!}{%
+\begin{sequencediagram}
+  \newthread{user}{Analyste}
+  \newinst[4]{fiche}{Fiche cédante}
+  \newinst[5]{recon}{\shortstack[c]{Réconciliation\\des noms}}
+  \newinst[5]{data}{\shortstack[c]{Données\\portefeuille}}
+  \newinst[5]{eval}{\shortstack[c]{Évaluation\\profil}}
+
+  \begin{call}{user}{1: Rechercher <<~SAHAM~>>}{fiche}{}
+  \begin{call}{fiche}{\shortstack[c]{2: Identifier toutes les\\variantes du nom}}{recon}{}
+
+  \postlevel
+  \begin{sdblock}{loop}{Pipeline de réconciliation (seuil 85\%)}
+    \begin{call}{recon}{3: Consulter le référentiel}{data}{4: 6 variantes trouvées}
+    \end{call}
+    \begin{callself}{recon}{\shortstack[c]{5: Jaro-Winkler + TF-IDF\\+ phonétique Soundex}}{}
+    \end{callself}
+  \end{sdblock}
+  \postlevel
+
+  \end{call}
+
+  \postlevel
+  \begin{call}{fiche}{6: Constituer dossier complet}{data}{}
+    \begin{call}{data}{7: Profil de rentabilité}{eval}{10: Profil consolidé}
+      \begin{callself}{eval}{\shortstack[c]{8: Historique pluriannuel\\ULR, résultat, primes}}{}
+      \end{callself}
+      \begin{callself}{eval}{\shortstack[c]{9: Indice diversification\\et saturation FAC}}{}
+      \end{callself}
+    \end{call}
+  \end{call}
+
+  \postlevel
+  \begin{callself}{fiche}{\shortstack[c]{11: Afficher la fiche\\cédante consolidée}}{}
+  \end{callself}
+  \end{call}
+\end{sequencediagram}%
+}
+\end{figure}
+
+
+% ────────────────────────────────────────────────────────────
+%  3.5 — AXE 3 : PRÉDICTION, MODÉLISATION ET RECOMMANDATIONS (ML)
+% ────────────────────────────────────────────────────────────
+\section{Axe 3 --- Prédiction, modélisation et recommandations (ML)}
+\label{sec:ml_pipeline}
+
+
+
+\subsection{Vue d'ensemble du pipeline de prédiction}
+
+Le moteur de modélisation prédictive constitue le livrable scientifique central du projet. Il projette, pour chacun des 33 marchés africains du panel, six variables cibles à horizon 2030, sur la base de données historiques couvrant 2015--2024 (330 observations : $33\times10$). La figure~\ref{fig:ml_pipeline_overview} représente la structure générale du pipeline.
+
+\begin{figure}[H]
+\centering
+\caption{Structure générale du pipeline de modélisation prédictive (13 étapes)}
+\label{fig:ml_pipeline_overview}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  step/.style={draw, rounded corners=3pt, minimum width=2.6cm, minimum height=0.75cm, align=center, font=\scriptsize\bfseries, inner sep=3pt},
+  grp0/.style={step, fill=gray!12, draw=gray!50},
+  grp1/.style={step, fill=blue!10, draw=blue!40},
+  grp2/.style={step, fill=orange!10, draw=orange!40},
+  grp3/.style={step, fill=red!8, draw=red!35},
+  grp4/.style={step, fill=green!10, draw=green!40},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+  grpbox/.style={draw, dashed, rounded corners=4pt, inner sep=5pt},
+]
+\node[grp0] (e0) at (0, 0)    {É0. Chargement\\et fusion};
+\node[grp0] (e1) at (0,-1.05) {É1. Projection\\population};
+\node[grpbox, gray!20, fit=(e0)(e1)] (g0) {};
+\node[font=\tiny\bfseries, gray!50!black, anchor=south] at (g0.north) {Préparation};
+\node[grp1] (e2) at (3.4, 0)    {É2. Croissance\\PIB — AR(1)};
+\node[grp1] (e3) at (3.4,-1.05) {É3. PIB/hab\\Ridge + ARIMA};
+\node[grp1] (e4) at (3.4,-2.1)  {É4. Gouvernance\\Gaussian Process};
+\node[grpbox, blue!10, fit=(e2)(e4)] (g1) {};
+\node[font=\tiny\bfseries, blue!50!black, anchor=south] at (g1.north) {Macroéconomique};
+\node[grp2] (e5) at (6.8, 0)    {É5. Pénétration\\Non-Vie};
+\node[grp2] (e6) at (6.8,-1.05) {É6. Pénétration\\Vie};
+\node[grp2] (e7) at (6.8,-2.1)  {É7. S/P\\AR(2)+XGBoost};
+\node[grpbox, orange!10, fit=(e5)(e7)] (g2) {};
+\node[font=\tiny\bfseries, orange!55!black, anchor=south] at (g2.north) {Assurantiel};
+\node[grp3] (e8)  at (10.2, 0)   {É8. Primes\\et densités};
+\node[grp3] (e9)  at (10.2,-1.05){É9. Conformal\\Prediction IC};
+\node[grp3] (e10) at (10.2,-2.1) {É10. Tests\\cohérence éco.};
+\node[grpbox, red!8, fit=(e8)(e10)] (g3) {};
+\node[font=\tiny\bfseries, red!50!black, anchor=south] at (g3.north) {Validation};
+\node[grp4] (e11) at (13.4, 0)   {É11. Export CSV\\+ Graphiques};
+\node[grp4] (e12) at (13.4,-1.05){É12. Score\\attractivité 0-100};
+\node[grpbox, green!10, fit=(e11)(e12)] (g4) {};
+\node[font=\tiny\bfseries, green!55!black, anchor=south] at (g4.north) {Livrables};
+\draw[arr] (g0.east) -- (g1.west);
+\draw[arr] (g1.east) -- (g2.west);
+\draw[arr] (g2.east) -- (g3.west);
+\draw[arr] (g3.east) -- (g4.west);
+\draw[arr, dashed, orange!60] (e5.south) -- node[right, font=\tiny]{corrélation} (e6.north);
+\draw[arr, dashed, green!50!black] (e8.south) -- ++(0,-0.3) -| (e12.south);
+\end{tikzpicture}%
+}
+\end{figure}
+
+Le tableau~\ref{tab:pipeline_steps} détaille chaque étape du pipeline avec le modèle utilisé et l'output produit.
+
+\begin{table}[H]
+\centering
+\caption{Étapes séquentielles du pipeline de modélisation --- détail}
+\label{tab:pipeline_steps}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}p{0.5cm}p{3.5cm}p{4cm}X@{}}
+\toprule
+\textbf{É.} & \textbf{Action} & \textbf{Modèle} & \textbf{Output} \\
+\midrule
+0 & Chargement \& fusion & Pandas merge + winsorisation p1--p99 & 330 observations (33 pays $\times$ 10 ans) \\
+1 & Projection population & Régression linéaire (extrapolation) & Pop. estimée par pays 2025--2030 \\
+2 & Croissance PIB & AR(1) à mean-reversion (cible 3,5\,\%) & Taux de croissance borné $[-10\,\%;\,+15\,\%]$ \\
+3 & PIB par habitant & Ridge + effets fixes pays + ARIMA(1,0,0) sur résidus & PIB/hab USD par pays \\
+4 & Gouvernance & Gaussian Process Regressor (noyau RBF) & Stabilité politique, qualité rég. + IC \\
+5 & Pénétration Non-Vie & Ridge + effets fixes + ARIMA(1,0,0) & Taux NV \,\% borné $[0{,}01\,;\,5{,}0]$ \\
+6 & Pénétration Vie & Idem + pénétration NV comme prédicteur (corrélation historique observée) & Taux Vie \,\% borné $[0{,}001\,;\,10{,}0]$ \\
+7 & Ratio S/P & AR(2) + Ridge (tendance) puis XGBoost (résidus non-linéaires) & S/P \,\% borné $[5\,;\,95]$ \\
+8 & Variables dérivées & Formules arithmétiques (PIB $\times$ taux) & Primes NV \& Vie, densités, CAGR \\
+9 & Intervalles de confiance & Conformal Prediction (walk-forward CV, 5 splits) & IC 80\,\% et 95\,\% par variable \\
+10 & Tests cohérence économique & 6 tests automatiques (CAGR, $2\sigma$, inversion, couverture IC) & Liste d'alertes / validation \\
+11 & Export \& visualisations & pandas to\_csv + matplotlib & 2 CSV + 3 graphiques PNG \\
+12 & Score d'attractivité & Agrégation pondérée multi-critères & Classement 0--100 par marché \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Prédiction des variables macroéconomiques}
+
+\subsubsection{Croissance du PIB --- Modèle AR(1) à mean-reversion}
+
+La croissance du PIB est modélisée par un processus autorégressif d'ordre 1 (AR(1)) augmenté d'un terme de rappel vers la moyenne historique africaine (3,5\,\%). Le modèle s'écrit :
+
+\begin{equation}
+g_{t+1}^{(i)} = \alpha \cdot g_t^{(i)} + (1-\alpha) \cdot \mu_{\text{Afrique}} + \varepsilon_t
+\label{eq:ar1_pib}
+\end{equation}
+
+où $\alpha$ est le coefficient de persistance, $\mu_{\text{Afrique}} = 3{,}5\,\%$ la cible de mean-reversion, et $\varepsilon_t \sim \mathcal{N}(0,\sigma^2)$. La mean-reversion garantit que les projections à 5 ans ne dérivent pas hors des bornes économiquement plausibles.
+
+\begin{figure}[H]
+\centering
+\caption{Modèle AR(1) à mean-reversion --- Mécanisme de rappel vers $\mu_{\text{Afrique}}$}
+\label{fig:ar1_meanrev}
+\resizebox{0.85\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  inp/.style={box, fill=gray!10, draw=gray!45},
+  proc/.style={box, fill=blue!10, draw=blue!40},
+  target/.style={box, fill=green!12, draw=green!45},
+  bound/.style={box, fill=red!8, draw=red!35},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!55},
+  lbl/.style={font=\tiny, gray!55!black},
+]
+  \node[inp] (gt) at (0, 0) {$g_t^{(i)}$\\Croissance obs.};
+  \node[proc] (ar) at (3.5, 0) {AR(1)\\$\alpha \cdot g_t$};
+  \node[target] (mu) at (3.5, -1.5) {Mean-reversion\\$(1{-}\alpha)\cdot\mu_{3{,}5\%}$};
+  \node[proc] (sum) at (7, 0) {$\hat{g}_{t+1}^{(i)}$\\Prédiction};
+  \node[bound] (clip) at (10.5, 0) {Clamping\\$[-10\%;+15\%]$};
+  \node[target] (out) at (10.5, -1.5) {Croissance\\projetée 2030};
+
+  \draw[arr] (gt.east) -- (ar.west);
+  \draw[arr] (ar.east) -- node[above, lbl]{$+$} (sum.west);
+  \draw[arr] (mu.east) -| node[above right, lbl]{rappel} (sum.south);
+  \draw[arr] (sum.east) -- (clip.west);
+  \draw[arr] (clip.south) -- (out.north);
+
+  \draw[arr, dashed, orange!60] (out.west) -- node[below, lbl]{feedback itératif} (mu.east);
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+\subsubsection{PIB par habitant --- Architecture Ridge + ARIMA}
+
+Le PIB par habitant constitue la variable centrale du modèle --- elle conditionne directement les taux de pénétration assurantielle. Son architecture de prédiction est à deux couches :
+
+\begin{figure}[H]
+\centering
+\caption{Architecture à deux couches pour la prédiction du PIB/hab}
+\label{fig:ridge_arima}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=3.2cm, minimum height=0.8cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  c1/.style={box, fill=blue!10, draw=blue!40},
+  c2/.style={box, fill=orange!10, draw=orange!40},
+  c3/.style={box, fill=green!10, draw=green!40},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!60},
+  sub/.style={font=\tiny, align=center, text width=3.2cm},
+]
+\node[c1] (feat) at (0, 0) {Features\\log(PIB/hab), lag, gouv.};
+\node[c1] (ridge) at (4.2, 0) {Couche 1 : Ridge\\Effets fixes pays};
+\node[c2] (arima) at (8.4, 0) {Couche 2 : ARIMA(1,0,0)\\sur résidus};
+\node[c3] (pred) at (8.4, -1.5) {$\hat{y}_{t+h} = \hat{y}^{\text{Ridge}} + \hat{\varepsilon}^{\text{ARIMA}}$};
+\draw[arr] (feat.east) -- node[above, font=\tiny]{prédiction} (ridge.west);
+\draw[arr] (ridge.east) -- node[above, font=\tiny]{résidus $\varepsilon$} (arima.west);
+\draw[arr] (ridge.south) |- (pred.west);
+\draw[arr] (arima.south) -- (pred.north);
+\node[sub, below=2pt of feat, text=blue!60!black] {Variables observées};
+\node[sub, below=2pt of ridge, text=blue!60!black] {Tendance structurelle};
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsubsection{Gouvernance --- Processus Gaussien}
+
+Les indicateurs de gouvernance (stabilité politique, qualité réglementaire des WGI) présentent une très faible volatilité inter-annuelle et une forte inertie institutionnelle. Le \textbf{Gaussian Process Regressor} avec noyau RBF a été retenu pour trois propriétés : (i)~génération native d'intervalles de confiance sans hypothèse paramétrique ; (ii)~modélisation explicite des corrélations temporelles via le noyau ; (iii)~robustesse à la faible profondeur d'historique de certains pays.
+
+\subsection{Prédiction des variables assurantielles}
+
+\subsubsection{Taux de pénétration Non-Vie et Vie}
+
+Les taux de pénétration suivent la même architecture Ridge + ARIMA que le PIB/hab, enrichie de features spécifiques au secteur assurantiel. Les valeurs sont modélisées en \textit{log scale} pour garantir la positivité stricte. La figure~\ref{fig:penetration_arch} illustre la structure du modèle avec la dépendance causale entre Non-Vie et Vie.
+
+\begin{figure}[H]
+\centering
+\caption{Architecture de prédiction des taux de pénétration assurantielle}
+\label{fig:penetration_arch}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=3.8cm, minimum height=0.85cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  bluebox/.style={box, fill=blue!10, draw=blue!40},
+  orgbox/.style={box, fill=orange!10, draw=orange!40},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!60},
+]
+\node[draw, rounded corners=3pt, fill=gray!10, draw=gray!45,
+      minimum width=2.5cm, minimum height=1.7cm, align=left,
+      font=\tiny, inner sep=5pt] (inputs) at (0,0)
+  {$\bullet$ Lag pénétration\\$\bullet$ log(PIB/hab)\\$\bullet$ Gouvernance\\$\bullet$ Inflation\\$\bullet$ Intégr. rég.};
+\node[bluebox] (nv) at (4.5, 0.6)
+  {Ridge NV + ARIMA\\$\rightarrow$ log(Taux NV)};
+\node[orgbox] (vie) at (4.5,-1)
+  {Ridge Vie + ARIMA\\$\rightarrow$ log(Taux Vie)};
+\node[draw, rounded corners=2pt, fill=green!10, draw=green!40,
+      minimum width=2.2cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries]
+      (outnv) at (8.5, 0.6) {NV $[0{,}01;5{,}0]$\%};
+\node[draw, rounded corners=2pt, fill=green!10, draw=green!40,
+      minimum width=2.2cm, minimum height=0.6cm, align=center, font=\scriptsize\bfseries]
+      (outvie) at (8.5,-1) {Vie $[0{,}001;10]$\%};
+\draw[arr, dashed, orange!60, thick] (nv.south) --
+  node[right, font=\tiny, text=orange!60!black]{corrélation causale} (vie.north);
+\draw[arr] (inputs.east) |- (nv.west);
+\draw[arr] (inputs.east) |- (vie.west);
+\draw[arr] (nv.east) -- (outnv.west);
+\draw[arr] (vie.east) -- (outvie.west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+\subsubsection{Ratio sinistres/primes --- AR(2) + XGBoost sur résidus}
+
+Le ratio S/P est l'indicateur de rentabilité technique le plus critique pour Atlantic Re. Son comportement présente une composante linéaire (tendance structurelle identifiable sur les données historiques) et une composante non-linéaire difficile à capturer par la régression seule. Le modèle adopte une architecture à deux couches séquentielles :
+
+\begin{enumerate}[leftmargin=1.5cm, itemsep=4pt]
+  \item \textbf{Couche 1 --- AR(2) + Ridge :} capture la composante linéaire (tendance et inertie à deux périodes).
+  \item \textbf{Couche 2 --- XGBoost shallow :} modélise les résidus non-linéaires de la couche 1, en exploitant les interactions entre variables macroéconomiques et assurantielles que la régression linéaire ne peut capturer.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\caption{Architecture à deux couches pour la prédiction du ratio S/P}
+\label{fig:sp_xgboost}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=3pt, minimum width=3.2cm, minimum height=0.8cm, align=center, font=\scriptsize\bfseries, inner sep=4pt},
+  c1/.style={box, fill=blue!10, draw=blue!40},
+  c2/.style={box, fill=red!8, draw=red!35},
+  c3/.style={box, fill=green!10, draw=green!40},
+  feat/.style={box, fill=gray!10, draw=gray!45},
+  arr/.style={-{Stealth[length=2mm]}, thick, gray!60},
+  sub/.style={font=\tiny, align=center},
+]
+  \node[feat] (inputs) at (0, 0) {Features\\S/P lags, PIB, gouv.};
+  \node[c1] (ar2) at (4, 0.7) {Couche 1 : AR(2)\\+ Ridge (tendance)};
+  \node[c2] (xgb) at (4, -0.7) {Couche 2 : XGBoost\\shallow (résidus)};
+  \node[c3] (pred) at (8.5, 0) {$\hat{y}_{t+h} = \hat{y}^{\text{AR}} + \hat{r}^{\text{XGB}}$};
+  \node[c3] (clip) at (12, 0) {Clamping\\S/P $\in [5;95]$\,\%};
+
+  \draw[arr] (inputs.east) |- (ar2.west);
+  \draw[arr] (inputs.east) |- (xgb.west);
+  \draw[arr] (ar2.east) -| node[above right, font=\tiny]{linéaire} (pred.north);
+  \draw[arr] (xgb.east) -| node[below right, font=\tiny]{non-lin.} (pred.south);
+  \draw[arr] (pred.east) -- (clip.west);
+
+  \node[sub, below=3pt of ar2, text=blue!60!black] {Tendance structurelle};
+  \node[sub, below=3pt of xgb, text=red!60!black] {Interactions macro $\times$ assur.};
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+La sortie finale est bornée entre 5\,\% et 95\,\% pour rester dans les plages économiquement observables. L'intégration de la tendance baissière calibrée sur données historiques africaines constitue une hypothèse métier validée par l'encadrant entreprise.
+
+\subsection{Quantification de l'incertitude par Conformal Prediction}
+
+La quantification de l'incertitude est une exigence fondamentale pour des décisions stratégiques engageant des montants significatifs. Le pipeline adopte la \textbf{Conformal Prediction} (méthode free-distribution), qui produit des intervalles de confiance empiriquement valides sans hypothèse sur la distribution des erreurs.
+
+\begin{figure}[H]
+\centering
+\caption{Procédure de Conformal Prediction avec walk-forward cross-validation}
+\label{fig:conformal_prediction}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  fold/.style={draw, rounded corners=2pt, minimum width=1.1cm, minimum height=0.45cm, align=center, font=\tiny, inner sep=2pt},
+  arr/.style={-{Stealth[length=1.8mm]}, thick, gray!55},
+  annot/.style={font=\tiny\itshape, gray!60!black},
+]
+\node[font=\scriptsize\bfseries] at (5.5, 1.1) {Walk-forward Cross-Validation (5 splits)};
+\draw[arr, gray!40] (-0.3,0.55) -- (11, 0.55) node[right, font=\tiny]{temps};
+% Split 1
+\foreach \i in {0,1,2,3}
+  \node[fold, fill=blue!15, draw=blue!40] at (\i*1.05, 0) {\tiny Entr.};
+\node[fold, fill=orange!15, draw=orange!40] at (4*1.05, 0) {\tiny Cal.};
+\node[annot] at (5.3*1.05, 0) {Split 1};
+% Split 2
+\foreach \i in {0,1,2,3,4}
+  \node[fold, fill=blue!15, draw=blue!40] at (\i*1.05, -0.7) {\tiny Entr.};
+\node[fold, fill=orange!15, draw=orange!40] at (5*1.05, -0.7) {\tiny Cal.};
+\node[annot] at (6.3*1.05, -0.7) {Split 2};
+% Split 3
+\foreach \i in {0,1,2,3,4,5}
+  \node[fold, fill=blue!15, draw=blue!40] at (\i*1.05, -1.4) {\tiny Entr.};
+\node[fold, fill=orange!15, draw=orange!40] at (6*1.05, -1.4) {\tiny Cal.};
+\node[annot] at (7.3*1.05, -1.4) {Split 3};
+% Split 4
+\foreach \i in {0,1,2,3,4,5,6}
+  \node[fold, fill=blue!15, draw=blue!40] at (\i*1.05, -2.1) {\tiny Entr.};
+\node[fold, fill=orange!15, draw=orange!40] at (7*1.05, -2.1) {\tiny Cal.};
+\node[annot] at (8.3*1.05, -2.1) {Split 4};
+% Split 5
+\foreach \i in {0,1,2,3,4,5,6,7}
+  \node[fold, fill=blue!15, draw=blue!40] at (\i*1.05, -2.8) {\tiny Entr.};
+\node[fold, fill=orange!15, draw=orange!40] at (8*1.05, -2.8) {\tiny Cal.};
+\node[annot] at (9.3*1.05, -2.8) {Split 5};
+% Result
+\node[draw, rounded corners=3pt, fill=green!10, draw=green!40,
+      minimum width=6.5cm, minimum height=0.7cm, align=center, font=\scriptsize, inner sep=4pt]
+      (result) at (5.5, -3.9)
+  {IC 80\,\% = quantile 80\,\% des erreurs absolues de calibration $\times\sqrt{h}$};
+\draw[arr] (4,-3.3) -- (result.north);
+\end{tikzpicture}%
+}
+\end{figure}
+
+L'IC à 80\,\% est calculé comme la racine carrée de l'horizon appliquée au quantile 80\,\% des erreurs absolues observées sur les folds de calibration. Cette propagation de l'incertitude croissante avec l'horizon garantit que les intervalles fournis aux décideurs reflètent l'incertitude réelle des projections à 5 ans.
+
+\subsection{Tests de cohérence économique}
+
+Avant toute utilisation des résultats, le pipeline exécute automatiquement \textbf{6 tests de cohérence économique} qui constituent un filet de sécurité explicite :
+
+\begin{table}[H]
+\centering
+\caption{Tests de cohérence économique automatiques du pipeline}
+\label{tab:tests_coherence}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.4cm}p{4cm}X@{}}
+\toprule
+\textbf{\#} & \textbf{Test} & \textbf{Condition de validation} \\
+\midrule
+1 & CAGR hors bornes & Croissance annuelle NV et Vie $\in [-15\,\%;\,+25\,\%]$ \\
+2 & Inversion NV / Vie & Taux NV $\geq$ Taux Vie (règle économique structurelle) \\
+3 & Saut S/P & Variation du ratio S/P entre années consécutives $\leq 20$\,pts \\
+4 & Couverture IC & IC 80\,\% couvre au moins 75\,\% des valeurs observées en validation \\
+5 & Cohérence PIB/hab & PIB/hab ne peut croître plus vite que le PIB total + 2\,\% \\
+6 & Score complet & Aucune valeur manquante résiduelle dans le vecteur de scoring \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Score d'attractivité composite}
+
+Le score final agrège les projections 2030 des six variables prédites en un score composite 0--100 par pays. La pondération proposée, calibrée en accord avec l'équipe du Pôle Business Développement, est présentée dans la figure~\ref{fig:score_decomp}.
+
+\begin{figure}[H]
+\centering
+\caption{Décomposition du score d'attractivité 2030 (pondération proposée)}
+\label{fig:score_decomp}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  bar/.style={draw, inner sep=0pt},
+  lbl/.style={font=\scriptsize\bfseries},
+  pct/.style={font=\scriptsize, text=white},
+]
+\draw[bar, fill=blue!55] (0,0) rectangle (3.6,0.65);
+\node[pct] at (1.8, 0.325) {30\,\%};
+\node[lbl, above=1pt] at (1.8, 0.65) {Pénétr. NV};
+\draw[bar, fill=red!50] (3.6,0) rectangle (6.6,0.65);
+\node[pct] at (5.1, 0.325) {25\,\%};
+\node[lbl, above=1pt] at (5.1, 0.65) {S/P inversé};
+\draw[bar, fill=orange!60] (6.6,0) rectangle (9.0,0.65);
+\node[pct] at (7.8, 0.325) {20\,\%};
+\node[lbl, above=1pt] at (7.8, 0.65) {PIB/hab};
+\draw[bar, fill=green!50!black] (9.0,0) rectangle (10.8,0.65);
+\node[pct, font=\tiny] at (9.9, 0.325) {15\,\%};
+\node[lbl, above=1pt] at (9.9, 0.65) {Gouvern.};
+\draw[bar, fill=purple!50] (10.8,0) rectangle (12.0,0.65);
+\node[pct, font=\tiny] at (11.4, 0.325) {10\,\%};
+\node[lbl, above=1pt] at (11.4, 0.65) {Pén. Vie};
+\draw[gray!55, thin] (0,0) -- (12,0);
+\foreach \x/\t in {0/0\,\%, 3/25\,\%, 6/50\,\%, 9/75\,\%, 12/100\,\%}
+  \node[font=\tiny, gray!60!black, below=1pt] at (\x, 0) {\t};
+\node[draw, rounded corners=3pt, fill=gray!8, draw=gray!40,
+      minimum width=12cm, minimum height=0.9cm, align=center, font=\scriptsize, inner sep=4pt]
+      (formula) at (6, -1.2)
+  {$\text{Score}(p) = 0{,}30\,S_{\text{NV}} + 0{,}25\,S_{\text{S/P}^{-1}} + 0{,}20\,S_{\text{PIB/hab}} + 0{,}15\,S_{\text{Gouv}} + 0{,}10\,S_{\text{Vie}}$};
+\node[font=\tiny\itshape, gray!60!black, below=2pt of formula]
+  {$S_x(p) \in [0,100]$ : score Min-Max. Pondérations ajustables via l'interface.};
+\node[draw, rounded corners=2pt, fill=green!20, draw=green!50, font=\scriptsize\bfseries,
+      minimum width=2.2cm, minimum height=0.5cm, align=center] at (2, -2.5) {ATTRACTIF $\geq 70$};
+\node[draw, rounded corners=2pt, fill=orange!20, draw=orange!50, font=\scriptsize\bfseries,
+      minimum width=2.2cm, minimum height=0.5cm, align=center] at (6, -2.5) {NEUTRE $40{-}70$};
+\node[draw, rounded corners=2pt, fill=red!20, draw=red!50, font=\scriptsize\bfseries,
+      minimum width=2.2cm, minimum height=0.5cm, align=center] at (10, -2.5) {À ÉVITER $< 40$};
+\end{tikzpicture}%
+}
+\end{figure}
+
+Les pondérations sont \textbf{paramétrables depuis l'interface} : le Directeur Business Développement peut ajuster chaque poids en temps réel via des curseurs et visualiser instantanément le reclassement des marchés --- fonction \textit{What-if} permettant de simuler un changement de priorité stratégique (ex : accentuer le poids de la gouvernance dans un contexte de risque géopolitique accru).
+
+% ────────────────────────────────────────────────────────────
+
+\subsection{Diagramme de cas d'utilisation}
+
+\subsubsection{Sous-système B --- Pipeline ETL et modélisation ML (Axe 3)}
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de cas d'utilisation --- Sous-système B (Pipeline ETL et Modélisation ML)}
+\label{fig:usecase_axe2}
+\resizebox{0.75\textwidth}{!}{%
+\begin{tikzpicture}[
+  pics/stickman/.style={code={
+    \draw[thick] (0,0.3) circle (0.18);
+    \draw[thick] (0,0.12) -- (0,-0.25);
+    \draw[thick] (-0.22,-0.02) -- (0.22,-0.02);
+    \draw[thick] (0,-0.25) -- (-0.16,-0.5);
+    \draw[thick] (0,-0.25) -- (0.16,-0.5);
+  }},
+  uc/.style={draw, ellipse, fill=cyan!8, draw=umlucborder,
+             minimum width=3.6cm, minimum height=0.8cm,
+             align=center, font=\scriptsize, inner sep=2pt},
+  sysbox/.style={draw=umlucborder, thick, rounded corners=6pt, inner sep=10pt},
+  conn/.style={-, thick, umlucborder!70},
+  incl/.style={-{Stealth[length=2mm]}, dashed, thick, umlucborder!60},
+]
+  \node[sysbox, minimum width=7cm, minimum height=10cm, anchor=center] (sys) at (0,-4) {};
+  \node[font=\footnotesize\bfseries, umlucborder, anchor=north]
+    at (sys.north) {Pipeline Data Science \& Modélisation ML --- Axe 3};
+  \node[uc] (uc01) at (0,  0.0) {S'authentifier};
+  \node[uc] (uc02) at (0, -1.2) {Explorer les cartographies};
+  \node[uc] (uc03) at (0, -2.4) {Consulter la fiche pays};
+  \node[uc] (uc04) at (0, -3.6) {Comparer deux pays};
+  \node[uc] (uc05) at (0, -4.8) {Croiser données int./ext.};
+  \node[uc] (uc06) at (0, -6.0) {Calibrer le modèle ML};
+  \node[uc] (uc07) at (0, -7.2) {Consulter le classement};
+  \node[uc] (uc08) at (0, -8.4) {Générer recommandations};
+  \draw[incl] (uc02) -- node[right, font=\tiny\itshape, pos=0.5]
+    {<<include>>} (uc01);
+  \pic at (-5.5, -2.4) {stickman};
+  \node[font=\scriptsize\bfseries] at (-5.5, -3.2) {Analyste BD};
+  \draw[conn] (-5.1, -2.4) -- (uc02.west);
+  \draw[conn] (-5.1, -2.4) -- (uc03.west);
+  \draw[conn] (-5.1, -2.4) -- (uc04.west);
+  \draw[conn] (-5.1, -2.4) -- (uc05.west);
+  \pic at (5.5, -6.0) {stickman};
+  \node[font=\scriptsize\bfseries] at (5.5, -6.8) {Directeur Technique};
+  \draw[conn] (5.1, -6.0) -- (uc06.east);
+  \draw[conn] (5.1, -6.0) -- (uc07.east);
+  \draw[conn] (5.1, -6.0) -- (uc08.east);
+  \draw[conn] (5.1, -6.0) -- (uc02.east);
+\end{tikzpicture}%
+}
+\end{figure}
+
+
+\subsection{Diagramme de séquence --- Scoring ML et priorisation stratégique}
+
+La figure~\ref{fig:sequence_scar} illustre le scénario stratégique central : le Directeur Business Développement utilise le moteur ML pour classer les marchés africains et prioriser les efforts d'expansion Reach2030.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de séquence --- Scoring ML et priorisation des marchés africains}
+\label{fig:sequence_scar}
+\resizebox{0.95\textwidth}{!}{%
+\begin{sequencediagram}
+  \newthread{dir}{\shortstack[c]{Directeur\\Business Dev.}}
+  \newinst[5]{ui}{\shortstack[c]{Interface\\scoring}}
+  \newinst[5]{scar}{\shortstack[c]{Moteur\\ML (13 étapes)}}
+  \newinst[5]{ext}{\shortstack[c]{Données\\externes}}
+  \newinst[5]{port}{\shortstack[c]{Données\\portefeuille}}
+
+  \begin{call}{dir}{\shortstack[c]{1: Lancer scoring\\des marchés}}{ui}{}
+  \begin{call}{dir}{\shortstack[c]{2: Pondérer Macro,\\Secteur, Gouv.}}{ui}{}
+  \begin{call}{ui}{3: Déclencher pipeline ML}{scar}{}
+
+  \postlevel
+  \begin{sdblock}{loop}{Étapes 0-8 : Prédiction 33 marchés × 6 variables}
+    \begin{call}{scar}{\shortstack[c]{4: Collecter indicateurs\\par pays}}{ext}{\shortstack[c]{5: Matrice pays\\× 5 dim. + IC}}
+    \end{call}
+  \end{sdblock}
+  \postlevel
+
+  \begin{sdblock}{opt}{Étape 9-10 : Validation}
+    \begin{callself}{scar}{\shortstack[c]{6: Conformal Prediction\\+ tests cohérence éco.}}{}
+    \end{callself}
+  \end{sdblock}
+  \postlevel
+
+  \begin{sdblock}{opt}{Si données internes disponibles}
+    \begin{call}{scar}{\shortstack[c]{7: Enrichir dimension\\interne (ULR, primes)}}{port}{\shortstack[c]{8: Expérience\\historique}}
+    \end{call}
+  \end{sdblock}
+  \postlevel
+
+  \begin{callself}{scar}{\shortstack[c]{9: Normaliser Min-Max\\+ Score composite 0-100}}{}
+  \end{callself}
+  \begin{callself}{scar}{\shortstack[c]{10: Classer :\\ATTRACTIF / NEUTRE / À ÉVITER}}{}
+  \end{callself}
+
+  \end{call}
+
+  \postlevel
+  \begin{callself}{ui}{\shortstack[c]{11: Afficher classement\\et recommandations}}{}
+  \end{callself}
+  \end{call}
+  \end{call}
+
+  \postlevel
+  \begin{call}{dir}{12: Exporter la note stratégique}{ui}{\shortstack[c]{13: Document\\priorisation Reach2030}}
+  \end{call}
+\end{sequencediagram}%
+}
+\end{figure}
+
+
+% ────────────────────────────────────────────────────────────
+%  3.6 — DIAGRAMME DE CLASSES (TRANSVERSAL)
+% ────────────────────────────────────────────────────────────
+\section{Diagramme de classes du système}
+
+La figure~\ref{fig:class_diagram} présente le diagramme de classes complet du système, structuré en trois packages : modèles internes, référentiel externe africain, et services métier.
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de classes complet du système}
+\label{fig:class_diagram}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  classnode/.style={draw, thick, fill=umlclass, draw=umlclassborder,
+                    inner sep=0pt, outer sep=0pt, rounded corners=0pt},
+  svcnode/.style={draw, thick, fill=green!5, draw=green!50!black,
+                  inner sep=0pt, outer sep=0pt, rounded corners=0pt},
+  scornode/.style={draw, very thick, fill=red!5, draw=red!60!black,
+                   inner sep=0pt, outer sep=0pt, rounded corners=0pt},
+  pkg/.style={draw, thick, dashed, rounded corners=4pt, inner sep=8pt},
+  pkglbl/.style={fill=white, font=\scriptsize\bfseries, inner sep=3pt},
+  cmp/.style={-{Diamond[length=3mm, width=2mm, fill=black]}, thick},
+  agg/.style={-{Diamond[length=3mm, width=2mm]}, thick},
+  dep/.style={-{Stealth[length=2.5mm]}, dashed, thick, gray!60},
+  lbl/.style={font=\tiny, text=gray!50!black},
+]
+  \node[classnode] (user) at (0, 0) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries User} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - username : String(50)\\
+        - hashed\_password : String\\
+        - role : String(50)\\
+        - active : Boolean\\
+        - token\_version : Integer\\[2pt]
+        \rule{\linewidth}{0.3pt}\\[1pt]
+        + authenticate() : Token\\
+        + has\_permission(role) : Bool
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[classnode] (log) at (6, 0) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries ActivityLog} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - timestamp : DateTime\\
+        - username : String(100)\\
+        - action : String(100)\\
+        - detail : Text
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[pkg, blue!30, fit=(user)(log), inner sep=12pt] (pkg1) {};
+  \node[pkglbl, text=blue!60!black, anchor=north west] at (pkg1.north west) {Package : Modèles internes};
+  \node[classnode] (ref) at (0, -5) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries RefPays} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - nom\_pays : String(100)\\
+        - code\_iso3 : CHAR(3)\\
+        - region : String(50)\\
+        - pays\_risque\_match : String\\[2pt]
+        \rule{\linewidth}{0.3pt}\\[1pt]
+        + get\_mapping() : String
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[classnode] (extnv) at (5.5, -5) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries ExtMarcheNonVie} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - pays : String (FK)\\
+        - annee : SmallInteger\\
+        - primes\_emises\_mn\_usd : Float\\
+        - croissance\_primes\_pct : Float\\
+        - taux\_penetration\_pct : Float\\
+        - ratio\_sp\_pct : Float\\
+        - densite\_assurance\_usd : Float
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[classnode] (extv) at (11, -5) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries ExtMarcheVie} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - pays : String (FK)\\
+        - annee : SmallInteger\\
+        - primes\_emises\_mn\_usd : Float\\
+        - croissance\_primes\_pct : Float\\
+        - taux\_penetration\_pct : Float\\
+        - densite\_assurance\_usd : Float
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[classnode] (extg) at (5.5, -9) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries ExtGouvernance} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - pays : String (FK)\\
+        - annee : SmallInteger\\
+        - fdi\_inflows\_pct\_gdp : Float\\
+        - political\_stability : Float\\
+        - regulatory\_quality : Float\\
+        - kaopen : Float
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[classnode] (extm) at (11, -9) {%
+    \begin{tabular}{c}
+      \cellcolor{umlclasshead}\textcolor{white}{\scriptsize\bfseries ExtMacroeconomie} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        \underline{- id : Integer (PK)}\\
+        - pays : String (FK)\\
+        - annee : SmallInteger\\
+        - gdp\_growth\_pct : Float\\
+        - gdp\_per\_capita : Float\\
+        - gdp\_mn : Float\\
+        - inflation\_rate\_pct : Float\\
+        - integration\_regionale\_score : Float
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[pkg, orange!40, fit=(ref)(extnv)(extv)(extg)(extm), inner sep=12pt] (pkg2) {};
+  \node[pkglbl, text=orange!60!black, anchor=north west] at (pkg2.north west) {Package : Référentiel externe africain};
+  \node[svcnode] (asvc) at (17, 0) {%
+    \begin{tabular}{c}
+      \cellcolor{green!45!black}\textcolor{white}{\scriptsize\bfseries <<service>> AuthService} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        + login(credentials) : Token\\
+        + refresh\_token() : Token\\
+        + logout(user) : void\\
+        + change\_password() : void
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[svcnode] (dsvc) at (17, -3) {%
+    \begin{tabular}{c}
+      \cellcolor{green!45!black}\textcolor{white}{\scriptsize\bfseries <<service>> DataService} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        - df : Dataset\\
+        - retro\_df : Dataset\\[2pt]
+        \rule{\linewidth}{0.3pt}\\[1pt]
+        + load\_data(path) : void\\
+        + apply\_filters(params) : Dataset\\
+        + get\_kpis() : Dict\\
+        + get\_country\_stats() : List
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[svcnode] (msvc) at (17, -6.2) {%
+    \begin{tabular}{c}
+      \cellcolor{green!45!black}\textcolor{white}{\scriptsize\bfseries <<service>> MatchingService} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        - threshold : Float (0.85)\\[2pt]
+        \rule{\linewidth}{0.3pt}\\[1pt]
+        + match(name) : List\\
+        + reconcile\_all() : Map\\
+        + diversification(cedante) : Float
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[scornode] (ssvc) at (17, -9.2) {%
+    \begin{tabular}{c}
+      \cellcolor{red!55!black}\textcolor{white}{\scriptsize\bfseries <<service>> ScoringService (ML)} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        - weights : Dict[Dim, Float]\\
+        - pipeline : 13 étapes\\[2pt]
+        \rule{\linewidth}{0.3pt}\\[1pt]
+        + run\_pipeline() : DataFrame\\
+        + compute\_score(pays) : Float\\
+        + rank\_markets() : List\\
+        + calibrate(weights) : void\\
+        + validate\_conformal() : Dict\\
+        + generate\_recommendations() : List
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[svcnode] (esvc) at (22.5, -3) {%
+    \begin{tabular}{c}
+      \cellcolor{green!45!black}\textcolor{white}{\scriptsize\bfseries <<service>> ExternalDataService} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        + get\_non\_vie(pays, annee) : List\\
+        + get\_vie(pays, annee) : List\\
+        + get\_gouvernance(pays) : List\\
+        + get\_macro(pays) : List\\
+        + get\_predictions\_2030() : Dict
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[svcnode] (xsvc) at (22.5, -6.2) {%
+    \begin{tabular}{c}
+      \cellcolor{green!45!black}\textcolor{white}{\scriptsize\bfseries <<service>> ExportService} \\[1pt]
+      \hline
+      \begin{minipage}{3.6cm}\tiny\raggedright\vspace{2pt}
+        + to\_excel(data, filters) : File\\
+        + to\_pdf(data, template) : File\\
+        + to\_csv(data) : File
+      \vspace{2pt}\end{minipage}
+    \end{tabular}%
+  };
+  \node[pkg, green!30, fit=(asvc)(dsvc)(msvc)(ssvc)(esvc)(xsvc), inner sep=12pt] (pkg3) {};
+  \node[pkglbl, text=green!55!black, anchor=north west] at (pkg3.north west) {Package : Services métier};
+  \draw[cmp] (user.east) -- node[lbl, above] {1}
+    node[lbl, above, pos=0.85] {0..*} (log.west);
+  \draw[agg] (ref.east) -- node[lbl, above, pos=0.15] {1}
+    node[lbl, above, pos=0.85] {0..*} (extnv.west);
+  \draw[agg] ([yshift=-2pt]ref.east) -- node[lbl, below, pos=0.85] {0..*} (extv.west |- ref.east);
+  \draw[agg] (ref.south) -- ++(0,-0.8) -| node[lbl, below, pos=0.25] {0..*} (extg.north);
+  \draw[agg] (ref.south) -- ++(0,-1.2) -| node[lbl, below, pos=0.2] {0..*} (extm.north);
+  \draw[dep] (asvc.west) -| node[lbl, above, pos=0.2] {authentifie} (log.north);
+  \draw[dep] (dsvc.west) -- ++(-2,0) |- node[lbl, above, pos=0.8] {journalise} (log.east);
+  \draw[dep] (msvc.north) -- node[lbl, right] {utilise} (dsvc.south);
+  \draw[dep] (ssvc.east) -| node[lbl, above, pos=0.3] {agrège} (esvc.south);
+  \draw[dep] (esvc.west) -- ++(-2,0) |- node[lbl, above, pos=0.85] {interroge} (extv.east);
+  \draw[dep] (xsvc.north) -- ++(0,0.5) -| node[lbl, above, pos=0.3] {} (esvc.south west);
+\end{tikzpicture}%
+}
+\end{figure}
+
+\section{Bilan du chapitre}
+
+Ce chapitre a formalisé l'intégralité de la conception du système, structurée selon les trois axes du projet. L'\textbf{Axe~1} (Pipeline ETL) assure la constitution reproductible d'un référentiel couvrant 34 pays africains à partir de cinq familles de sources, avec gestion hiérarchique des valeurs manquantes, schéma en étoile et annotation de fiabilité. L'\textbf{Axe~2} (Plateforme de pilotage) formalise la conception des modules fonctionnels --- tableau de bord avec seuils d'alerte (BF.3), filtrage contextuel en cascade (BF.4), réconciliation multi-algorithmes des partenaires (BF.5), cartographies choroplèthes adaptatives (BF.6) et moteur de règles Bonus/Malus pour les cibles TTY (BF.7). L'\textbf{Axe~3} (Modélisation prédictive) détaille le pipeline de 13 étapes séquentielles mobilisant des architectures hybrides (AR(1), Ridge + ARIMA, Gaussian Process, XGBoost sur résidus, Conformal Prediction) pour produire, sur les 33 marchés du panel, des projections 2030 assorties d'intervalles de confiance et validées par six tests de cohérence économique automatiques. Le score d'attractivité composite 0--100, paramétrable en temps réel, constitue le livrable stratégique final exploitable dans le cadre du plan Reach2030.
+
+\clearpage
+
+% ============================================================
+%  CHAPITRE 4 : IMPLÉMENTATION ET RÉSULTATS
+% ============================================================
+\chapter{Implémentation et résultats}
+\label{chap:implementation}
+
+\vspace{2cm}
+\begin{center}
+\textit{Ce chapitre sera complété ultérieurement.}
+\end{center}
+
+\clearpage
+
+% ============================================================
+%  CONCLUSION GÉNÉRALE
+% ============================================================
+\chapter*{Conclusion générale}
+\addcontentsline{toc}{chapter}{Conclusion générale}
+
+Ce projet de fin d'études illustre comment une démarche d'ingénieur rigoureuse,
+articulée autour de trois axes complémentaires, peut produire un écosystème digital
+complet au service de la stratégie d'expansion africaine d'un réassureur international.
+
+Le \textbf{premier axe --- le pipeline ETL} --- a permis de centraliser sur une seule
+plateforme l'ensemble des données externes nécessaires à l'analyse des marchés
+africains, en intégrant cinq familles de sources hétérogènes et en assurant la
+reproductibilité et la traçabilité de chaque valeur. Cette centralisation constitue
+une valeur ajoutée opérationnelle immédiate pour le Pôle Business Développement,
+qui fonctionnait jusqu'alors par collectes manuelles dispersées.
+
+Le \textbf{deuxième axe --- la plateforme de réassurance} --- a éliminé les sources
+d'incohérence liées aux extractions manuelles et offre aux équipes un portail
+structuré de consultation, de filtrage multicritère et d'export des KPI du
+portefeuille, enrichi par le croisement avec les données externes du pipeline.
+
+Le \textbf{troisième axe --- la modélisation prédictive} --- a produit un panel dense
+à couverture complète sur les 34 marchés africains retenus, obtenu par imputation
+hiérarchique et validé par une double procédure statistique (LOCO) et métier, sur
+lequel repose le modèle de Machine Learning multicritère en cours de finalisation.
+
+Les perspectives naturelles de ce travail incluent l'automatisation du pipeline de
+mise à jour annuelle du panel, l'intégration de nouvelles sources de données
+(exposition aux risques climatiques, données télématiques pour l'automobile) et
+l'extension du modèle de Machine Learning aux branches complémentaires une fois
+le périmètre initial stabilisé.
+
+\clearpage
+
+% ============================================================
+%  RÉFÉRENCES BIBLIOGRAPHIQUES
+% ============================================================
+\chapter*{Références bibliographiques}
+\addcontentsline{toc}{chapter}{Références bibliographiques}
+
+\begin{thebibliography}{99}
+
+\bibitem[Atlas Magazine(2023)]{AtlasMagazine2023}
+Atlas Magazine (2023).
+\newblock \emph{Panorama des marchés africains de l'assurance 2023}.
+\newblock Casablanca: Atlas Magazine.
+
+\bibitem[Banque Mondiale(2023)]{BanqueMondiale2023}
+Banque Mondiale (2023).
+\newblock \emph{Worldwide Governance Indicators (WGI)}.
+\newblock Washington D.C.: Banque Mondiale.
+\newblock \url{https://info.worldbank.org/governance/wgi/}
+
+\bibitem[Beck et Webb(2003)]{Beck2003}
+Beck, T. et Webb, I. (2003).
+\newblock Economic, demographic, and institutional determinants of life insurance
+  consumption across countries.
+\newblock \emph{World Bank Economic Review}, 17(1), 51--88.
+
+\bibitem[Breiman(2001)]{Breiman2001}
+Breiman, L. (2001).
+\newblock Random forests.
+\newblock \emph{Machine Learning}, 45(1), 5--32.
+
+\bibitem[Chinn et Ito(2006)]{ChinnIto2006}
+Chinn, M.\,D. et Ito, H. (2006).
+\newblock What matters for financial development? Capital controls, institutions,
+  and interactions.
+\newblock \emph{Journal of Development Economics}, 81(1), 163--192.
+
+\bibitem[CIMA(2023)]{CIMA2023}
+CIMA (2023).
+\newblock \emph{Code des assurances des États membres de la CIMA}.
+\newblock Mise à jour 2023.
+
+\bibitem[Eling et Schmit(2012)]{Eling2012}
+Eling, M. et Schmit, J.\,T. (2012).
+\newblock Is there market discipline in the European insurance industry?
+\newblock \emph{The Geneva Papers on Risk and Insurance}, 37(1), 180--207.
+
+\bibitem[FANAF(2023)]{FANAF2023}
+FANAF (2023).
+\newblock \emph{Statistiques du marché africain de l'assurance, exercice 2022--2023}.
+\newblock Dakar: Fédération des Sociétés d'Assurances de Droit National Africaines.
+
+\bibitem[FMI(2024)]{FMI2024}
+Fonds Monétaire International (2024).
+\newblock \emph{World Economic Outlook Database}, octobre 2024.
+\newblock Washington D.C.: FMI.
+\newblock \url{https://www.imf.org/external/datamapper/}
+
+\bibitem[Friedman(2001)]{Friedman2001}
+Friedman, J.\,H. (2001).
+\newblock Greedy function approximation: a gradient boosting machine.
+\newblock \emph{Annals of Statistics}, 29(5), 1189--1232.
+
+\bibitem[Guerard et al.(2021)]{Guerard2021}
+Guerard, Y., Nabeth, M. et Monkam, D. (2021).
+\newblock Multicriteria framework for insurance market entry decisions in emerging
+  economies: Application to Sub-Saharan Africa.
+\newblock \emph{The Geneva Papers on Risk and Insurance}, 46(3), 412--438.
+
+\bibitem[Ke et al.(2017)]{Ke2017}
+Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q. et Liu, T.-Y. (2017).
+\newblock LightGBM: A highly efficient gradient boosting decision tree.
+\newblock \emph{Advances in Neural Information Processing Systems}, 30, 3146--3154.
+
+\bibitem[NAICOM(2022)]{NAICOM2022}
+NAICOM (2022).
+\newblock \emph{Nigerian Insurance Industry Annual Report 2022}.
+\newblock Abuja: National Insurance Commission.
+
+\bibitem[Outreville(2013)]{Outreville2013}
+Outreville, J.\,F. (2013).
+\newblock The relationship between insurance and economic development:
+  85 empirical papers for a review of the literature.
+\newblock \emph{Risk Management and Insurance Review}, 16(1), 71--122.
+
+\bibitem[Swiss Re Institute(2023)]{SwissRe2023}
+Swiss Re Institute (2023).
+\newblock \emph{World Insurance Report -- Sigma}, no.\,3/2023.
+\newblock Zurich: Swiss Re.
+
+\end{thebibliography}
+
+\clearpage
+
+% ============================================================
+%  ANNEXES
+% ============================================================
+\appendix
+
+\chapter{Indicateurs du modèle de scoring}
+\label{ann:indicateurs}
+
+\begin{longtable}{@{}p{0.5cm}p{4.5cm}p{3cm}p{1.6cm}p{2.8cm}@{}}
+\toprule
+\textbf{N°} & \textbf{Indicateur} & \textbf{Dimension} & \textbf{Type} & \textbf{Source} \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\small\itshape (suite)}\\\toprule
+\textbf{N°} & \textbf{Indicateur} & \textbf{Dimension} & \textbf{Type} & \textbf{Source}\\\midrule
+\endhead
+\bottomrule\endfoot
+1  & PIB nominal (mds USD)               & Économique      & Quant. & FMI (WEO) \\
+2  & Taux de croissance du PIB (\% ann.) & Économique      & Quant. & FMI (WEO) \\
+3  & Inflation (\% annuel)               & Économique      & Quant. & FMI (WEO) \\
+4  & PIB par habitant (PPP en USD)       & Économique      & Quant. & FMI (WEO) \\
+5  & Solde courant (\% du PIB)           & Économique      & Quant. & FMI (WEO) \\
+6  & Degré d'intégration régionale       & Économique      & Qual.  & Traités Commerciaux \\
+\midrule
+7  & Volume total de primes (mn USD)     & Marché Ass.     & Quant. & Axco \\
+8  & Taux de pénétration (\%)            & Marché Ass.     & Quant. & Axco \\
+9  & Densité d'assurance (USD/hab.)      & Marché Ass.     & Quant. & Axco \\
+10 & Répartition Vie / Non-Vie (\%)      & Marché Ass.     & Quant. & Axco \\
+11 & Taux de croissance du marché (\%)   & Marché Ass.     & Quant. & Axco \\
+12 & Rentabilité technique -- S/P (\%)   & Marché Ass.     & Quant. & Axco / FANAF \\
+\midrule
+13 & Regulatory Quality (WGI)            & Réglementaire   & Quant. & Banque Mondiale \\
+14 & FDI Inflows (\% GDP)                & Réglementaire   & Quant. & Banque Mondiale \\
+15 & Kaopen (Chinn-Ito)                  & Réglementaire   & Quant. & \citet{ChinnIto2006} \\
+16 & Political Stability (WGI)           & Réglementaire   & Quant. & Banque Mondiale \\
+\midrule
+17 & Nombre de réassureurs actifs        & Concurrentiel   & Quant. & FANAF / Axco \\
+18 & Part de marché Top~3 (\%)           & Concurrentiel   & Quant. & Atlas Magazine \\
+\end{longtable}
+
+\chapter{Glossaire des termes techniques}
+\label{ann:glossaire}
+
+\begin{description}[leftmargin=4cm, style=nextline]
+  \item[Cédante] Compagnie d'assurance qui transfère une partie de ses risques à un
+        réassureur en contrepartie d'une prime de réassurance.
+  \item[Densité d'assurance] Primes d'assurance par habitant, exprimées en USD.
+  \item[IBNR] Incurred But Not Reported : provision pour sinistres survenus mais non
+        encore déclarés à la compagnie d'assurance.
+  \item[Kaopen] Indice d'ouverture du compte de capital \citep{ChinnIto2006}.
+  \item[LOCO] Leave-One-Country-Out : procédure de validation croisée adaptée aux
+        panels de petite taille, où chaque pays est successivement exclu de
+        l'entraînement pour évaluer la généralisation du modèle.
+  \item[Ratio S/P] Sinistres sur Primes ; un ratio structurellement inférieur à
+        85\,\% indique un résultat technique attractif pour le réassureur.
+  \item[Réassurance] Mécanisme par lequel une compagnie d'assurance transfère à un
+        réassureur une partie des risques souscrits en contrepartie d'une prime.
+  \item[Rétrocession] Transfert par un réassureur d'une partie des risques acceptés
+        à un autre réassureur, afin de gérer sa propre exposition.
+  \item[SCAR] Scoring par Corrélation Ajustée et Robustesse : appellation initiale du modèle
+        de scoring multicritère développé dans ce projet, reformulé en modèle de Machine Learning multicritère.
+  \item[Sprint] Itération de développement de durée fixe dans une approche Agile,
+        à l'issue de laquelle un livrable partiel est produit et validé.
+  \item[Taux de pénétration] Ratio primes d'assurance / PIB, exprimé en pourcentage.
+  \item[ULR] Ultimate Loss Ratio (ratio sinistres à terme) : ratio intégrant le
+        développement des réserves sinistres sur plusieurs exercices.
+  \item[Zone CIMA] Périmètre des 14 pays membres de la Conférence Interafricaine des
+        Marchés d'Assurances, disposant d'un code des assurances unifié.
+\end{description}
+
+\end{document}
