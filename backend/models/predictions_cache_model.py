@@ -5,7 +5,8 @@ si l'entrée la plus récente est plus vieille que CACHE_TTL_DAYS.
 """
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -17,4 +18,4 @@ class PredictionsCache(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     computed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     axco_filename = Column(String(255), nullable=True)
-    cache_data = Column(Text, nullable=False)
+    cache_data = Column(LONGTEXT, nullable=False)
