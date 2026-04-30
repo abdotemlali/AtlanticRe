@@ -198,8 +198,8 @@ export default function FilterPanel() {
 
   const activeCount = useMemo(() => {
     let n = 0
-    if (filters.perimetre.length) n++
-    if (filters.type_contrat_spc.length) n++
+    // Périmètre × Type combiné = un seul filtre
+    if (filters.perimetre.length || filters.type_contrat_spc.length) n++
     if (filters.specialite.length) n++
     if (filters.int_spc_search) n++
     if (filters.branche.length) n++
@@ -246,7 +246,21 @@ export default function FilterPanel() {
     })
   }
 
-  const arrayFilters: (keyof FilterState)[] = ['perimetre', 'type_contrat_spc', 'specialite', 'branche', 'sous_branche', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
+  // Périmètre × Type : afficher un seul chip combiné (e.g. 'AE-TTY' ou 'AE-TT')
+  if (filters.perimetre.length > 0 || filters.type_contrat_spc.length > 0) {
+    const perLabel = filters.perimetre.join('+') || '?'
+    const typeLabel = filters.type_contrat_spc.length === 3 && ['TTY','TTE','FAC'].every(t => filters.type_contrat_spc.includes(t))
+      ? 'TOUT'
+      : filters.type_contrat_spc.length === 2 && filters.type_contrat_spc.includes('TTY') && filters.type_contrat_spc.includes('TTE')
+      ? 'TT'
+      : filters.type_contrat_spc.join('+') || '?'
+    activeChips.push({
+      label: `${perLabel}-${typeLabel}`,
+      onRemove: () => setFilters(f => ({ ...f, perimetre: [], type_contrat_spc: [] })),
+    })
+  }
+
+  const arrayFilters: (keyof FilterState)[] = ['specialite', 'branche', 'sous_branche', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
   arrayFilters.forEach(k => {
     const vals = filters[k] as string[] | number[]
     if (vals && vals.length > 0) {
@@ -396,10 +410,240 @@ export default function FilterPanel() {
 
         <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
 
-        {/* INT_SPC */}
+        {/* INT_SPC — Filtre combiné Périmètre × Type */}
         <Section title="Spécialité">
-          <Select isMulti options={toOptions(filterOptions.perimetre)} {...selectStyles} placeholder="Périmètre (AE, AM)" value={toOptions(filters.perimetre)} onChange={v => setFilters(f => ({ ...f, perimetre: v.map(x => x.value) }))} />
-          <Select isMulti options={toOptions(filterOptions.type_contrat_spc)} {...selectStyles} placeholder="Type (FAC, TTY, TTE)" value={toOptions(filters.type_contrat_spc)} onChange={v => setFilters(f => ({ ...f, type_contrat_spc: v.map(x => x.value) }))} />
+          {(() => {
+            /* ── Combined filter definitions ── */
+            const ALL_TYPES = ['TTY', 'TTE', 'FAC']
+            const COMBINED_OPTIONS = [
+              { id: 'ae-tt',  label: 'AE-TT',  perimetre: ['AE'], types: ['TTY', 'TTE'], group: 'ae', color: 'var(--color-navy)' },
+              { id: 'ae-tty', label: 'AE-TTY', perimetre: ['AE'], types: ['TTY'],        group: 'ae', color: 'hsl(209,55%,45%)' },
+              { id: 'ae-tte', label: 'AE-TTE', perimetre: ['AE'], types: ['TTE'],        group: 'ae', color: 'hsl(209,55%,55%)' },
+              { id: 'ae-fac', label: 'AE-FAC', perimetre: ['AE'], types: ['FAC'],        group: 'ae', color: 'hsl(209,55%,65%)' },
+              { id: 'am-tt',  label: 'AM-TT',  perimetre: ['AM'], types: ['TTY', 'TTE'], group: 'am', color: 'hsl(145,45%,40%)' },
+              { id: 'am-tty', label: 'AM-TTY', perimetre: ['AM'], types: ['TTY'],        group: 'am', color: 'hsl(145,40%,48%)' },
+              { id: 'am-tte', label: 'AM-TTE', perimetre: ['AM'], types: ['TTE'],        group: 'am', color: 'hsl(145,40%,55%)' },
+              { id: 'am-fac', label: 'AM-FAC', perimetre: ['AM'], types: ['FAC'],        group: 'am', color: 'hsl(145,40%,62%)' },
+            ]
+
+            /* Check exact match (for toggle logic) */
+            const isExactActive = (opt: typeof COMBINED_OPTIONS[0]) => {
+              const pMatch = opt.perimetre.length === filters.perimetre.length && opt.perimetre.every(p => filters.perimetre.includes(p))
+              const tMatch = opt.types.length === filters.type_contrat_spc.length && opt.types.every(t => filters.type_contrat_spc.includes(t))
+              return pMatch && tMatch
+            }
+
+            /* Check if button should appear highlighted (subset match — lit up when "Tout" is active) */
+            const isHighlighted = (opt: typeof COMBINED_OPTIONS[0]) => {
+              const pMatch = opt.perimetre.every(p => filters.perimetre.includes(p))
+              const tMatch = opt.types.every(t => filters.type_contrat_spc.includes(t))
+              return pMatch && tMatch
+            }
+
+            /* Check if "Tout" (all) is active for a group */
+            const isAllActive = (group: 'ae' | 'am') => {
+              const per = group === 'ae' ? 'AE' : 'AM'
+              const pMatch = filters.perimetre.length === 1 && filters.perimetre[0] === per
+              const tMatch = ALL_TYPES.length === filters.type_contrat_spc.length && ALL_TYPES.every(t => filters.type_contrat_spc.includes(t))
+              return pMatch && tMatch
+            }
+
+            /* Toggle handler for individual buttons */
+            const handleToggle = (opt: typeof COMBINED_OPTIONS[0]) => {
+              if (isExactActive(opt)) {
+                // Deactivate — clear both filters
+                setFilters(f => ({ ...f, perimetre: [], type_contrat_spc: [] }))
+              } else {
+                // Activate — set both filters
+                setFilters(f => ({ ...f, perimetre: [...opt.perimetre], type_contrat_spc: [...opt.types] }))
+              }
+            }
+
+            /* Toggle handler for "Tout" button */
+            const handleToggleAll = (group: 'ae' | 'am') => {
+              if (isAllActive(group)) {
+                setFilters(f => ({ ...f, perimetre: [], type_contrat_spc: [] }))
+              } else {
+                const per = group === 'ae' ? 'AE' : 'AM'
+                setFilters(f => ({ ...f, perimetre: [per], type_contrat_spc: [...ALL_TYPES] }))
+              }
+            }
+
+            /* Compute active label for badge */
+            const activeLabel = (() => {
+              if (isAllActive('ae')) return { label: 'AE-TOUT', color: 'var(--color-navy)' }
+              if (isAllActive('am')) return { label: 'AM-TOUT', color: 'hsl(145,45%,40%)' }
+              const exact = COMBINED_OPTIONS.find(o => isExactActive(o))
+              return exact ? { label: exact.label, color: exact.color } : null
+            })()
+
+            const btnStyle = (color: string, active: boolean): React.CSSProperties => ({
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '5px 0',
+              borderRadius: '6px',
+              border: active ? `1.5px solid ${color}` : '1.5px solid var(--color-gray-200)',
+              background: active ? color : 'transparent',
+              color: active ? '#fff' : 'var(--color-gray-500)',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              letterSpacing: '0.03em',
+              flex: 1,
+            })
+
+            /* "Tout" button style */
+            const toutBtnStyle = (active: boolean, color: string): React.CSSProperties => ({
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              padding: '1px 7px',
+              borderRadius: '4px',
+              border: active ? `1.5px solid ${color}` : '1.5px solid var(--color-gray-200)',
+              background: active ? color : 'transparent',
+              color: active ? '#fff' : 'var(--color-gray-400)',
+              fontSize: '0.6rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase' as const,
+              marginLeft: 'auto',
+            })
+
+            return (
+              <div className="space-y-2">
+                {/* Label */}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-[0.68rem] font-bold uppercase tracking-wider text-gray-400">Périmètre × Type</span>
+                  {activeLabel && (
+                    <span
+                      className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full text-white animate-scale-in"
+                      style={{ background: activeLabel.color }}
+                    >
+                      {activeLabel.label}
+                    </span>
+                  )}
+                </div>
+
+                {/* AE Group — Affaires Étrangères */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <span className="text-[0.65rem] font-semibold text-gray-400 px-0.5">🌍 Affaires Étrangères</span>
+                    <button
+                      onClick={() => handleToggleAll('ae')}
+                      style={toutBtnStyle(isAllActive('ae'), 'var(--color-navy)')}
+                      title="Sélectionner tout AE (TTY + TTE + FAC)"
+                      onMouseEnter={e => {
+                        if (!isAllActive('ae')) {
+                          e.currentTarget.style.borderColor = 'var(--color-navy)'
+                          e.currentTarget.style.color = 'var(--color-navy)'
+                          e.currentTarget.style.background = 'hsla(209,55%,45%,0.1)'
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isAllActive('ae')) {
+                          e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                          e.currentTarget.style.color = 'var(--color-gray-400)'
+                          e.currentTarget.style.background = 'transparent'
+                        }
+                      }}
+                    >
+                      {isAllActive('ae') ? '✓ Tout' : 'Tout'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {COMBINED_OPTIONS.filter(o => o.group === 'ae').map(opt => {
+                      const highlighted = isHighlighted(opt)
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => handleToggle(opt)}
+                          style={btnStyle(opt.color, highlighted)}
+                          onMouseEnter={e => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = opt.color
+                              e.currentTarget.style.color = opt.color
+                              e.currentTarget.style.background = `${opt.color}15`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                              e.currentTarget.style.color = 'var(--color-gray-500)'
+                              e.currentTarget.style.background = 'transparent'
+                            }
+                          }}
+                          title={opt.id === 'ae-tt' ? 'Affaires Étrangères — Treaty (TTY + TTE)' : `Affaires Étrangères — ${opt.types.join(', ')}`}
+                        >
+                          {opt.label.replace('AE-', '')}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* AM Group — Affaires Maroc */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <span className="text-[0.65rem] font-semibold text-gray-400 px-0.5">🇲🇦 Affaires Maroc</span>
+                    <button
+                      onClick={() => handleToggleAll('am')}
+                      style={toutBtnStyle(isAllActive('am'), 'hsl(145,45%,40%)')}
+                      title="Sélectionner tout AM (TTY + TTE + FAC)"
+                      onMouseEnter={e => {
+                        if (!isAllActive('am')) {
+                          e.currentTarget.style.borderColor = 'hsl(145,45%,40%)'
+                          e.currentTarget.style.color = 'hsl(145,45%,40%)'
+                          e.currentTarget.style.background = 'hsla(145,45%,40%,0.1)'
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isAllActive('am')) {
+                          e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                          e.currentTarget.style.color = 'var(--color-gray-400)'
+                          e.currentTarget.style.background = 'transparent'
+                        }
+                      }}
+                    >
+                      {isAllActive('am') ? '✓ Tout' : 'Tout'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {COMBINED_OPTIONS.filter(o => o.group === 'am').map(opt => {
+                      const highlighted = isHighlighted(opt)
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => handleToggle(opt)}
+                          style={btnStyle(opt.color, highlighted)}
+                          onMouseEnter={e => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = opt.color
+                              e.currentTarget.style.color = opt.color
+                              e.currentTarget.style.background = `${opt.color}15`
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!highlighted) {
+                              e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                              e.currentTarget.style.color = 'var(--color-gray-500)'
+                              e.currentTarget.style.background = 'transparent'
+                            }
+                          }}
+                          title={opt.id === 'am-tt' ? 'Affaires Maroc — Treaty (TTY + TTE)' : `Affaires Maroc — ${opt.types.join(', ')}`}
+                        >
+                          {opt.label.replace('AM-', '')}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
           <Select isMulti options={toOptions(filterOptions.specialite)} {...selectStyles} placeholder="Spécialité" value={toOptions(filters.specialite)} onChange={v => setFilters(f => ({ ...f, specialite: v.map(x => x.value) }))} />
           <input type="text" className="input-dark text-xs" placeholder="Recherche libre INT_SPC..." value={filters.int_spc_search} onChange={e => setFilters(f => ({ ...f, int_spc_search: e.target.value }))} />
         </Section>

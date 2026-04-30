@@ -94,7 +94,6 @@ function AppRoutes() {
         <Route path="/" element={
           isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
         } />
-        <Route path="/vue_ensemble" element={<ModelisationHome />} />
 
         {/* ── Home — sélection Axe 1 / Axe 2 (protégée) ── */}
         <Route path="/home" element={
@@ -103,6 +102,7 @@ function AppRoutes() {
 
         {/* ── Cartographie SCAR (Axe 2) — protégé, olive navbar ── */}
         <Route element={<ProtectedRoute><ScarLayout /></ProtectedRoute>}>
+          <Route path="/vue_ensemble" element={<ErrorBoundary><ModelisationHome /></ErrorBoundary>} />
           <Route path="/modelisation" element={<ErrorBoundary><ModelisationHome /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/non-vie" element={<ErrorBoundary><CartographieNonVie /></ErrorBoundary>} />
           <Route path="/modelisation/cartographie/vie" element={<ErrorBoundary><CartographieVie /></ErrorBoundary>} />

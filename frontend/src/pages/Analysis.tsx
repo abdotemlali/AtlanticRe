@@ -493,7 +493,7 @@ export default function Analysis() {
     <div className="flex flex-col h-full animate-fade-in">
 
       {/* ── Panneau de filtres locaux ──────────────────────────────────── */}
-      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-4 px-2">
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
         <div className="bg-white rounded-xl border border-[var(--color-gray-100)] shadow-sm overflow-hidden">
           {/* Header — click to toggle */}
           <button
@@ -523,27 +523,30 @@ export default function Analysis() {
           {/* Collapsible body */}
           {filterPanelOpen && (
             <div className="px-4 pb-4 border-t border-[var(--color-gray-100)]">
-              <div className="flex justify-end pt-2 pb-2">
+              <div className="flex items-center justify-end pt-2 pb-2">
                 {hasLocalFilters && (
                   <button
                     onClick={resetLocalFilters}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                    style={{ background: 'hsla(358,66%,54%,0.08)', color: 'hsl(358,66%,54%)', border: '1px solid hsla(358,66%,54%,0.3)' }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background: 'hsla(358,66%,54%,0.08)',
+                      color: 'hsl(358,66%,54%)',
+                      border: '1px solid hsla(358,66%,54%,0.3)',
+                    }}
                   >
-                    <RotateCcw size={13} />
+                    <RotateCcw size={11} />
                     Réinitialiser
                   </button>
                 )}
               </div>
 
+              {/* ─── Standard dropdown filters (clean grid) ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                
+
                 {/* Année de Souscription */}
                 <div>
-                  <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                    Année de souscription
-                  </label>
-                  <div className="space-y-1.5 z-50">
+                  <label className={LABEL_STYLE}>Année de souscription</label>
+                  <div className="space-y-1.5">
                     <Select
                       isMulti
                       options={filterOptions?.underwriting_years?.map((y: any) => ({ value: y, label: String(y) })) || []}
@@ -591,9 +594,7 @@ export default function Analysis() {
 
                 {/* Branche multi-select et Vie/Non-vie */}
                 <div>
-                  <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                    Branche
-                  </label>
+                  <label className={LABEL_STYLE}>Branche</label>
                   <Select
                     isMulti
                     options={brancheOptions}
@@ -628,12 +629,10 @@ export default function Analysis() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 xl:col-span-2">
-                  {/* Type SPC */}
+                {/* Type SPC */}
+                {(filterOptions?.type_contrat_spc ?? []).length > 0 && (
                   <div>
-                    <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                      Type SPC
-                    </label>
+                    <label className={LABEL_STYLE}>Type SPC</label>
                     <Select
                       isMulti
                       options={(filterOptions?.type_contrat_spc ?? []).map((v: any) => ({ value: v, label: v }))}
@@ -643,12 +642,12 @@ export default function Analysis() {
                       {...selectStyle}
                     />
                   </div>
+                )}
 
-                  {/* Type de contrat */}
+                {/* Type de contrat */}
+                {(filterOptions?.type_of_contract ?? []).length > 0 && (
                   <div>
-                    <label className="block text-[0.70rem] font-bold uppercase tracking-wider mb-1 text-[var(--color-gray-500)]">
-                      Type de contrat
-                    </label>
+                    <label className={LABEL_STYLE}>Type de contrat</label>
                     <Select
                       isMulti
                       options={(filterOptions?.type_of_contract ?? []).map((v: any) => ({ value: v, label: v }))}
@@ -658,7 +657,7 @@ export default function Analysis() {
                       {...selectStyle}
                     />
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

@@ -202,8 +202,8 @@ export default function Home() {
               animationDelay: '0.15s',
             }}
           >
-            Piloter la performance.{' '}
-            <span style={{ color: '#fff' }}>Modéliser l'expansion.</span>
+            Identifier les opportunités.{' '}
+            <span style={{ color: '#fff' }}>Accélérer la croissance.</span>
           </p>
 
           <p
@@ -218,8 +218,9 @@ export default function Home() {
             marchés et auprès de 400+ cédantes. Cette plateforme porte la
             double mission du programme{' '}
             <strong style={{ color: OLIVE_LIGHT }}>TargetBD</strong> :
-            piloter la performance du portefeuille existant et modéliser
-            l'expansion stratégique sur le continent africain.
+            identifier et qualifier les opportunités de développement
+            commercial, et modéliser l'expansion stratégique sur le continent
+            africain.
           </p>
 
           {/* Stats strip */}
@@ -318,7 +319,7 @@ export default function Home() {
             label="Axe 2 · Stratégique"
             title="Modélisation Afrique 2030"
             subtitle="Module SCAR — expansion stratégique africaine"
-            description="Scoring multicritère, carte d'attractivité des 54 marchés africains et pipeline ML pour piloter Reach 2030."
+            description="Scoring multicritère, carte d'attractivité des 54 marchés africains et pipeline ML pour accélérer Reach 2030."
             features={[
               { icon: Compass, label: 'Scoring SCAR multicritère' },
               { icon: Globe2, label: '54 marchés africains' },

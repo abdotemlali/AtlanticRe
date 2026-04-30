@@ -54,9 +54,10 @@ export default function BrokerDetail() {
     if (!broker) return
     setLoading(true)
     try {
-      const p = { ...lf.buildParams, broker }
+      const availableCountries = filterOptions?.pays_risque ?? []
+      const p = { ...lf.buildParams(availableCountries), broker }
       // Params sans filtre branche — pour le pie chart (toutes branches visibles)
-      const pNoBranche = { ...lf.buildParamsNoBranch, broker }
+      const pNoBranche = { ...lf.buildParamsNoBranch(availableCountries), broker }
       const [profRes, yearRes, branchRes, branchAllRes, contractRes] = await Promise.all([
         api.get(API_ROUTES.BROKER.PROFILE, { params: p }),
         api.get(API_ROUTES.BROKER.BY_YEAR, { params: p }),
@@ -71,7 +72,7 @@ export default function BrokerDetail() {
       setContracts(contractRes.data || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }, [broker, lf.buildParams, lf.buildParamsNoBranch])
+  }, [broker, lf.buildParams, lf.buildParamsNoBranch, filterOptions?.pays_risque])
 
   useEffect(() => { loadData() }, [loadData])
 

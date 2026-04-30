@@ -71,16 +71,18 @@ export default function CedanteAnalysis() {
   const isBranchFilterActive = lf.state.branches.length > 0
 
   // Params centralisés via useMemo (avec fallback vers undefined si pas de cédante pour bloquer `useFetch`)
+  const availableCountries = filterOptions?.pays_risque ?? []
+
   const params = useMemo(() => {
     if (!selectedCedante) return undefined
-    return { ...lf.buildParams, cedante: selectedCedante }
-  }, [selectedCedante, lf.buildParams])
+    return { ...lf.buildParams(availableCountries), cedante: selectedCedante }
+  }, [selectedCedante, lf.buildParams, availableCountries])
 
   // Params immunisés contre le filtre branche (pour Mix Pie figé + Top Branches complément)
   const paramsNoBranch = useMemo(() => {
     if (!selectedCedante) return undefined
-    return { ...lf.buildParamsNoBranch, cedante: selectedCedante }
-  }, [selectedCedante, lf.buildParamsNoBranch])
+    return { ...lf.buildParamsNoBranch(availableCountries), cedante: selectedCedante }
+  }, [selectedCedante, lf.buildParamsNoBranch, availableCountries])
 
   // Params for diversification (no branche/vie filter — immunized)
   const diversifParams = useMemo(() => {
@@ -166,8 +168,8 @@ export default function CedanteAnalysis() {
 
   // ── Top 15 Cédantes globales (pour l'état vide) ────────────────────────────
   const topCedantesParams = useMemo(
-    () => lf.buildParams,
-    [lf.buildParams]
+    () => lf.buildParams(availableCountries),
+    [lf.buildParams, availableCountries]
   )
   const { data: topCedantesGlobalRes } = useFetch<any[]>(
     !selectedCedante ? API_ROUTES.KPIS.BY_CEDANTE : null,
@@ -333,6 +335,7 @@ export default function CedanteAnalysis() {
           uwYears={filterOptions?.underwriting_years ?? []}
           typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
           typeOfContractOptions={filterOptions?.type_of_contract ?? []}
+          availableCountries={availableCountries}
         />
       </div>
       <div className="flex-1 overflow-y-auto space-y-6 p-2 pb-12">
