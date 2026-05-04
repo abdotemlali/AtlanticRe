@@ -98,6 +98,7 @@ class FilterParams(BaseModel):
     commission_max: Optional[float] = None
     courtage_min: Optional[float] = None
     courtage_max: Optional[float] = None
+    vie_non_vie_view: Optional[str] = None  # "VIE" | "NON_VIE" | None (all)
 
 # ── KPI Models ────────────────────────────────────────────────────────────────
 class KPISummary(BaseModel):
