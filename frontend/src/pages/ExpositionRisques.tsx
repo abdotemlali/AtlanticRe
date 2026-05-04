@@ -1,14 +1,12 @@
 import React from 'react';
 import { useEffect, useState, useMemo } from "react"
-import { useLocation } from 'react-router-dom'
-import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown, Download } from 'lucide-react'
+import { ShieldAlert, ArrowUpDown, ChevronUp, ChevronDown, Download, Search } from 'lucide-react'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
 import { formatCompact, formatPercent, formatMAD } from '../utils/formatters'
-import { getScopedParams } from '../utils/pageFilterScopes'
-import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import PageFilterPanel from '../components/PageFilterPanel'
+import { useLocalFilters } from '../hooks/useLocalFilters'
+import LocalFilterPanel from '../components/LocalFilterPanel'
 import { useFetch } from '../hooks/useFetch'
 import WorldMap from '../components/Charts/WorldMap'
 import {
@@ -93,8 +91,8 @@ const KPICard = ({ title, value, isPercentage = false }: { title: string, value:
 }
 
 export default function ExpositionRisques() {
-  const { filters } = useData()
-  const location = useLocation()
+  const { filterOptions } = useData()
+  const lf = useLocalFilters()
   const [loading, setLoading] = useState(true)
   const [loadingRisks, setLoadingRisks] = useState(true)
   
@@ -104,20 +102,23 @@ export default function ExpositionRisques() {
   
   const [sortField, setSortField] = useState<keyof TopRisk>('exposition')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-  const params = useMemo(() => getScopedParams(location.pathname, filters), [filters, location.pathname])
+  const [riskSearch, setRiskSearch] = useState('')
+
+  const availableCountries = filterOptions?.pays_risque ?? []
+  const params = useMemo(() => lf.buildParams(availableCountries), [lf.buildParams, availableCountries])
   const topParams = useMemo(() => ({ ...params, top: 20 }), [params])
 
   const countryParams = useMemo(() => {
     const p: Record<string, string> = { ...params }
-    if (filters.pays_risque?.length > 0) p.selected_pays = filters.pays_risque.join(',')
+    if (lf.state.countries.length > 0) p.selected_pays = lf.state.countries.join(',')
     return p
-  }, [params, filters.pays_risque])
+  }, [params, lf.state.countries])
 
   const branchParams = useMemo(() => {
     const p: Record<string, string> = { ...params }
-    if (filters.branche?.length > 0) p.selected_branche = filters.branche.join(',')
+    if (lf.state.branches.length > 0) p.selected_branche = lf.state.branches.join(',')
     return p
-  }, [params, filters.branche])
+  }, [params, lf.state.branches])
 
   const { data: countryData, loading: l1 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_COUNTRY, countryParams)
   const { data: branchFetch, loading: l2 } = useFetch<any[]>(API_ROUTES.EXPOSITION.BY_BRANCH, branchParams)
@@ -129,14 +130,10 @@ export default function ExpositionRisques() {
     if (risksData) setTopRisks(risksData)
   }, [countryData, branchFetch, risksData])
 
-  useEffect(() => {
-    setLoading(l1 || l2)
-  }, [l1, l2])
+  useEffect(() => { setLoading(l1 || l2) }, [l1, l2])
+  useEffect(() => { setLoadingRisks(l3) }, [l3])
 
-  useEffect(() => {
-    setLoadingRisks(l3)
-  }, [l3])
-
+  // ── KPIs de base ──
   const kpis = useMemo(() => {
     let exp = 0, sumInt = 0, shareSum = 0
     byCountry.forEach(c => {
@@ -149,6 +146,26 @@ export default function ExpositionRisques() {
       exposition: exp,
       sum_insured_100: sumInt,
       avg_share_signed: totalCount > 0 ? shareSum / totalCount : 0
+    }
+  }, [byCountry])
+
+  // ── KPIs de concentration ──
+  const concentration = useMemo(() => {
+    const totalExp = byCountry.reduce((s, c) => s + c.exposition, 0)
+    if (totalExp === 0) return { hhi: 0, top5Pct: 0, top5Names: [] as string[] }
+    // HHI (Herfindahl–Hirschman Index) : sum of squared market shares (0–10000)
+    const hhi = byCountry.reduce((s, c) => {
+      const share = (c.exposition / totalExp) * 100
+      return s + share * share
+    }, 0)
+    // Top 5 concentration
+    const sorted = [...byCountry].sort((a, b) => b.exposition - a.exposition)
+    const top5 = sorted.slice(0, 5)
+    const top5Exp = top5.reduce((s, c) => s + c.exposition, 0)
+    return {
+      hhi: Math.round(hhi),
+      top5Pct: totalExp > 0 ? (top5Exp / totalExp) * 100 : 0,
+      top5Names: top5.map(c => c.pays),
     }
   }, [byCountry])
 
@@ -166,12 +183,35 @@ export default function ExpositionRisques() {
   }, [byBranch])
 
   const sortedRisks = useMemo(() => {
-    return [...topRisks].sort((a, b) => {
+    let filtered = topRisks
+    if (riskSearch.trim()) {
+      const q = riskSearch.toLowerCase()
+      filtered = topRisks.filter(r =>
+        r.cedante.toLowerCase().includes(q) ||
+        r.branche.toLowerCase().includes(q) ||
+        r.pays_risque.toLowerCase().includes(q) ||
+        r.policy_id.toLowerCase().includes(q)
+      )
+    }
+    return [...filtered].sort((a, b) => {
       if (a[sortField] < b[sortField]) return sortDirection === 'asc' ? -1 : 1
       if (a[sortField] > b[sortField]) return sortDirection === 'asc' ? 1 : -1
       return 0
     })
-  }, [topRisks, sortField, sortDirection])
+  }, [topRisks, riskSearch, sortField, sortDirection])
+
+  // Exposure threshold: top 10% of max exposure = "Critique", top 30% = "Élevé"
+  const exposureThresholds = useMemo(() => {
+    if (topRisks.length === 0) return { critical: 0, high: 0 }
+    const maxExp = Math.max(...topRisks.map(r => r.exposition))
+    return { critical: maxExp * 0.6, high: maxExp * 0.3 }
+  }, [topRisks])
+
+  const riskLevel = (exp: number) => {
+    if (exp >= exposureThresholds.critical) return { label: 'Critique', bg: 'hsla(358,66%,54%,0.12)', fg: 'hsl(358,66%,54%)', border: 'hsla(358,66%,54%,0.4)' }
+    if (exp >= exposureThresholds.high) return { label: 'Élevé', bg: 'hsla(30,88%,45%,0.12)', fg: 'hsl(30,88%,45%)', border: 'hsla(30,88%,45%,0.4)' }
+    return { label: 'Modéré', bg: 'hsla(209,28%,24%,0.08)', fg: 'hsl(209,28%,40%)', border: 'hsla(209,28%,24%,0.2)' }
+  }
 
   const handleSort = (field: keyof TopRisk) => {
     if (sortField === field) {
@@ -182,44 +222,77 @@ export default function ExpositionRisques() {
     }
   }
 
+  // HHI risk label
+  const hhiLabel = concentration.hhi > 2500 ? 'Concentré' : concentration.hhi > 1500 ? 'Modéré' : 'Diversifié'
+  const hhiColor = concentration.hhi > 2500 ? 'hsl(358,66%,54%)' : concentration.hhi > 1500 ? 'hsl(30,88%,45%)' : 'hsl(142,56%,39%)'
+
   return (
-    <div className="p-6 space-y-4 max-w-[1600px] mx-auto animate-fade-in">
-      <ActiveFiltersBar />
-      <PageFilterPanel />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--color-navy)] mb-1 flex items-center gap-2">
-            <ShieldAlert size={28} className="text-red-500" />
+    <div className="flex flex-col h-full animate-fade-in">
+
+      {/* Filtres de la vue */}
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
+        <LocalFilterPanel
+          filters={lf}
+          allBranches={filterOptions?.branc ?? []}
+          uwYears={filterOptions?.underwriting_years ?? []}
+          typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
+          cedanteOptions={filterOptions?.cedantes ?? []}
+          countryOptions={filterOptions?.pays_risque ?? []}
+          availableCountries={availableCountries}
+          features={['marketType', 'africanMarkets', 'year', 'branch', 'lifeScope', 'cedante', 'country']}
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4 p-2 pb-12">
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="animate-slide-up">
+          <h1 className="text-lg font-bold text-[var(--color-navy)] flex items-center gap-2">
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'hsla(358,66%,54%,0.12)', border: '1px solid hsla(358,66%,54%,0.25)' }}
+            >
+              <ShieldAlert size={15} style={{ color: 'hsl(358,66%,54%)' }} />
+            </span>
             Exposition & Risques
           </h1>
-          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-gray-500)]">
+          <p className="text-sm text-gray-400 mt-1">
             Analyse de l'exposition maximale et des concentrations de risque
           </p>
         </div>
       </div>
 
-      {/* Bandeau contexte — visibilité accrue quand un filtre cedante/courtier est actif */}
-      {(filters.cedante?.length > 0 || filters.courtier?.length > 0) && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-navy)]/20 bg-[var(--color-navy)]/6 backdrop-blur-md text-sm font-semibold text-[var(--color-navy)] shadow-sm">
-          <ShieldAlert size={16} className="shrink-0 opacity-70" />
-          <span>
-            Exposition affichée pour
-            {filters.cedante?.length > 0 && (
-              <> : <span className="font-bold">{filters.cedante.join(', ')}</span>
-              </>
-            )}
-            {filters.courtier?.length > 0 && (
-              <> — Courtier : <span className="font-bold">{filters.courtier.join(', ')}</span>
-              </>
-            )}
-          </span>
-        </div>
-      )}
-
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard title="Exposition Totale" value={kpis.exposition} />
         <KPICard title="Somme assurée 100%" value={kpis.sum_insured_100} />
         <KPICard title="Part souscrite moy." value={kpis.avg_share_signed} isPercentage />
+        {/* Concentration KPIs */}
+        <div className="glass-card p-4 hover-lift">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-500)]">Indice HHI</h3>
+            <span
+              className="px-1.5 py-0.5 rounded text-[9px] font-bold"
+              style={{ background: `${hhiColor}18`, color: hhiColor, border: `1px solid ${hhiColor}40` }}
+            >
+              {hhiLabel}
+            </span>
+          </div>
+          <p className="text-2xl font-extrabold font-outfit tracking-tight" style={{ color: hhiColor }}>
+            {concentration.hhi.toLocaleString('fr-FR')}
+          </p>
+          <p className="text-[10px] text-gray-400 mt-1">0 = diversifié · 10 000 = monopole</p>
+        </div>
+        <div className="glass-card p-4 hover-lift">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-500)] mb-2">Top 5 Concentration</h3>
+          <p className="text-2xl font-extrabold text-[var(--color-navy)] font-outfit tracking-tight">
+            {concentration.top5Pct.toFixed(1)}%
+          </p>
+          <p className="text-[10px] text-gray-400 mt-1 truncate" title={concentration.top5Names.join(', ')}>
+            {concentration.top5Names.slice(0, 3).join(', ')}{concentration.top5Names.length > 3 ? '…' : ''}
+          </p>
+        </div>
       </div>
 
       <div className="glass-card p-6 border border-gray-100">
@@ -229,7 +302,7 @@ export default function ExpositionRisques() {
             <p className="text-xs text-gray-400">Répartition mondiale de l'exposition maximale de réassurance</p>
           </div>
         </div>
-        <WorldMap colorBy="exposition" />
+        <WorldMap colorBy="exposition" externalParams={params} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -327,11 +400,27 @@ export default function ExpositionRisques() {
       </div>
 
       <div className="glass-card overflow-hidden border border-gray-100">
-        <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-4">
+        <div className="p-4 border-b border-gray-100 flex items-center gap-3 flex-wrap">
           <div>
-            <h3 className="text-sm font-bold text-[var(--color-navy)] mb-1">Top Risques Individuels</h3>
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Les 20 contrats avec la plus forte exposition</p>
+            <h3 className="text-sm font-bold text-[var(--color-navy)] mb-0.5">Top Risques Individuels</h3>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Les 20 contrats avec la plus forte exposition</p>
           </div>
+          <div className="relative flex-1 max-w-xs ml-auto">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={riskSearch}
+              onChange={e => setRiskSearch(e.target.value)}
+              placeholder="Rechercher cédante, pays, branche…"
+              className="input-dark pl-8 text-xs py-2 w-full"
+            />
+          </div>
+          <span
+            className="text-xs font-semibold rounded-full px-3 py-1 tabular-nums"
+            style={{ background: 'var(--color-navy-muted)', color: 'var(--color-navy)' }}
+          >
+            {sortedRisks.length} risque{sortedRisks.length > 1 ? 's' : ''}
+          </span>
           <button
             onClick={() => {
               import('xlsx').then(XLSX => {
@@ -385,6 +474,7 @@ export default function ExpositionRisques() {
                 <th className="p-3 font-semibold cursor-pointer hover:bg-gray-100 text-right transition-colors" onClick={() => handleSort('exposition')}>
                   <div className="flex items-center justify-end gap-1">Exposition AR <SortIcon field="exposition" currentField={sortField} direction={sortDirection} /></div>
                 </th>
+                <th className="p-3 font-semibold text-center">Niveau</th>
                 <th className="p-3 font-semibold cursor-pointer hover:bg-gray-100 text-right transition-colors" onClick={() => handleSort('written_premium')}>
                   <div className="flex items-center justify-end gap-1">Prime Écrite <SortIcon field="written_premium" currentField={sortField} direction={sortDirection} /></div>
                 </th>
@@ -397,11 +487,11 @@ export default function ExpositionRisques() {
               {loadingRisks ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-50">
-                    <td colSpan={9} className="p-3"><div className="skeleton h-8 w-full rounded" /></td>
+                    <td colSpan={10} className="p-3"><div className="skeleton h-8 w-full rounded" /></td>
                   </tr>
                 ))
               ) : sortedRisks.map((risk, i) => {
-                const isHighExposure = risk.exposition > 5000000; // Example threshold
+                const rl = riskLevel(risk.exposition)
                 return (
                   <tr key={i} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--color-off-white)]/30'}`}>
                     <td className="p-3 font-medium text-[var(--color-navy)]">{risk.policy_id}</td>
@@ -410,8 +500,16 @@ export default function ExpositionRisques() {
                     <td className="p-3 text-gray-600">{risk.pays_risque}</td>
                     <td className="p-3 text-right font-medium">{formatMAD(risk.sum_insured_100)}</td>
                     <td className="p-3 text-center">{risk.share_signed}%</td>
-                    <td className={`p-3 text-right font-bold ${isHighExposure ? 'text-red-500' : 'text-[var(--color-navy)]'}`}>
+                    <td className="p-3 text-right font-bold" style={{ color: rl.fg }}>
                       {formatMAD(risk.exposition)}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap"
+                        style={{ background: rl.bg, color: rl.fg, border: `1px solid ${rl.border}` }}
+                      >
+                        {rl.label}
+                      </span>
                     </td>
                     <td className="p-3 text-right font-medium">{formatMAD(risk.written_premium)}</td>
                     <td className="p-3 text-center">
@@ -432,6 +530,7 @@ export default function ExpositionRisques() {
             <div className="text-center py-8 text-gray-400 font-medium">Aucun risque trouvé</div>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

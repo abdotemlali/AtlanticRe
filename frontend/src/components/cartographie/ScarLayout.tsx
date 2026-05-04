@@ -1,16 +1,19 @@
-// Layout SCAR (Axe 2) — navbar olive, Cartographie dropdown actif.
-// Utilisé comme parent des routes /modelisation/cartographie/*
+// Layout SCAR (Axe 2) — navbar unifié avec le style des fonctionnalités d'analyse
 import React from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import toast from 'react-hot-toast'
 import {
-  ArrowLeft, BarChart2, ChevronDown, Compass, Database, LayoutDashboard, Map,
-  Network, Sparkles, Target, TrendingUp, Shield, Building2, Heart, Landmark, Combine, Shuffle,
+  BarChart2, ChevronDown, Database, LayoutDashboard, Map,
+  Network, Sparkles, Target, TrendingUp, Building2, Heart, Landmark, Combine, Shuffle,
+  LogOut, Settings,
 } from 'lucide-react'
 
-type NavChild = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
+// ─── Nav types ───────────────────────────────────────────────────────────────
+type NavChild  = { to: string; label: string; icon: React.ElementType; enabled?: boolean; gold?: boolean }
 type NavDirect = { to: string; label: string; icon: React.ElementType; exact?: boolean; children?: undefined }
-type NavGroup = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
-type NavItem = NavDirect | NavGroup
+type NavGroup  = { label: string; icon: React.ElementType; children: NavChild[]; to?: undefined }
+type NavItem   = NavDirect | NavGroup
 
 const navItems: NavItem[] = [
   { to: '/vue_ensemble', label: "Vue d'ensemble", icon: LayoutDashboard, exact: true },
@@ -44,86 +47,99 @@ const navItems: NavItem[] = [
   { to: '/modelisation/recommandations', label: 'Recommandations', icon: Sparkles },
 ]
 
+// ─── NavDropdown — style unifié avec Layout.tsx ──────────────────────────────
 function NavDropdown({ label, icon: Icon, children }: NavGroup) {
   const { pathname } = useLocation()
   const isGroupActive = children.some(
     c => c.enabled && (pathname === c.to || pathname.startsWith(c.to + '/'))
   )
+
   return (
     <div className="relative group flex-shrink-0" style={{ isolation: 'auto' }}>
       <button
         className={[
-          'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
-          'transition-all duration-250 border',
-          isGroupActive ? 'text-white -translate-y-px' : 'text-white/55 hover:text-white/95 hover:-translate-y-px border-transparent',
+          'flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[0.78rem] font-medium whitespace-nowrap relative',
+          'transition-all duration-250 ease-out-expo border',
+          isGroupActive
+            ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
+            : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
         ].join(' ')}
-        style={isGroupActive ? { background: 'hsla(83,50%,55%,0.18)', borderColor: 'hsla(83,50%,55%,0.40)' } : undefined}
-        onMouseEnter={e => { if (!isGroupActive) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
-        onMouseLeave={e => { if (!isGroupActive) e.currentTarget.style.background = '' }}
       >
-        <Icon size={14} className="flex-shrink-0 transition-all duration-250"
-          style={isGroupActive ? { color: 'hsl(83,60%,75%)', opacity: 1 } : { opacity: 0.55 }} />
+        <Icon
+          size={14}
+          className="flex-shrink-0 transition-all duration-250"
+          style={isGroupActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.55 }}
+        />
         <span>{label}</span>
-        <ChevronDown size={11} className="flex-shrink-0 ml-0.5 transition-transform duration-250 group-hover:rotate-180"
-          style={{ opacity: isGroupActive ? 0.85 : 0.45 }} />
+        <ChevronDown
+          size={11}
+          className="flex-shrink-0 ml-0.5 transition-transform duration-250 group-hover:rotate-180"
+          style={{ opacity: isGroupActive ? 0.8 : 0.45 }}
+        />
         {isGroupActive && (
-          <span className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
-            style={{ background: 'hsl(83,60%,70%)' }} />
+          <span
+            className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
+            style={{ background: 'hsl(83,52%,36%)' }}
+          />
         )}
       </button>
-      <div className="absolute left-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200"
+
+      <div
+        className="absolute left-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out-expo"
         style={{
-          top: 'calc(100% + 8px)', zIndex: 200,
-          background: 'hsla(83,30%,12%,0.96)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid hsla(83,52%,50%,0.25)', boxShadow: '0 16px 48px hsla(83,40%,8%,0.55)',
-          borderRadius: 12, minWidth: 240, padding: 6,
+          top: 'calc(100% + 8px)',
+          zIndex: 200,
+          background: 'hsla(209,35%,14%,0.96)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid hsla(83,52%,36%,0.20)',
+          boxShadow: '0 16px 48px hsla(209,28%,8%,0.55)',
+          borderRadius: 12,
+          minWidth: 220,
+          padding: 6,
         }}
       >
         {children.map(child => {
           const ChildIcon = child.icon
           if (child.enabled) {
-            if (child.gold) {
-              return (
-                <NavLink
-                  key={child.to}
-                  to={child.to}
-                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200"
-                  style={({ isActive }) => ({
-                    color: isActive ? 'white' : 'hsl(43,96%,70%)',
-                    background: isActive ? 'hsla(43,96%,48%,0.28)' : undefined,
-                  })}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'hsla(43,96%,48%,0.15)' }}
-                  onMouseLeave={e => {
-                    const active = e.currentTarget.getAttribute('aria-current') === 'page'
-                    e.currentTarget.style.background = active ? 'hsla(43,96%,48%,0.28)' : ''
-                  }}
-                >
-                  <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(43,96%,65%)' }} />
-                  <span>{child.label}</span>
-                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
-                    style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
-                    Axe 1x2
-                  </span>
-                </NavLink>
-              )
-            }
             return (
               <NavLink
                 key={child.to}
                 to={child.to}
-                className={({ isActive }) => [
-                  'flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap transition-all duration-200',
-                  isActive ? 'text-white' : 'text-white/70 hover:text-white',
-                ].join(' ')}
-                style={({ isActive }) => (isActive ? { background: 'hsla(83,52%,50%,0.22)' } : undefined)}
-                onMouseEnter={e => { e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
-                onMouseLeave={e => {
-                  const active = (e.currentTarget.getAttribute('aria-current') === 'page')
-                  e.currentTarget.style.background = active ? 'hsla(83,52%,50%,0.22)' : ''
-                }}
+                className={({ isActive }) =>
+                  [
+                    'flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[0.81rem] font-medium whitespace-nowrap',
+                    'transition-all duration-200',
+                    isActive
+                      ? child.gold ? 'text-white' : 'text-white bg-[hsla(83,52%,36%,0.22)]'
+                      : child.gold ? 'hover:bg-[hsla(0,0%,100%,0.07)]' : 'text-white/55 hover:text-white/90 hover:bg-[hsla(0,0%,100%,0.07)]',
+                  ].join(' ')
+                }
+                style={({ isActive }) => child.gold
+                  ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', background: isActive ? 'hsla(43,96%,48%,0.25)' : undefined }
+                  : undefined
+                }
               >
-                <ChildIcon size={13} className="flex-shrink-0" style={{ color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
-                <span>{child.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <ChildIcon
+                      size={13}
+                      className="flex-shrink-0"
+                      style={
+                        child.gold
+                          ? { color: isActive ? 'white' : 'hsl(43,96%,65%)', opacity: 1 }
+                          : isActive ? { color: 'hsl(83,50%,55%)', opacity: 1 } : { opacity: 0.5 }
+                      }
+                    />
+                    <span>{child.label}</span>
+                    {child.gold && (
+                      <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: 'hsla(43,96%,48%,0.25)', color: 'hsl(43,96%,70%)', border: '1px solid hsla(43,96%,48%,0.35)' }}>
+                        Axe 1×2
+                      </span>
+                    )}
+                  </>
+                )}
               </NavLink>
             )
           }
@@ -145,27 +161,49 @@ function NavDropdown({ label, icon: Icon, children }: NavGroup) {
   )
 }
 
+// ─── ScarLayout ──────────────────────────────────────────────────────────────
 export default function ScarLayout() {
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+    toast.success('Déconnexion réussie')
+  }
+
+  const userInitials = user?.full_name
+    ? user.full_name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+    : 'AD'
+
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--color-off-white)' }}>
+
+      {/* ─────────────────────────────────────────────────────
+          TOP NAVBAR — Unifié avec le style analyse (navy)
+          ───────────────────────────────────────────────────── */}
       <header
         className="flex items-center justify-between flex-shrink-0 relative overflow-visible"
         style={{
           height: 64,
-          background: 'linear-gradient(135deg, hsl(83,40%,10%) 0%, hsl(83,38%,16%) 40%, hsl(83,42%,22%) 70%, hsl(100,36%,18%) 100%)',
-          boxShadow: '0 4px 28px hsla(83,40%,8%,0.50), 0 1px 0 hsla(83,52%,50%,0.30)',
+          background: 'linear-gradient(135deg, hsl(209,35%,12%) 0%, hsl(209,30%,18%) 40%, hsl(209,28%,22%) 70%, hsl(100,36%,14%) 100%)',
+          boxShadow: '0 4px 28px hsla(209,35%,8%,0.50), 0 1px 0 hsla(83,52%,36%,0.25)',
           zIndex: 100,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        <div className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent 5%, hsla(83,60%,70%,0.40) 30%, hsla(0,0%,100%,0.12) 50%, hsla(83,60%,70%,0.40) 70%, transparent 95%)' }} />
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none z-10"
-          style={{ background: 'linear-gradient(90deg, transparent 0%, hsl(83,54%,32%) 15%, hsl(83,52%,42%) 40%, hsl(83,55%,52%) 55%, hsl(83,52%,42%) 70%, hsl(83,54%,32%) 85%, transparent 100%)' }} />
+        {/* Top shimmer line */}
+        <div
+          className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+          style={{ background: 'linear-gradient(90deg, transparent 5%, hsla(83,52%,60%,0.35) 30%, hsla(0,0%,100%,0.10) 50%, hsla(83,52%,60%,0.35) 70%, transparent 95%)' }}
+        />
+        {/* Bottom green accent line */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none z-10"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, hsl(83,54%,27%) 15%, hsl(83,52%,36%) 40%, hsl(83,50%,45%) 55%, hsl(83,52%,36%) 70%, hsl(83,54%,27%) 85%, transparent 100%)' }}
+        />
 
         {/* ───── ZONE 1: LOGO ───── */}
         <div
@@ -177,7 +215,6 @@ export default function ScarLayout() {
           onClick={() => navigate('/home')}
           title="Retour à l'accueil"
         >
-          {/* Logo mark — floating with glow */}
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-extrabold text-white flex-shrink-0 animate-float"
             style={{
@@ -188,7 +225,7 @@ export default function ScarLayout() {
           >
             Re
           </div>
-          <div className="flex flex-col justify-center cursor-pointer" onClick={() => navigate('/vue_ensemble')}>
+          <div className="flex flex-col justify-center">
             <span className="text-[1.05rem] font-bold tracking-[0.01em] text-white leading-tight">
               Atlantic<span style={{ color: 'hsl(83,50%,55%)' }}>Re</span>
             </span>
@@ -198,72 +235,184 @@ export default function ScarLayout() {
           </div>
         </div>
 
+        {/* ───── ZONE 2: NAVIGATION ───── */}
         <nav className="flex items-center gap-0.5 flex-1 px-3 h-full overflow-visible">
-          {navItems.map(item =>
+          {navItems.map((item) =>
             item.children ? (
               <NavDropdown key={item.label} {...item} />
             ) : (
-              <button
+              <NavLink
                 key={item.to}
+                to={item.to}
+                end={item.exact}
                 title={item.label}
-                onClick={() => navigate(item.to)}
-                className={[
-                  'group flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.81rem] font-medium whitespace-nowrap relative',
-                  'transition-all duration-250 border',
-                  pathname === item.to ? 'text-white -translate-y-px' : 'text-white/55 hover:text-white/95 border-transparent',
-                ].join(' ')}
-                style={pathname === item.to ? { background: 'hsla(83,50%,55%,0.18)', borderColor: 'hsla(83,50%,55%,0.40)' } : undefined}
-                onMouseEnter={e => { if (pathname !== item.to) e.currentTarget.style.background = 'hsla(0,0%,100%,0.07)' }}
-                onMouseLeave={e => { if (pathname !== item.to) e.currentTarget.style.background = '' }}
+                className={({ isActive }) =>
+                  [
+                    'group flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[0.78rem] font-medium whitespace-nowrap relative',
+                    'transition-all duration-250 ease-out-expo border',
+                    isActive
+                      ? 'text-white bg-[hsla(83,52%,36%,0.18)] border-[hsla(83,52%,36%,0.35)] -translate-y-px'
+                      : 'text-white/55 hover:text-white/95 hover:bg-[hsla(0,0%,100%,0.07)] hover:-translate-y-px border-transparent',
+                  ].join(' ')
+                }
               >
-                <item.icon size={14} className="flex-shrink-0 transition-all duration-250"
-                  style={pathname === item.to ? { color: 'hsl(83,60%,75%)', opacity: 1 } : { opacity: 0.55 }} />
-                <span>{item.label}</span>
-                {pathname === item.to && (
-                  <span className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
-                    style={{ background: 'hsl(83,60%,70%)' }} />
+                {({ isActive }) => (
+                  <>
+                    <item.icon
+                      size={14}
+                      className={`flex-shrink-0 transition-all duration-250 ${isActive ? 'opacity-100' : 'opacity-55 group-hover:opacity-90'}`}
+                      style={isActive ? { color: 'hsl(83,50%,55%)' } : undefined}
+                    />
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span
+                        className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-t-sm"
+                        style={{ background: 'hsl(83,52%,36%)' }}
+                      />
+                    )}
+                  </>
                 )}
-              </button>
+              </NavLink>
             )
           )}
         </nav>
 
-        <div className="flex items-center gap-2.5 px-4 h-full flex-shrink-0"
-          style={{ borderLeft: '1px solid hsla(0,0%,100%,0.07)' }}>
-          <div className="hidden lg:flex flex-col items-end px-3 py-1.5 rounded-lg"
-            style={{ background: 'hsla(0,0%,0%,0.22)', border: '1px solid hsla(0,0%,100%,0.07)', backdropFilter: 'blur(8px)' }}>
+        {/* ───── ZONE 3: RIGHT ACTIONS ───── */}
+        <div
+          className="flex items-center gap-2 px-2.5 h-full flex-shrink-0"
+          style={{ borderLeft: '1px solid hsla(0,0%,100%,0.07)' }}
+        >
+          {/* Axe 2 badge */}
+          <div
+            className="hidden lg:flex flex-col items-end px-3 py-1.5 rounded-lg"
+            style={{
+              background: 'hsla(0,0%,0%,0.22)',
+              border: '1px solid hsla(0,0%,100%,0.07)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+          >
             <div className="flex items-center gap-1.5">
-              <Database size={11} style={{ color: 'hsl(83,60%,70%)', opacity: 0.9 }} />
+              <Database size={11} style={{ color: 'hsl(83,50%,55%)', opacity: 0.9 }} />
               <span className="text-white text-xs font-bold tracking-wide">Axe 2 · SCAR</span>
             </div>
-            <span className="hidden xl:block text-[0.6rem] mt-0.5 tracking-wide" style={{ color: 'hsla(0,0%,100%,0.40)' }}>
+            <span className="hidden xl:block text-[0.6rem] mt-0.5 tracking-wide" style={{ color: 'hsla(0,0%,100%,0.35)' }}>
               Cartographie des marchés
             </span>
           </div>
 
+          {/* User profile dropdown */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-xl transition-all duration-250 ease-out-expo"
+              style={{
+                background: 'hsla(0,0%,100%,0.06)',
+                border: '1px solid hsla(0,0%,100%,0.10)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'hsla(0,0%,100%,0.10)'
+                e.currentTarget.style.borderColor = 'hsla(83,52%,36%,0.40)'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'hsla(0,0%,100%,0.06)'
+                e.currentTarget.style.borderColor = 'hsla(0,0%,100%,0.10)'
+                e.currentTarget.style.transform = ''
+              }}
+            >
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[0.7rem] font-bold text-white flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(209,28%,28%), hsl(209,24%,40%))',
+                  border: '2px solid hsla(83,52%,36%,0.60)',
+                }}
+              >
+                {userInitials}
+              </div>
+              <div className="hidden md:flex flex-col items-start max-w-[110px]">
+                <span className="text-[0.77rem] font-semibold text-white leading-tight truncate w-full">
+                  {user?.full_name || 'Administrateur'}
+                </span>
+                <span className="text-[0.6rem] font-medium tracking-widest uppercase truncate w-full" style={{ color: 'hsl(83,50%,55%)' }}>
+                  {user?.role || 'admin'}
+                </span>
+              </div>
+              <ChevronDown
+                size={12}
+                className="flex-shrink-0 transition-transform duration-250 group-hover:rotate-180"
+                style={{ color: 'hsla(0,0%,100%,0.40)' }}
+              />
+            </button>
+
+            {/* Dropdown */}
+            <div
+              className="absolute right-0 top-full mt-2 w-52 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-250 ease-out-expo overflow-hidden z-50 animate-slide-down"
+              style={{
+                background: 'hsla(0,0%,100%,0.96)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid hsla(209,22%,90%,1)',
+                boxShadow: '0 16px 48px hsla(209,28%,14%,0.18)',
+                transformOrigin: 'top right',
+              }}
+            >
+              <div className="px-4 py-3 border-b" style={{ borderColor: 'hsl(218,22%,93%)' }}>
+                <p className="text-sm font-semibold text-navy leading-tight">{user?.full_name || 'Administrateur'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{(user as any)?.email || ''}</p>
+              </div>
+
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors text-left border-b"
+                  style={{ borderColor: 'hsl(218,22%,93%)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'hsl(220,20%,97%)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '' }}
+                >
+                  <Settings size={14} className="text-gray-400 flex-shrink-0" />
+                  Administration
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-semibold transition-colors text-left"
+                style={{ color: 'hsl(358,66%,54%)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'hsla(358,66%,54%,0.06)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '' }}
+              >
+                <LogOut size={14} className="flex-shrink-0" />
+                Se déconnecter
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main id="scar-main-scroll" className="flex-1 overflow-y-auto w-full relative" style={{ scrollbarWidth: 'thin' }}>
+      {/* ─────────────────────────────────────────────────────
+          MAIN CONTENT
+          ───────────────────────────────────────────────────── */}
+      <main id="scar-main-scroll" className="flex-1 overflow-y-auto w-full relative" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--color-gray-300) transparent' }}>
         <Outlet />
       </main>
 
+      {/* ─────────────────────────────────────────────────────
+          STATUS BAR
+          ───────────────────────────────────────────────────── */}
       <div className="status-bar">
         <div className="status-bar__left">
           <span className="status-bar__dot" />
-          <span>SCAR · Cartographie</span>
+          <span>Système opérationnel</span>
           <span className="status-bar__separator" />
           <span>© 2024–2026 Atlantic Re — CDG Group</span>
         </div>
         <div className="status-bar__right">
           <span>Decision Intelligence Platform</span>
           <span className="status-bar__separator" />
-          <span style={{ color: 'hsla(83,60%,70%,0.6)' }}>v1.0.0</span>
+          <span style={{ color: 'hsla(83,50%,55%,0.6)' }}>v1.0.0</span>
         </div>
       </div>
     </div>
   )
 }
-// Unused icon references kept intentionally
-void Shield
-void Compass

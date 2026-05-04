@@ -1,15 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation } from 'react-router-dom'
 import { AlertTriangle, ShieldAlert, X, Download, Search } from 'lucide-react'
 import Select from 'react-select'
 import api from '../utils/api'
 import { API_ROUTES } from '../constants/api'
 import { useData } from '../context/DataContext'
 import { formatCompact } from '../utils/formatters'
-import { getScopedParams } from '../utils/pageFilterScopes'
-import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import PageFilterPanel from '../components/PageFilterPanel'
+import { useLocalFilters } from '../hooks/useLocalFilters'
+import LocalFilterPanel from '../components/LocalFilterPanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,12 +158,12 @@ function ModalDetail({
 function VueGlobale({
   seuilPrime,
   seuilAffaires,
+  filterParams,
 }: {
   seuilPrime: number
   seuilAffaires: number
+  filterParams: Record<string, string>
 }) {
-  const { filters } = useData()
-  const location = useLocation()
   const [data, setData] = useState<CedanteGlobal[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -174,7 +172,7 @@ function VueGlobale({
   useEffect(() => {
     setLoading(true)
     const params = {
-      ...getScopedParams(location.pathname, filters),
+      ...filterParams,
       seuil_prime: seuilPrime,
       seuil_affaires: seuilAffaires,
     }
@@ -183,7 +181,7 @@ function VueGlobale({
       .then(res => setData(res.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [filters, seuilPrime, seuilAffaires, location.pathname])
+  }, [filterParams, seuilPrime, seuilAffaires])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data
@@ -370,12 +368,13 @@ function VueGlobale({
 function VueCedante({
   seuilPrime,
   seuilAffaires,
+  filterParams,
 }: {
   seuilPrime: number
   seuilAffaires: number
+  filterParams: Record<string, string>
 }) {
-  const { filters, filterOptions } = useData()
-  const location = useLocation()
+  const { filterOptions } = useData()
   const [selectedCedante, setSelectedCedante] = useState<string | null>(null)
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -391,7 +390,7 @@ function VueCedante({
     }
     setLoading(true)
     const params = {
-      ...getScopedParams(location.pathname, filters),
+      ...filterParams,
       cedante: selectedCedante,
       seuil_prime: seuilPrime,
       seuil_affaires: seuilAffaires,
@@ -401,7 +400,7 @@ function VueCedante({
       .then(res => setData(res.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [selectedCedante, filters, seuilPrime, seuilAffaires, location.pathname])
+  }, [selectedCedante, filterParams, seuilPrime, seuilAffaires])
 
   const hasAlerts = data.some(d => d.is_saturated)
 
@@ -517,17 +516,35 @@ function VueCedante({
 // ─── Page principale ───────────────────────────────────────────────────────────
 
 export default function FacSaturation() {
+  const { filterOptions } = useData()
+  const lf = useLocalFilters()
   const [activeTab, setActiveTab] = useState<'global' | 'cedante'>('global')
   const [seuilPrime, setSeuilPrime] = useState(1_000_000)
   const [seuilAffaires, setSeuilAffaires] = useState(5)
 
+  const availableCountries = filterOptions?.pays_risque ?? []
+  const filterParams = useMemo(() => lf.buildParams(availableCountries), [lf.buildParams, availableCountries])
+
   return (
-    <div className="space-y-4 animate-fade-in p-2 pb-12">
-      <ActiveFiltersBar />
-      <PageFilterPanel />
+    <div className="flex flex-col h-full animate-fade-in">
+
+      {/* Filtres de la vue — même composant que les pages Analyse */}
+      <div className="flex-shrink-0 z-40 bg-[var(--color-off-white)] pt-1 pb-2 px-2">
+        <LocalFilterPanel
+          filters={lf}
+          allBranches={filterOptions?.branc ?? []}
+          uwYears={filterOptions?.underwriting_years ?? []}
+          cedanteOptions={filterOptions?.cedantes ?? []}
+          countryOptions={filterOptions?.pays_risque ?? []}
+          availableCountries={availableCountries}
+          features={['africanMarkets', 'year', 'branch', 'lifeScope', 'cedante', 'country']}
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4 p-2 pb-12">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md sticky top-0 z-40 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 p-4 rounded-xl border border-[var(--color-gray-100)] backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[hsla(358,66%,54%,0.1)]">
             <ShieldAlert size={20} className="text-[hsl(358,66%,54%)]" />
@@ -595,10 +612,11 @@ export default function FacSaturation() {
 
       {/* Contenu onglet */}
       {activeTab === 'global' ? (
-        <VueGlobale seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} />
+        <VueGlobale seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} filterParams={filterParams} />
       ) : (
-        <VueCedante seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} />
+        <VueCedante seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} filterParams={filterParams} />
       )}
+      </div>
     </div>
   )
 }

@@ -16,6 +16,8 @@ import { SlidersHorizontal, ChevronUp, ChevronDown, RotateCcw } from 'lucide-rea
 import type { UseLocalFiltersReturn } from '../hooks/useLocalFilters'
 import { toOptions, toNumOptions } from '../utils/formatters'
 import { SHARED_SELECT_PROPS, LABEL_STYLE } from '../constants/styles'
+import MarketTypeFilter from './MarketTypeFilter'
+import AfricanMarketToggle from './AfricanMarketToggle'
 
 interface LocalFilterPanelProps {
   filters: UseLocalFiltersReturn
@@ -33,8 +35,10 @@ interface LocalFilterPanelProps {
   brokerOptions?: string[]
   /** Country options */
   countryOptions?: string[]
+  /** All available pays risque (for African markets filter) */
+  availableCountries?: string[]
   /** Which filter controls to show (default: all) */
-  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope' | 'cedante' | 'broker' | 'country')[]
+  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope' | 'cedante' | 'broker' | 'country' | 'marketType' | 'africanMarkets')[]
   /** Start open (default: false) */
   defaultOpen?: boolean
 }
@@ -48,6 +52,7 @@ export default function LocalFilterPanel({
   cedanteOptions = [],
   brokerOptions = [],
   countryOptions = [],
+  availableCountries = [],
   features,
   defaultOpen = false,
 }: LocalFilterPanelProps) {
@@ -57,6 +62,7 @@ export default function LocalFilterPanel({
     state, setUwYears, setUwYearMin, setUwYearMax,
     setBranches, setTypeSpc, setTypeOfContract,
     setCedantes, setBrokers, setCountries,
+    setPerimetre, setAfricanMarketsOnly,
     applyBrancheScope, reset, activeCount, hasFilters,
   } = filters
 
@@ -119,7 +125,36 @@ export default function LocalFilterPanel({
             )}
           </div>
 
+          {/* ─── Row 1 : Périmètre × Type  +  Marchés Africains ─── */}
+          {(show('marketType') || show('africanMarkets')) && (
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              {show('marketType') && (
+                <div className="flex-1 min-w-0">
+                  <MarketTypeFilter
+                    perimetre={state.perimetre}
+                    typeSpc={state.typeSpc}
+                    onPerimetreChange={setPerimetre}
+                    onTypeSpcChange={setTypeSpc}
+                    compact
+                  />
+                </div>
+              )}
+              {show('africanMarkets') && (
+                <div className="flex items-end flex-shrink-0" style={{ minWidth: 180 }}>
+                  <AfricanMarketToggle
+                    availableCountries={availableCountries}
+                    active={state.africanMarketsOnly}
+                    onToggle={setAfricanMarketsOnly}
+                    compact
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Row 2 : Standard dropdown filters (clean grid) ─── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
             {/* Année de souscription */}
             {show('year') && (
               <div>
@@ -199,8 +234,8 @@ export default function LocalFilterPanel({
               </div>
             )}
 
-            {/* Type SPC */}
-            {show('typeSpc') && typeSpcOptions.length > 0 && (
+            {/* Type SPC — kept for backward compat if needed without marketType */}
+            {show('typeSpc') && !show('marketType') && typeSpcOptions.length > 0 && (
               <div>
                 <label className={LABEL_STYLE}>Type SPC</label>
                 <Select

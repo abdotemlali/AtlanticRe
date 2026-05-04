@@ -169,8 +169,9 @@ export default function TargetShare() {
   useEffect(() => { setPage(1) }, [debouncedSearch, pill, sortBy, sortDesc])
 
   // Build params with server-side pagination and filters
+  const availableCountries = filterOptions?.pays_risque ?? []
   const params = useMemo(() => ({
-    ...lf.buildParams,
+    ...lf.buildParams(availableCountries),
     page: String(page),
     page_size: String(pageSize),
     pill,
@@ -188,7 +189,7 @@ export default function TargetShare() {
     max_increase_per_renewal: String(adjustmentParams.max_increase_per_renewal),
     max_multiple: String(adjustmentParams.max_multiple),
     cap_mdh: String(adjustmentParams.cap_mdh * 1_000_000),
-  }), [lf.buildParams, page, pageSize, pill, debouncedSearch, sortBy, sortDesc, adjustmentParams])
+  }), [lf.buildParams, availableCountries, page, pageSize, pill, debouncedSearch, sortBy, sortDesc, adjustmentParams])
 
   const { data: res, loading } = useFetch<TargetShareResponse>(
     API_ROUTES.TARGET_SHARE.LIST,
@@ -207,7 +208,7 @@ export default function TargetShare() {
     try {
       // Use the backend's `export=true` flag which bypasses pagination entirely
       const exportParams = {
-        ...lf.buildParams,
+        ...lf.buildParams(availableCountries),
         pill,
         search: debouncedSearch,
         sort_by: sortBy,
@@ -267,11 +268,13 @@ export default function TargetShare() {
           filters={lf}
           allBranches={filterOptions?.branc ?? []}
           uwYears={filterOptions?.underwriting_years ?? []}
+          typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
           typeOfContractOptions={filterOptions?.type_of_contract ?? []}
           cedanteOptions={filterOptions?.cedantes ?? []}
           brokerOptions={filterOptions?.courtiers ?? []}
           countryOptions={filterOptions?.pays_risque ?? []}
-          features={['year', 'branch', 'typeContract', 'lifeScope', 'cedante', 'broker', 'country']}
+          availableCountries={filterOptions?.pays_risque ?? []}
+          features={['marketType', 'africanMarkets', 'year', 'branch', 'typeContract', 'lifeScope', 'cedante', 'broker', 'country']}
         />
       </div>
 

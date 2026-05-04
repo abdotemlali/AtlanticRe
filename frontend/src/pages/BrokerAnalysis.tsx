@@ -54,7 +54,8 @@ export default function BrokerAnalysis() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const p = lf.buildParams
+      const availableCountries = filterOptions?.pays_risque ?? []
+      const p = lf.buildParams(availableCountries)
       const [brkRes, retRes] = await Promise.all([
         api.get(API_ROUTES.KPIS.TOP_BROKERS, { params: { ...p, limit: 500, sort_by: 'total_written_premium' } }),
         api.get(API_ROUTES.RETRO.BY_COURTIER, { params: { uw: p.uw_years_raw } }).catch(() => ({ data: [] })),
@@ -63,7 +64,7 @@ export default function BrokerAnalysis() {
       setRetroCourtiers(retRes.data || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }, [lf.buildParams])
+  }, [lf.buildParams, filterOptions?.pays_risque])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -146,6 +147,7 @@ export default function BrokerAnalysis() {
           uwYears={filterOptions?.underwriting_years ?? []}
           typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
           typeOfContractOptions={filterOptions?.type_of_contract ?? []}
+          availableCountries={filterOptions?.pays_risque ?? []}
         />
       </div>
       <div className="flex-1 overflow-y-auto space-y-4 p-2 pb-12">
