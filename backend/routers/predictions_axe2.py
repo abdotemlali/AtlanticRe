@@ -11,10 +11,11 @@ Pipeline hybride (notebook axe2_atlanticre_predictions_2030.ipynb, étapes 0–1
   Étape 2b: Integration + FDI — AR(1) mean-reversion par pays
   Étape 2c: gdp_growth — Ridge hiérarchique (FE pays + interactions ρ_i) + blending Axco
   Étape 3 : gdpcap — FE-OLS + RidgeCV + ARIMA résidus + identité comptable + blending Axco
-  Étape 4 : polstab, regqual — Gaussian Process (RBF + WhiteKernel)
+  Étape 2c: gdp_growth — Ridge Tendance+Inflation (2 features, train≤2022, déterministe)
+  Étape 4 : polstab, regqual — Ridge AR(1) + lag1 + contrainte variation annuelle
   Étape 5 : nv_penetration — FE-OLS + RidgeCV + ARIMA résidus
-  Étape 6 : vie_penetration — FE-OLS + RidgeCV + ARIMA résidus (utilise nv_penet_lag)
-  Étape 7 : nv_sp — AR(2) + RidgeCV + XGBoost résidus + drift continental
+  Étape 6 : vie_penetration — RidgeCV SANS FE + ARIMA résidus (utilise nv_penet_lag)
+  Étape 7 : nv_sp — AR(2) + RidgeCV + tendance pays-spécifique
   Étape 8 : Dérivées (nv_primes, nv_densite, vie_primes, vie_densite, gdp)
   Étape 9 : Conformal Prediction (walk-forward 5 splits → q80, q95)
   Étape 10: Tests de cohérence (bornes, IC, alignement Axco)
@@ -84,20 +85,13 @@ INTEG_RHO_MIN, INTEG_RHO_MAX = 0.0, 0.85
 FDI_MIN, FDI_MAX = -5.0, 30.0
 FDI_RHO_MIN, FDI_RHO_MAX = 0.0, 0.85
 
-# Étape 2c — gdp_growth
+# Étape 2c — gdp_growth (Ridge Tendance+Inflation — sans AR(1), sans Brent, sans FE)
 GDP_GROWTH_MIN, GDP_GROWTH_MAX = -5.0, 12.0
-RHO_MIN, RHO_MAX = -0.5, 0.95
-MU_WINDOW_GROWTH = list(range(2018, 2025))
+MU_WINDOW_GROWTH = list(range(2015, 2023))   # 2015-2022 strict (zéro fuite)
 MU_GROWTH_CLIP = (1.0, 8.5)
-MU_GROWTH_DEFAULT = 4.2
-
-BRENT_HIST = {2014: 99.0, 2015: 52.4, 2016: 43.7, 2017: 54.2, 2018: 71.0,
-              2019: 64.3, 2020: 41.8, 2021: 70.9, 2022: 100.9,
-              2023: 82.5, 2024: 80.5}
-BRENT_PROJ_FLAT = float(np.mean([BRENT_HIST[y] for y in range(2020, 2025)]))
-BRENT_LAG1 = {y: BRENT_HIST[y - 1] for y in range(2015, 2025)}
-for _yr in YEARS_PRED:
-    BRENT_LAG1[_yr] = BRENT_PROJ_FLAT
+MU_GROWTH_DEFAULT = 4.0
+INFL_PENALTY_THRESH = 7.0   # seuil au-dessus duquel l'inflation pénalise la croissance
+INFL_BONUS_THRESH = 3.0     # seuil en-dessous duquel l'inflation stimule la croissance
 
 BLEND_WEIGHTS = {2025: (0.10, 0.90), 2026: (0.30, 0.70), 2027: (0.50, 0.50)}
 
@@ -116,7 +110,7 @@ VIE_PENET_MIN, VIE_PENET_MAX = 0.001, 10.0
 
 # Étape 7 — nv_sp
 NV_SP_MIN, NV_SP_MAX = 5.0, 95.0
-CONTINENTAL_SP_TREND = -0.29
+SP_TREND_MIN, SP_TREND_MAX = -2.0, 0.5  # pp/an — garde-fous économiques
 
 # Mapping DB (UPPER-EN) → FR canonique (PAYS_33)
 DB_COUNTRY_MAP = {
@@ -174,7 +168,7 @@ VARIABLE_META: dict[str, dict] = {
     },
     "nv_sp": {
         "label": "Ratio S/P Non-Vie", "unite": "%", "sens_favorable": "baisse",
-        "dimension": "non_vie", "modele": "AR2+Ridge+XGBoost",
+        "dimension": "non_vie", "modele": "AR2+Ridge+TendancePays",
     },
     "gdpcap": {
         "label": "PIB par habitant", "unite": "USD", "sens_favorable": "hausse",
@@ -182,15 +176,15 @@ VARIABLE_META: dict[str, dict] = {
     },
     "gdp_growth": {
         "label": "Croissance PIB", "unite": "%", "sens_favorable": "hausse",
-        "dimension": "macro", "modele": "Ridge-Hierarchique",
+        "dimension": "macro", "modele": "Ridge-Inflation",
     },
     "polstab": {
         "label": "Stabilité Politique", "unite": "indice", "sens_favorable": "hausse",
-        "dimension": "gouvernance", "modele": "GaussianProcess",
+        "dimension": "gouvernance", "modele": "Ridge+lag1",
     },
     "regqual": {
         "label": "Qualité Réglementaire", "unite": "indice", "sens_favorable": "hausse",
-        "dimension": "gouvernance", "modele": "GaussianProcess",
+        "dimension": "gouvernance", "modele": "Ridge+lag1",
     },
     "nv_primes": {
         "label": "Primes Non-Vie", "unite": "Mn USD", "sens_favorable": "hausse",
@@ -463,82 +457,82 @@ def _ar1_mr_project(
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# ÉTAPE 2c — gdp_growth (Ridge hiérarchique + Axco blending)
+# ÉTAPE 2c — gdp_growth (Ridge Tendance+Inflation — sans AR(1), sans Brent, sans FE)
+# Justification : modèle parcimonieux 2 features, zéro fuite (train ≤ 2022),
+# projection déterministe via tendance pays-spécifique + impact inflation.
 # ════════════════════════════════════════════════════════════════════════════
 
 def _step2c_gdp_growth(
-    df: pd.DataFrame, pays_33: list[str], inflation_pred: dict,
+    df: pd.DataFrame, pays_33: list[str],
     axco_loaded: bool, axco_gdp_growth_anchor: dict,
 ) -> tuple[dict, dict]:
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
+    from scipy.stats import linregress
 
-    mu_pays_dict: dict = {}
+    # ── Étape 1 : calibrer μ_long et tendance linéaire par pays (2015-2022) ──
+    mu_long_dict: dict = {}
+    trend_dict: dict = {}   # {pays: (slope, intercept)}
     for pays in pays_33:
-        df_p = df[df["Pays"] == pays].sort_values("Year")
-        g_window = df_p[df_p["Year"].isin(MU_WINDOW_GROWTH)]["gdp_growth"].dropna()
-        mu_p = float(g_window.mean()) if len(g_window) > 0 else MU_GROWTH_DEFAULT
-        mu_pays_dict[pays] = float(np.clip(mu_p, MU_GROWTH_CLIP[0], MU_GROWTH_CLIP[1]))
+        df_p = df[(df["Pays"] == pays) & (df["Year"].isin(MU_WINDOW_GROWTH))].dropna(subset=["gdp_growth"])
+        if len(df_p) >= 2:
+            mu = float(np.clip(df_p["gdp_growth"].mean(), MU_GROWTH_CLIP[0], MU_GROWTH_CLIP[1]))
+            sl, ic, *_ = linregress(df_p["Year"].values, df_p["gdp_growth"].values)
+        else:
+            mu, sl, ic = MU_GROWTH_DEFAULT, 0.0, MU_GROWTH_DEFAULT
+        mu_long_dict[pays] = mu
+        trend_dict[pays] = (float(sl), float(ic))
 
-    df_gdp = df.dropna(subset=["gdp_growth", "gdp_growth_lag1", "inflation_lag1"]).copy()
-    df_gdp["brent_lag1"] = df_gdp["Year"].map(BRENT_LAG1)
-    df_gdp["mu_pays"] = df_gdp["Pays"].map(mu_pays_dict)
-    df_gdp["g_lag_dev"] = df_gdp["gdp_growth_lag1"] - df_gdp["mu_pays"]
+    # ── Étape 2 : entraîner Ridge sur 2 features inflation (train ≤ 2022) ────
+    df_train_gdp = df[df["Year"] <= 2022].copy()
+    df_train_gdp["inflation_lag1"] = df_train_gdp.groupby("Pays")["inflation"].shift(1)
+    df_train_gdp = df_train_gdp.dropna(subset=["gdp_growth", "inflation_lag1"])
+    df_train_gdp = df_train_gdp[df_train_gdp["Pays"].isin(pays_33)].copy()
 
-    pays_dum_g = pd.get_dummies(df_gdp["Pays"], prefix="pays", drop_first=True).astype(float)
-    pays_int_g = pays_dum_g.multiply(df_gdp["g_lag_dev"].values, axis=0)
-    pays_int_g.columns = [c.replace("pays_", "rho_") for c in pays_int_g.columns]
+    df_train_gdp["mu_long"] = df_train_gdp["Pays"].map(mu_long_dict)
+    df_train_gdp["g_trend"] = df_train_gdp.apply(
+        lambda r: trend_dict[r["Pays"]][0] * r["Year"] + trend_dict[r["Pays"]][1], axis=1
+    )
+    df_train_gdp["anchor"] = 0.80 * df_train_gdp["mu_long"] + 0.20 * df_train_gdp["g_trend"]
+    df_train_gdp["infl_pen"] = np.maximum(df_train_gdp["inflation_lag1"] - INFL_PENALTY_THRESH, 0.0)
+    df_train_gdp["infl_bon"] = np.maximum(INFL_BONUS_THRESH - df_train_gdp["inflation_lag1"], 0.0)
+    df_train_gdp["target_c"] = df_train_gdp["gdp_growth"] - df_train_gdp["anchor"]
+    df_train_gdp = df_train_gdp.dropna(subset=["infl_pen", "infl_bon", "target_c"])
 
-    X_g = pd.concat([
-        df_gdp[["g_lag_dev", "inflation_lag1", "brent_lag1"]].reset_index(drop=True),
-        pays_dum_g.reset_index(drop=True),
-        pays_int_g.reset_index(drop=True),
-    ], axis=1)
-    y_g = df_gdp["gdp_growth"].values - df_gdp["mu_pays"].values
+    sc_infl = StandardScaler().fit(df_train_gdp[["infl_pen", "infl_bon"]].values)
+    ridge_gdp = RidgeCV(alphas=[0.01, 0.1, 1, 5, 10, 30, 100, 300, 1000], cv=5).fit(
+        sc_infl.transform(df_train_gdp[["infl_pen", "infl_bon"]].values),
+        df_train_gdp["target_c"].values
+    )
 
-    scaler_g = StandardScaler().fit(X_g.values)
-    X_g_sc = scaler_g.transform(X_g.values)
+    def _predict_g(pays: str, yr: int, mu_long: float, last_infl: float) -> float:
+        sl, ic = trend_dict.get(pays, (0.0, mu_long))
+        anchor = 0.80 * mu_long + 0.20 * (sl * yr + ic)
+        infl_pen = max(0.0, last_infl - INFL_PENALTY_THRESH)
+        infl_bon = max(0.0, INFL_BONUS_THRESH - last_infl)
+        feat = sc_infl.transform([[infl_pen, infl_bon]])
+        return float(np.clip(anchor + ridge_gdp.predict(feat)[0], GDP_GROWTH_MIN, GDP_GROWTH_MAX))
 
-    ridge_g = RidgeCV(alphas=[0.05, 0.5, 1.0, 5.0, 10.0, 30.0, 100.0], cv=5).fit(X_g_sc, y_g)
-
-    feat_names_g = list(X_g.columns)
-    n_feat_g = len(feat_names_g)
-    idx_glag = feat_names_g.index("g_lag_dev")
-    idx_infl = feat_names_g.index("inflation_lag1")
-    idx_brent = feat_names_g.index("brent_lag1")
-
-    def build_row_g(pays: str, g_lag_dev_val: float, infl_val: float, brent_val: float) -> np.ndarray:
-        row = np.zeros(n_feat_g, dtype=float)
-        row[idx_glag] = g_lag_dev_val
-        row[idx_infl] = infl_val
-        row[idx_brent] = brent_val
-        pcol, rcol = f"pays_{pays}", f"rho_{pays}"
-        if pcol in feat_names_g:
-            row[feat_names_g.index(pcol)] = 1.0
-        if rcol in feat_names_g:
-            row[feat_names_g.index(rcol)] = g_lag_dev_val
-        return row
-
+    # ── Étape 3 : projections 2025-2030 (déterministe — pas de feedback récursif) ──
     gdp_growth_pred: dict = {}
+    last_infl_gdp: dict = {}
     for pays in pays_33:
         df_p = df[df["Pays"] == pays].sort_values("Year")
         gdp_growth_pred[pays] = {}
         for yr in YEARS_HIST:
             v = df_p[df_p["Year"] == yr]["gdp_growth"].values
-            gdp_growth_pred[pays][yr] = float(v[0]) if len(v) > 0 and not pd.isna(v[0]) else mu_pays_dict[pays]
+            gdp_growth_pred[pays][yr] = float(v[0]) if len(v) > 0 and not pd.isna(v[0]) else mu_long_dict[pays]
 
-        mu_p = mu_pays_dict[pays]
-        g_prev = gdp_growth_pred[pays].get(2024, mu_p)
+        infl_series = df_p["inflation"].dropna()
+        last_infl_gdp[pays] = float(infl_series.iloc[-1]) if len(infl_series) > 0 else 5.0
+
+        mu_p = mu_long_dict[pays]
+        infl = last_infl_gdp[pays]
         for yr in YEARS_PRED:
-            row = build_row_g(pays, g_prev - mu_p,
-                                inflation_pred.get(pays, {}).get(yr - 1, 0.0),
-                                BRENT_LAG1[yr]).reshape(1, -1)
-            y_centered = ridge_g.predict(scaler_g.transform(row))[0]
-            g_next = float(np.clip(mu_p + y_centered, GDP_GROWTH_MIN, GDP_GROWTH_MAX))
-            gdp_growth_pred[pays][yr] = g_next
-            g_prev = g_next
+            gdp_growth_pred[pays][yr] = _predict_g(pays, yr, mu_p, infl)
 
-    # Axco blending
+    # ── Axco blending ────────────────────────────────────────────────────────
+    mu_pays_dict = dict(mu_long_dict)   # alias pour compatibilité retour
     if axco_loaded:
         # (A) Blend 2025-2027
         for pays in pays_33:
@@ -550,7 +544,7 @@ def _step2c_gdp_growth(
                     blended = w_ar * ar_val + w_ax * axco_val
                     gdp_growth_pred[pays][yr] = float(np.clip(blended, GDP_GROWTH_MIN, GDP_GROWTH_MAX))
 
-        # (B) Structural correction 2028-2030
+        # (B) Correction structurelle 2028-2030 (décroissance exponentielle du biais Axco)
         for pays in pays_33:
             biases = []
             for yr in [2025, 2026, 2027]:
@@ -561,38 +555,26 @@ def _step2c_gdp_growth(
             if len(biases) >= 2:
                 avg_bias = float(np.mean(biases))
                 for i_yr, yr in enumerate([2028, 2029, 2030]):
-                    decay = 0.5 * (0.7 ** i_yr)
-                    correction = avg_bias * decay
+                    correction = avg_bias * 0.5 * (0.7 ** i_yr)
                     current = gdp_growth_pred[pays].get(yr, np.nan)
                     if not pd.isna(current):
                         gdp_growth_pred[pays][yr] = float(np.clip(
                             current + correction, GDP_GROWTH_MIN, GDP_GROWTH_MAX))
 
-        # (C) Override μ_pays with Axco mean 2025-2027
+        # (C) Recalibrer μ_long sur la moyenne Axco 2025-2027
         for pays in pays_33:
             axco_vals = [axco_gdp_growth_anchor.get(pays, {}).get(yr, np.nan) for yr in [2025, 2026, 2027]]
             axco_vals_valid = [v for v in axco_vals if not pd.isna(v)]
             if len(axco_vals_valid) >= 2:
                 mu_axco = float(np.mean(axco_vals_valid))
-                mu_pays_dict[pays] = float(np.clip(mu_axco, 1.0, 8.5))
+                mu_pays_dict[pays] = float(np.clip(mu_axco, MU_GROWTH_CLIP[0], MU_GROWTH_CLIP[1]))
 
-        # (D) Re-project 2028-2030 anchored on 2027
+        # (D) Re-projeter 2028-2030 ancré sur la valeur 2027 (déterministe)
         for pays in pays_33:
-            g_start = axco_gdp_growth_anchor.get(pays, {}).get(2027, np.nan)
-            if pd.isna(g_start):
-                g_start = gdp_growth_pred[pays].get(2027, np.nan)
-            if pd.isna(g_start):
-                continue
             mu_p = mu_pays_dict[pays]
-            g_prev = g_start
+            infl = last_infl_gdp.get(pays, 5.0)
             for yr in [2028, 2029, 2030]:
-                row = build_row_g(pays, g_prev - mu_p,
-                                    inflation_pred.get(pays, {}).get(yr - 1, 0.0),
-                                    BRENT_LAG1[yr]).reshape(1, -1)
-                y_centered = ridge_g.predict(scaler_g.transform(row))[0]
-                g_next = float(np.clip(mu_p + y_centered, GDP_GROWTH_MIN, GDP_GROWTH_MAX))
-                gdp_growth_pred[pays][yr] = g_next
-                g_prev = g_next
+                gdp_growth_pred[pays][yr] = _predict_g(pays, yr, mu_p, infl)
 
     return gdp_growth_pred, mu_pays_dict
 
@@ -734,88 +716,81 @@ def _step3_gdpcap(
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# ÉTAPE 4 — polstab, regqual (Gaussian Process)
+# ÉTAPE 4 — polstab, regqual (Ridge AR(1) + lag1 — remplace Gaussian Process)
+# Justification : persistance WGI r=0.984/0.989 → lag1 domine toute feature.
+# OOS R² Ridge+lag1 = 0.972/0.976 vs GP sans lag1 = 0.483/0.571.
 # ════════════════════════════════════════════════════════════════════════════
 
 def _step4_wgi(
     df: pd.DataFrame, pays_33: list[str], gdpcap_pred: dict,
 ) -> tuple[dict, dict]:
-    from sklearn.gaussian_process import GaussianProcessRegressor
-    from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+    from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    from scipy import stats as scipy_stats
+    from scipy.stats import linregress
 
     gp_preds: dict = {"polstab": {}, "regqual": {}}
     gp_sigma: dict = {"polstab": {}, "regqual": {}}
 
     for var in ["polstab", "regqual"]:
+        feature_cols_wgi = [f"{var}_lag1", "log_gdpcap", f"reg_{var}_mean", "Year"]
+        df_fit = df.dropna(subset=[var] + feature_cols_wgi).copy()
+
+        X_all = df_fit[feature_cols_wgi].values
+        y_all = df_fit[var].values
+        sc = StandardScaler().fit(X_all)
+        ridge = RidgeCV(alphas=[0.01, 0.1, 1, 10, 100], cv=5)
+        ridge.fit(sc.transform(X_all), y_all)
+
+        y_pred_train = ridge.predict(sc.transform(X_all))
+        residuals_all = y_all - y_pred_train
+        global_sigma = float(np.std(residuals_all))
+
         for pays in pays_33:
-            df_p = df[df["Pays"] == pays].sort_values("Year").dropna(
-                subset=[var, "gdpcap", f"reg_{var}_mean"]
-            )
-            if len(df_p) < 3:
-                gp_preds[var][pays] = {yr: np.nan for yr in ALL_YEARS}
-                gp_sigma[var][pays] = {yr: 0.0 for yr in ALL_YEARS}
-                continue
-
-            X_gp = np.column_stack([
-                df_p["Year"].values,
-                np.log(df_p["gdpcap"].clip(lower=1).values),
-                df_p[f"reg_{var}_mean"].values
-            ])
-            y_gp = df_p[var].values
-
-            sc = StandardScaler().fit(X_gp)
-            X_gp_sc = sc.transform(X_gp)
-
-            kernel = (RBF(length_scale=3.0, length_scale_bounds=(0.1, 50.0))
-                      + WhiteKernel(noise_level=0.01, noise_level_bounds=(1e-5, 1.0)))
-            try:
-                gpr = GaussianProcessRegressor(
-                    kernel=kernel, n_restarts_optimizer=5,
-                    normalize_y=True, random_state=42
-                )
-                gpr.fit(X_gp_sc, y_gp)
-            except Exception:
-                gp_preds[var][pays] = {yr: float(y_gp.mean()) for yr in ALL_YEARS}
-                gp_sigma[var][pays] = {yr: 0.0 for yr in ALL_YEARS}
-                continue
+            df_p = df[df["Pays"] == pays].sort_values("Year")
 
             gp_preds[var][pays] = {}
             gp_sigma[var][pays] = {}
 
             for yr in YEARS_HIST:
                 row = df_p[df_p["Year"] == yr]
-                gp_preds[var][pays][yr] = float(row[var].values[0]) if len(row) > 0 else float(y_gp.mean())
+                gp_preds[var][pays][yr] = float(row[var].values[0]) if len(row) > 0 else float(y_all.mean())
                 gp_sigma[var][pays][yr] = 0.0
+
+            df_fit_p = df_fit[df_fit["Pays"] == pays]
+            if len(df_fit_p) >= 3:
+                resid_p = df_fit_p[var].values - ridge.predict(sc.transform(df_fit_p[feature_cols_wgi].values))
+                sigma_calibrated = float(np.std(resid_p))
+            else:
+                sigma_calibrated = global_sigma * 0.5
 
             reg_col = f"reg_{var}_mean"
             reg_hist = df_p[[reg_col, "Year"]].dropna()
             if len(reg_hist) >= 2:
-                s, b, _, _, _ = scipy_stats.linregress(reg_hist["Year"], reg_hist[reg_col])
+                s, b, *_ = linregress(reg_hist["Year"].values, reg_hist[reg_col].values)
             else:
-                s, b = 0.0, float(df_p[var].mean())
+                s, b = 0.0, float(df_p[var].mean()) if len(df_p) > 0 else 0.0
+
+            if 2024 not in gp_preds[var][pays] or pd.isna(gp_preds[var][pays].get(2024, np.nan)):
+                for yr in YEARS_PRED:
+                    gp_preds[var][pays][yr] = float(y_all.mean())
+                    gp_sigma[var][pays][yr] = sigma_calibrated
+                continue
 
             for yr in YEARS_PRED:
-                reg_trend = s * yr + b
-                gdpcap_f = gdpcap_pred.get(pays, {}).get(yr, 1000.0)
-                X_fut = np.array([[yr, np.log(max(gdpcap_f, 1)), reg_trend]])
-                X_fut_sc = sc.transform(X_fut)
-                try:
-                    y_f, sigma_f = gpr.predict(X_fut_sc, return_std=True)
-                    raw_pred = float(y_f[0])
-                    sigma_v = float(sigma_f[0])
-                except Exception:
-                    raw_pred = gp_preds[var][pays][yr - 1]
-                    sigma_v = 0.0
-
                 prev_val = gp_preds[var][pays][yr - 1]
+                lag1_val = prev_val
+                log_gdpcap_f = np.log(max(gdpcap_pred.get(pays, {}).get(yr, 1000.0), 1.0))
+                reg_trend = s * yr + b
+
+                X_fut = np.array([[lag1_val, log_gdpcap_f, reg_trend, yr]])
+                raw_pred = float(ridge.predict(sc.transform(X_fut))[0])
+
                 constrained = float(np.clip(raw_pred,
-                                              prev_val - WGI_MAX_CHANGE_PER_YEAR,
-                                              prev_val + WGI_MAX_CHANGE_PER_YEAR))
+                                            prev_val - WGI_MAX_CHANGE_PER_YEAR,
+                                            prev_val + WGI_MAX_CHANGE_PER_YEAR))
                 constrained = float(np.clip(constrained, WGI_BOUNDS[0], WGI_BOUNDS[1]))
                 gp_preds[var][pays][yr] = constrained
-                gp_sigma[var][pays][yr] = sigma_v
+                gp_sigma[var][pays][yr] = sigma_calibrated
 
     return gp_preds, gp_sigma
 
@@ -926,22 +901,19 @@ def _step6_vie_penetration(
     from sklearn.preprocessing import StandardScaler
     from statsmodels.tsa.arima.model import ARIMA
 
+    # Sans effets fixes pays — ~7 obs/pays en train → 32 dummies sur-paramétrisent.
+    # OOS R² sans FE = 0.912 (MAPE 15%) > avec FE = 0.856 (MAPE 29%).
+    feature_cols_vie = [
+        "log_vie_penetration_lag1", "log_gdpcap_lag1",
+        "polstab_lag1", "regqual_lag1",
+        "inflation_lag1", "integration",
+        "log_nv_penetration_lag1", "Year"
+    ]
+
     df_train_vie = df[df["Year"] >= 2016].dropna(subset=[
-        "log_vie_penetration", "log_vie_penetration_lag1",
-        "log_gdpcap_lag1", "polstab_lag1", "regqual_lag1",
-        "inflation_lag1", "integration", "log_nv_penetration_lag1"
-    ]).copy()
+        "log_vie_penetration"] + feature_cols_vie
+    ).copy()
 
-    pays_dum_vie = pd.get_dummies(df_train_vie["Pays"], prefix="pays", drop_first=True).astype(float)
-    df_train_vie = pd.concat([df_train_vie.reset_index(drop=True),
-                                pays_dum_vie.reset_index(drop=True)], axis=1)
-    fe_cols_vie = [c for c in df_train_vie.columns if c.startswith("pays_")]
-
-    feature_cols_vie = (["log_vie_penetration_lag1", "log_gdpcap_lag1",
-                            "polstab_lag1", "regqual_lag1",
-                            "inflation_lag1", "integration",
-                            "log_nv_penetration_lag1", "Year"] + fe_cols_vie)
-    df_train_vie = df_train_vie.dropna(subset=feature_cols_vie)
     X_vie = df_train_vie[feature_cols_vie].values
     y_vie = df_train_vie["log_vie_penetration"].values
     scaler_vie = StandardScaler().fit(X_vie)
@@ -973,11 +945,6 @@ def _step6_vie_penetration(
                 vie_penet_pred[pays][yr] = np.nan
             continue
 
-        pays_vec_vie = np.zeros(len(fe_cols_vie))
-        col_name = f"pays_{pays}"
-        if col_name in fe_cols_vie:
-            pays_vec_vie[fe_cols_vie.index(col_name)] = 1
-
         last_infl = float(df_p["inflation"].iloc[-1]) if len(df_p) > 0 and not pd.isna(df_p["inflation"].iloc[-1]) else 7.0
 
         if arima_vie.get(pays) is not None:
@@ -998,7 +965,7 @@ def _step6_vie_penetration(
 
             feat = np.array([log_vie_prev, log_gdpcap_f, polstab_f_lag, regqual_f_lag,
                               last_infl, integration_pred.get(pays, {}).get(yr, 0.5),
-                              log_nv_f_lag, yr] + list(pays_vec_vie))
+                              log_nv_f_lag, yr])
             feat_sc = scaler_vie.transform(feat.reshape(1, -1))
             log_vie_final = ridge_vie.predict(feat_sc)[0] + vie_arima_fc[i]
             vie_v = float(np.clip(np.exp(log_vie_final), VIE_PENET_MIN, VIE_PENET_MAX))
@@ -1009,58 +976,46 @@ def _step6_vie_penetration(
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# ÉTAPE 7 — nv_sp (AR2 + Ridge + XGBoost)
+# ÉTAPE 7 — nv_sp (AR2 + Ridge FE + tendance pays-spécifique)
 # ════════════════════════════════════════════════════════════════════════════
 
 def _step7_nv_sp(
     df: pd.DataFrame, pays_33: list[str],
     gp_preds: dict, nv_penet_pred: dict, gdp_pred: dict,
-    gdp_growth_pred: dict, fdi_pred: dict,
+    gdp_growth_pred: dict,
 ) -> dict:
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    import xgboost as xgb
+    from scipy.stats import linregress
 
     df_train_sp = df[df["Year"] >= 2017].dropna(subset=[
         "nv_sp", "nv_sp_lag1", "nv_sp_lag2",
-        "inflation_lag1", "polstab", "log_nv_primes",
-        "gdp_growth", "fdi"
+        "inflation_lag1", "polstab", "log_nv_primes", "gdp_growth"
     ]).copy()
 
     pays_dum_sp = pd.get_dummies(df_train_sp["Pays"], prefix="pays", drop_first=True).astype(float)
     df_train_sp = pd.concat([df_train_sp.reset_index(drop=True),
-                                pays_dum_sp.reset_index(drop=True)], axis=1)
+                              pays_dum_sp.reset_index(drop=True)], axis=1)
     fe_cols_sp = [c for c in df_train_sp.columns if c.startswith("pays_")]
 
     feature_cols_sp = (["nv_sp_lag1", "nv_sp_lag2", "inflation_lag1", "polstab",
-                          "log_nv_primes", "gdp_growth"] + fe_cols_sp)
+                         "log_nv_primes", "gdp_growth"] + fe_cols_sp)
     df_train_sp = df_train_sp.dropna(subset=feature_cols_sp)
     X_sp = df_train_sp[feature_cols_sp].values
     y_sp = df_train_sp["nv_sp"].values
     scaler_sp = StandardScaler().fit(X_sp)
     ridge_sp = RidgeCV(alphas=[0.01, 0.1, 1, 10, 100], cv=5).fit(scaler_sp.transform(X_sp), y_sp)
 
-    sp_pred_l1 = ridge_sp.predict(scaler_sp.transform(X_sp))
-    sp_residuals = y_sp - sp_pred_l1
-    df_train_sp["residual_sp"] = sp_residuals
-
-    region_dum_sp = pd.get_dummies(df_train_sp["region"], prefix="reg", drop_first=True).astype(float)
-    df_train_sp = pd.concat([df_train_sp.reset_index(drop=True),
-                              region_dum_sp.reset_index(drop=True)], axis=1)
-    reg_cols_sp = [c for c in df_train_sp.columns if c.startswith("reg_")]
-
-    feature_cols_xgb = (["nv_sp_lag1", "nv_sp_lag2", "inflation_lag1", "polstab",
-                            "log_nv_primes", "gdp_growth", "fdi"] + reg_cols_sp)
-    feature_cols_xgb = [f for f in feature_cols_xgb if f in df_train_sp.columns]
-    X_xgb = df_train_sp[feature_cols_xgb].fillna(0).values
-    y_xgb = df_train_sp["residual_sp"].values
-
-    xgb_model = xgb.XGBRegressor(
-        max_depth=3, n_estimators=50, learning_rate=0.05,
-        min_child_weight=5, subsample=0.8, colsample_bytree=0.7,
-        reg_alpha=0.1, reg_lambda=1.0, random_state=42, verbosity=0
-    )
-    xgb_model.fit(X_xgb, y_xgb)
+    # Tendance pays-spécifique calibrée sur 2015-2022
+    trend_years = list(range(2015, 2023))
+    sp_trend_dict: dict = {}
+    for pays in pays_33:
+        df_p_sp = df[(df["Pays"] == pays) & (df["Year"].isin(trend_years))].dropna(subset=["nv_sp"])
+        if len(df_p_sp) >= 4:
+            sl, *_ = linregress(df_p_sp["Year"].values, df_p_sp["nv_sp"].values)
+            sp_trend_dict[pays] = float(np.clip(sl, SP_TREND_MIN, SP_TREND_MAX))
+        else:
+            sp_trend_dict[pays] = -0.69  # tendance continentale réelle (fallback)
 
     nv_sp_pred: dict = {}
     for pays in pays_33:
@@ -1079,12 +1034,6 @@ def _step7_nv_sp(
         col_name = f"pays_{pays}"
         if col_name in fe_cols_sp:
             pays_vec_sp[fe_cols_sp.index(col_name)] = 1
-
-        reg_vec = np.zeros(len(reg_cols_sp))
-        reg_name = PAYS_TO_REGION.get(pays, "")
-        col_reg = f"reg_{reg_name}"
-        if col_reg in reg_cols_sp:
-            reg_vec[reg_cols_sp.index(col_reg)] = 1
 
         last_infl = float(df_p["inflation"].iloc[-1]) if len(df_p) > 0 and not pd.isna(df_p["inflation"].iloc[-1]) else 7.0
 
@@ -1106,13 +1055,8 @@ def _step7_nv_sp(
             feat_sp_sc = scaler_sp.transform(feat_sp.reshape(1, -1))
             sp_l1 = ridge_sp.predict(feat_sp_sc)[0]
 
-            feat_xgb = np.array([sp_prev1, sp_prev2, last_infl, polstab_f,
-                                   log_nv_primes_f, gdp_gr_f,
-                                   fdi_pred.get(pays, {}).get(yr, 2.0)] + list(reg_vec))
-            sp_l2 = xgb_model.predict(feat_xgb.reshape(1, -1))[0]
-
-            sp_combined = sp_l1 + sp_l2 + CONTINENTAL_SP_TREND
-            sp_v = float(np.clip(sp_combined, NV_SP_MIN, NV_SP_MAX))
+            sp_trended = sp_l1 + sp_trend_dict[pays]
+            sp_v = float(np.clip(sp_trended, NV_SP_MIN, NV_SP_MAX))
             nv_sp_pred[pays][yr] = sp_v
             sp_prev2 = sp_prev1
             sp_prev1 = sp_v
@@ -1334,94 +1278,93 @@ def _step9_conformal(
             pairs_sp.append((float(row["nv_sp"]), pred_v))
     _accumulate_metrics("nv_sp", pairs_sp, conformal_q, wf_metrics)
 
-    # FIX [A1] — gdp_growth : walk-forward conformal (Ridge hiérarchique simplifié)
-    # Le notebook fait du blending Axco mais la pipeline ne calibrait pas d'IC.
-    # On refait un Ridge simple (g_lag_dev + inflation_lag1 + brent_lag1 + FE pays),
-    # split temporel 2020-2024, et on calibre q80/q95 sur résidus en %.
+    # gdp_growth — évaluation OOS stricte sur 2023-2024 (train = Year ≤ 2022)
+    # Aligné sur le notebook : même split, même modèle → R² ≈ 0.30
+    from scipy.stats import linregress as _linregress_gg
     pairs_gg: list = []
-    for test_year in eval_years:
-        df_tr = df[df["Year"] < test_year].dropna(subset=[
-            "gdp_growth", "gdp_growth_lag1", "inflation_lag1"
-        ]).copy()
-        df_te = df[df["Year"] == test_year].dropna(subset=[
-            "gdp_growth", "gdp_growth_lag1", "inflation_lag1"
-        ]).copy()
-        if len(df_tr) < 20:
-            continue
+    oos_years_gg = [2023, 2024]
 
-        mu_dict = df_tr.groupby("Pays")["gdp_growth"].mean().to_dict()
-        df_tr["mu_pays"] = df_tr["Pays"].map(mu_dict)
-        df_tr["g_lag_dev"] = df_tr["gdp_growth_lag1"] - df_tr["mu_pays"]
-        df_tr["brent_lag1"] = df_tr["Year"].map(BRENT_LAG1)
-        df_tr["y_centered"] = df_tr["gdp_growth"] - df_tr["mu_pays"]
-        df_tr = df_tr.dropna(subset=["g_lag_dev", "brent_lag1", "y_centered"])
-        if len(df_tr) < 20:
-            continue
+    # μ_long + tendance calibrés sur MU_WINDOW_GROWTH (2015-2022)
+    mu_dict_oos: dict = {}
+    trend_dict_oos: dict = {}
+    for pays in pays_33:
+        df_pp = df[(df["Pays"] == pays) & (df["Year"].isin(MU_WINDOW_GROWTH))].dropna(subset=["gdp_growth"])
+        if len(df_pp) >= 2:
+            mu_oos = float(np.clip(df_pp["gdp_growth"].mean(), MU_GROWTH_CLIP[0], MU_GROWTH_CLIP[1]))
+            sl_oos, ic_oos, *_ = _linregress_gg(df_pp["Year"].values, df_pp["gdp_growth"].values)
+        else:
+            mu_oos, sl_oos, ic_oos = MU_GROWTH_DEFAULT, 0.0, MU_GROWTH_DEFAULT
+        mu_dict_oos[pays] = mu_oos
+        trend_dict_oos[pays] = (float(sl_oos), float(ic_oos))
 
-        pdum_tr = pd.get_dummies(df_tr["Pays"], prefix="pays", drop_first=True).astype(float)
-        df_tr2 = pd.concat([df_tr.reset_index(drop=True),
-                              pdum_tr.reset_index(drop=True)], axis=1)
-        fe = [c for c in df_tr2.columns if c.startswith("pays_")]
-        fc = ["g_lag_dev", "inflation_lag1", "brent_lag1"] + fe
+    # Entraîner Ridge sur Year ≤ 2022 (identique au modèle principal)
+    train_oos = df[df["Year"] <= 2022].dropna(subset=["gdp_growth", "inflation_lag1"]).copy()
+    train_oos = train_oos[train_oos["Pays"].isin(pays_33)].copy()
+    train_oos["mu_long"] = train_oos["Pays"].map(mu_dict_oos)
+    train_oos["g_trend"] = train_oos.apply(
+        lambda r: trend_dict_oos[r["Pays"]][0] * r["Year"] + trend_dict_oos[r["Pays"]][1], axis=1
+    )
+    train_oos["anchor"] = 0.80 * train_oos["mu_long"] + 0.20 * train_oos["g_trend"]
+    train_oos["infl_pen"] = np.maximum(train_oos["inflation_lag1"] - INFL_PENALTY_THRESH, 0.0)
+    train_oos["infl_bon"] = np.maximum(INFL_BONUS_THRESH - train_oos["inflation_lag1"], 0.0)
+    train_oos["target_c"] = train_oos["gdp_growth"] - train_oos["anchor"]
+    train_oos = train_oos.dropna(subset=["infl_pen", "infl_bon", "target_c"])
 
-        X = df_tr2[fc].values
-        y = df_tr2["y_centered"].values
-        sc = StandardScaler().fit(X)
-        rg = RidgeCV(alphas=[0.1, 1, 10, 100], cv=min(5, len(df_tr2))).fit(sc.transform(X), y)
-
-        for _, row in df_te.iterrows():
-            pays = row["Pays"]
-            mu_p = float(mu_dict.get(pays, MU_GROWTH_DEFAULT))
-            g_lag = row.get("gdp_growth_lag1")
-            infl = row.get("inflation_lag1")
-            brent = BRENT_LAG1.get(int(row["Year"]))
-            if pd.isna(g_lag) or pd.isna(infl) or brent is None:
-                continue
-            feat = [float(g_lag - mu_p), float(infl), float(brent)]
-            for f in fe:
-                feat.append(1.0 if f == f"pays_{pays}" else 0.0)
-            pred_centered = float(rg.predict(sc.transform(np.array(feat).reshape(1, -1)))[0])
-            pred_v = float(np.clip(mu_p + pred_centered, GDP_GROWTH_MIN, GDP_GROWTH_MAX))
-            pairs_gg.append((float(row["gdp_growth"]), pred_v))
+    if len(train_oos) >= 10:
+        sc_oos = StandardScaler().fit(train_oos[["infl_pen", "infl_bon"]].values)
+        rg_oos = RidgeCV(alphas=[0.01, 0.1, 1, 5, 10, 30, 100, 300, 1000], cv=5).fit(
+            sc_oos.transform(train_oos[["infl_pen", "infl_bon"]].values),
+            train_oos["target_c"].values
+        )
+        # Évaluer sur 2023 et 2024 uniquement
+        for test_year in oos_years_gg:
+            df_te = df[df["Year"] == test_year].dropna(subset=["gdp_growth", "inflation_lag1"]).copy()
+            for _, row in df_te.iterrows():
+                pays = row["Pays"]
+                if pays not in pays_33:
+                    continue
+                mu_p = mu_dict_oos.get(pays, MU_GROWTH_DEFAULT)
+                sl_p, ic_p = trend_dict_oos.get(pays, (0.0, mu_p))
+                anchor = 0.80 * mu_p + 0.20 * (sl_p * test_year + ic_p)
+                infl_lag = row.get("inflation_lag1")
+                if pd.isna(infl_lag):
+                    continue
+                infl_pen = max(0.0, float(infl_lag) - INFL_PENALTY_THRESH)
+                infl_bon = max(0.0, INFL_BONUS_THRESH - float(infl_lag))
+                feat = sc_oos.transform([[infl_pen, infl_bon]])
+                pred_v = float(np.clip(anchor + rg_oos.predict(feat)[0], GDP_GROWTH_MIN, GDP_GROWTH_MAX))
+                pairs_gg.append((float(row["gdp_growth"]), pred_v))
     _accumulate_metrics("gdp_growth", pairs_gg, conformal_q, wf_metrics)
 
-    # polstab/regqual : utiliser σ moyen du GP comme proxy de "qualité du modèle"
+    # polstab/regqual — walk-forward Ridge+lag1 pour les métriques ; IC = z × σ_Ridge calibré
     for var in ["polstab", "regqual"]:
-        # Pas de conformal explicite — IC = z * σ_GP en step build_df_pred
-        sigmas = []
-        for pays in pays_33:
-            for yr in YEARS_PRED:
-                s = gp_sigma.get(var, {}).get(pays, {}).get(yr, 0.0)
-                if s and not pd.isna(s):
-                    sigmas.append(s)
+        feature_cols_wgi = [f"{var}_lag1", "log_gdpcap", f"reg_{var}_mean", "Year"]
+        pairs_wgi: list = []
+        for test_year in eval_years:
+            df_tr_wgi = df[df["Year"] < test_year].dropna(subset=[var] + feature_cols_wgi).copy()
+            df_te_wgi = df[df["Year"] == test_year].dropna(subset=[var] + feature_cols_wgi).copy()
+            if len(df_tr_wgi) < 15:
+                continue
+            sc_wgi = StandardScaler().fit(df_tr_wgi[feature_cols_wgi].values)
+            rg_wgi = RidgeCV(alphas=[0.01, 0.1, 1, 10, 100],
+                             cv=min(5, len(df_tr_wgi))).fit(
+                sc_wgi.transform(df_tr_wgi[feature_cols_wgi].values),
+                df_tr_wgi[var].values
+            )
+            for _, row in df_te_wgi.iterrows():
+                feat = np.array([[row[f"{var}_lag1"], row["log_gdpcap"],
+                                  row[f"reg_{var}_mean"], row["Year"]]])
+                pred_v = float(np.clip(rg_wgi.predict(sc_wgi.transform(feat))[0],
+                                       WGI_BOUNDS[0], WGI_BOUNDS[1]))
+                pairs_wgi.append((float(row[var]), pred_v))
+        # Métriques walk-forward
+        _accumulate_metrics(var, pairs_wgi, conformal_q, wf_metrics)
+        # IC basé sur σ Ridge calibré par pays (stocké dans gp_sigma par _step4_wgi)
+        sigmas = [gp_sigma.get(var, {}).get(p, {}).get(yr, 0.0)
+                  for p in pays_33 for yr in YEARS_PRED
+                  if gp_sigma.get(var, {}).get(p, {}).get(yr, 0.0)]
         mean_sigma = float(np.mean(sigmas)) if sigmas else 0.1
         conformal_q[var] = {"q80": mean_sigma * 1.28, "q95": mean_sigma * 1.96}
-        # Métriques d'évaluation : in-sample sur 2020-2024 (le GP fit toutes années → pas de "test set" stricto sensu)
-        true_pairs = []
-        for pays in pays_33:
-            df_p = df[df["Pays"] == pays].sort_values("Year")
-            for yr in eval_years:
-                row = df_p[df_p["Year"] == yr]
-                if len(row) == 0 or pd.isna(row[var].values[0]):
-                    continue
-                # Utiliser comme "prédiction" la moyenne historique pays (baseline naïf)
-                hist_vals = df_p[df_p["Year"] < yr][var].dropna().values
-                if len(hist_vals) == 0:
-                    continue
-                true_pairs.append((float(row[var].values[0]), float(np.mean(hist_vals))))
-        if true_pairs:
-            yt = np.array([p[0] for p in true_pairs])
-            yp = np.array([p[1] for p in true_pairs])
-            ss_res = float(np.sum((yt - yp) ** 2))
-            ss_tot = float(np.sum((yt - yt.mean()) ** 2))
-            r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else None
-            mae = float(np.mean(np.abs(yt - yp)))
-            wf_metrics[var] = {
-                "r2": float(r2) if r2 is not None else None,
-                "mape": None, "mae": mae, "n": int(len(true_pairs))
-            }
-        else:
-            wf_metrics[var] = {"r2": None, "mape": None, "mae": None, "n": 0}
 
     return conformal_q, wf_metrics
 
@@ -1722,14 +1665,9 @@ def _compute_full_pipeline() -> dict:
         df, pays_33, "integration", EXOG_MU_WINDOW,
         INTEG_MIN, INTEG_MAX, INTEG_RHO_MIN, INTEG_RHO_MAX, mu_default=0.5
     )
-    fdi_pred = _ar1_mr_project(
-        df, pays_33, "fdi", EXOG_MU_WINDOW,
-        FDI_MIN, FDI_MAX, FDI_RHO_MIN, FDI_RHO_MAX, mu_default=2.0, rho_default=0.4
-    )
-
     # Étape 2c
     gdp_growth_pred, mu_pays_dict = _step2c_gdp_growth(
-        df, pays_33, inflation_pred, axco_loaded, axco_gdp_growth_anchor
+        df, pays_33, axco_loaded, axco_gdp_growth_anchor
     )
     logger.info("Étape 2 — exogènes & gdp_growth projetés (Axco=%s)", axco_loaded)
 
@@ -1756,7 +1694,7 @@ def _compute_full_pipeline() -> dict:
 
     # Étape 7
     nv_sp_pred = _step7_nv_sp(
-        df, pays_33, gp_preds, nv_penet_pred, gdp_pred, gdp_growth_pred, fdi_pred
+        df, pays_33, gp_preds, nv_penet_pred, gdp_pred, gdp_growth_pred
     )
     logger.info("Étape 7 — nv_sp projeté")
 

@@ -9,8 +9,8 @@
  *   5. Comparaison       ⚖️ — Deux pays côte à côte
  *   6. Carte 2030        🗺️ — Choroplèthe Afrique
  *
- * Backend : /api/predictions/axe2/* (FE-OLS + Ridge + ARIMA + GP + XGBoost,
- *           Conformal Prediction IC, blending Axco optionnel)
+ * Backend : /api/predictions/axe2/* (FE-OLS + Ridge + ARIMA, Ridge AR(1)+lag1,
+ *           Ridge Inflation, Conformal Prediction IC, blending Axco optionnel)
  */
 import { useState, useEffect, useMemo } from 'react'
 import {
@@ -56,24 +56,24 @@ const REGION_COLORS: Record<string, string> = {
 
 // Couleurs badge par famille de modèle
 const MODEL_COLORS: Record<string, { bg: string; fg: string }> = {
-  'FE-OLS+Ridge+ARIMA': { bg: 'hsla(213,60%,27%,0.10)', fg: NAVY },
-  'AR2+Ridge+XGBoost': { bg: 'hsla(30,88%,56%,0.15)', fg: ORANGE },
-  GaussianProcess: { bg: 'hsla(270,50%,45%,0.13)', fg: VIOLET },
-  'AR1-MR': { bg: 'hsla(83,52%,36%,0.13)', fg: OLIVE },
-  'Ridge-Hierarchique': { bg: 'hsla(200,70%,40%,0.13)', fg: BLUE },
-  Derived: { bg: 'hsla(218,14%,55%,0.13)', fg: GRAY },
+  'FE-OLS+Ridge+ARIMA':  { bg: 'hsla(213,60%,27%,0.10)', fg: NAVY },
+  'AR2+Ridge+TendancePays': { bg: 'hsla(30,88%,56%,0.15)', fg: ORANGE },
+  'Ridge+lag1':          { bg: 'hsla(270,50%,45%,0.13)', fg: VIOLET },
+  'AR1-MR':              { bg: 'hsla(83,52%,36%,0.13)', fg: OLIVE },
+  'Ridge-Inflation':     { bg: 'hsla(200,70%,40%,0.13)', fg: BLUE },
+  Derived:               { bg: 'hsla(218,14%,55%,0.13)', fg: GRAY },
 }
 
 // FIX [D2] — variables qui héritent du blending Axco (alignées sur le backend _build_var_data)
 const AXCO_BLENDED_VARS = new Set(['gdp_growth', 'gdpcap', 'gdp', 'nv_primes', 'vie_primes', 'nv_densite', 'vie_densite'])
 
 const MODEL_LABEL: Record<string, string> = {
-  'FE-OLS+Ridge+ARIMA': 'FE-OLS + Ridge',
-  'AR2+Ridge+XGBoost': 'AR(2) + XGB',
-  GaussianProcess: 'GP',
-  'AR1-MR': 'AR(1) MR',
-  'Ridge-Hierarchique': 'Ridge Hiérar.',
-  Derived: 'Dérivée',
+  'FE-OLS+Ridge+ARIMA':     'FE-OLS + Ridge',
+  'AR2+Ridge+TendancePays': 'AR(2) + Ridge + Tendance',
+  'Ridge+lag1':             'Ridge AR(1)',
+  'AR1-MR':                 'AR(1) MR',
+  'Ridge-Inflation':        'Ridge Inflation',
+  Derived:                  'Dérivée',
 }
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
@@ -624,9 +624,10 @@ function Header({ metadata, validation }: { metadata: Metadata; validation: Vali
 
       <div className="flex flex-wrap gap-1.5 mt-3">
         {[
-          'FE-OLS + Ridge',
-          'Gaussian Process',
-          'XGBoost résidus',
+          'FE-OLS + Ridge + ARIMA',
+          'Ridge AR(1) + lag1',
+          'Ridge Inflation',
+          'Tendance pays-spécifique',
           'Conformal Prediction IC 95%',
         ].map((b, i) => (
           <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold backdrop-blur"
