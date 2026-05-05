@@ -7,7 +7,7 @@ import logging
 
 import core.config as config
 from models.schemas import FilterParams
-from services.classification_rules import classify_cedante, classify_lob
+from services.classification_rules import classify_cedante, classify_lob, classify_lob_with_spc
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +90,26 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
         else:
             raw["TYPE_CEDANTE"] = "ASSUREUR DIRECT"
 
-    # Derive VIE_NON_VIE if missing
-    if "VIE_NON_VIE" not in raw.columns:
-        if "INT_BRANCHE" in raw.columns:
-            raw["VIE_NON_VIE"] = raw["INT_BRANCHE"].apply(classify_lob)
-        else:
-            raw["VIE_NON_VIE"] = "NON_VIE"
+    # ── Normalize INT_BRANCHE : remove internal spaces (e.g. "V I E" → "VIE") ──
+    if "INT_BRANCHE" in raw.columns:
+        import re as _re_branche
+        raw["INT_BRANCHE"] = raw["INT_BRANCHE"].fillna("").astype(str).apply(
+            lambda v: _re_branche.sub(r"\s+", "", v.strip()).upper() if v.strip() else v
+        )
+
+    # Derive VIE_NON_VIE — ALWAYS re-derive with improved logic
+    # (combines INT_BRANCHE + INT_SPC, handles spaces in "V I E", etc.)
+    if "INT_BRANCHE" in raw.columns and "INT_SPC" in raw.columns:
+        raw["VIE_NON_VIE"] = raw.apply(
+            lambda row: classify_lob_with_spc(
+                str(row.get("INT_BRANCHE", "")),
+                str(row.get("INT_SPC", ""))
+            ), axis=1
+        )
+    elif "INT_BRANCHE" in raw.columns:
+        raw["VIE_NON_VIE"] = raw["INT_BRANCHE"].apply(classify_lob)
+    else:
+        raw["VIE_NON_VIE"] = "NON_VIE"
 
     # Normalize string columns
     str_cols = ["CONTRACT_STATUS", "TYPE_OF_CONTRACT", "INT_BROKER", "BROKER_CODE",
@@ -263,6 +277,10 @@ def apply_analysis_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFra
         df = df[df["INT_SPC_SPECIALITE"].isin(params.specialite)]
     if params.int_spc_search:
         df = df[df["INT_SPC"].str.contains(params.int_spc_search, case=False, na=False)]
+
+    # Vie / Non-Vie scope (uses VIE_NON_VIE column = INT_BRANCHE + INT_SPC combined)
+    if params.vie_non_vie_view and "VIE_NON_VIE" in df.columns:
+        df = df[df["VIE_NON_VIE"] == params.vie_non_vie_view]
 
     # Branche & sous-branche
     if params.branche:

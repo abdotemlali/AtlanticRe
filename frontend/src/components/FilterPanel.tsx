@@ -162,15 +162,13 @@ export default function FilterPanel() {
   const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
     setBrancheScope({ vie, nonVie })
     setFilters(prev => {
-      let nextBranche: string[] = []
+      // Set vie_non_vie_view for backend filtering on VIE_NON_VIE column
+      let vieView = ''
+      if (vie && !nonVie) vieView = 'VIE'
+      else if (!vie && nonVie) vieView = 'NON_VIE'
+      // else: both or neither → no scope filter
 
-      if (vie && !nonVie) {
-        nextBranche = allBrancheValues.includes(LIFE_BRANCH) ? [LIFE_BRANCH] : []
-      } else if (!vie && nonVie) {
-        nextBranche = allBrancheValues.filter(branch => branch !== LIFE_BRANCH)
-      }
-
-      return { ...prev, branche: nextBranche, sous_branche: [] }
+      return { ...prev, vie_non_vie_view: vieView, branche: [], sous_branche: [] }
     })
   }
 

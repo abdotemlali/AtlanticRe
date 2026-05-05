@@ -100,13 +100,13 @@ def _get_country_kpis_with_branches(df_filtered, df_all_years, pays: str, branch
     available_branches = set(df_filtered[df_filtered["PAYS_RISQUE"] == pays]["INT_BRANCHE"].dropna().unique()) \
         if "INT_BRANCHE" in df_filtered.columns else set()
 
-    # Filtre Vie / Non-Vie par pays
-    if vie_view == "VIE" and "INT_BRANCHE" in group.columns:
-        group = group[group["INT_BRANCHE"] == "VIE"]
-        group_all = group_all[group_all["INT_BRANCHE"] == "VIE"]
-    elif vie_view == "NON_VIE" and "INT_BRANCHE" in group.columns:
-        group = group[group["INT_BRANCHE"] != "VIE"]
-        group_all = group_all[group_all["INT_BRANCHE"] != "VIE"]
+    # Filtre Vie / Non-Vie par pays (utilise VIE_NON_VIE combinant INT_BRANCHE + INT_SPC)
+    if vie_view == "VIE" and "VIE_NON_VIE" in group.columns:
+        group = group[group["VIE_NON_VIE"] == "VIE"]
+        group_all = group_all[group_all["VIE_NON_VIE"] == "VIE"]
+    elif vie_view == "NON_VIE" and "VIE_NON_VIE" in group.columns:
+        group = group[group["VIE_NON_VIE"] == "NON_VIE"]
+        group_all = group_all[group_all["VIE_NON_VIE"] == "NON_VIE"]
 
     # Filtre branche spécifique si fourni
     if branches:
@@ -434,10 +434,10 @@ def comparison_by_cedante(
         available_branches = set(analysis_group["INT_BRANCHE"].dropna().unique()) if "INT_BRANCHE" in analysis_group.columns else set()
 
         # Filtres branche/scope appliqués UNIQUEMENT sur analysis_group → diversification immunisée
-        if v_view == "VIE" and "INT_BRANCHE" in analysis_group.columns:
-            analysis_group = analysis_group[analysis_group["INT_BRANCHE"] == "VIE"]
-        elif v_view == "NON_VIE" and "INT_BRANCHE" in analysis_group.columns:
-            analysis_group = analysis_group[analysis_group["INT_BRANCHE"] != "VIE"]
+        if v_view == "VIE" and "VIE_NON_VIE" in analysis_group.columns:
+            analysis_group = analysis_group[analysis_group["VIE_NON_VIE"] == "VIE"]
+        elif v_view == "NON_VIE" and "VIE_NON_VIE" in analysis_group.columns:
+            analysis_group = analysis_group[analysis_group["VIE_NON_VIE"] == "NON_VIE"]
         if br_list and "INT_BRANCHE" in analysis_group.columns:
             analysis_group = analysis_group[analysis_group["INT_BRANCHE"].isin(br_list)]
 
@@ -519,10 +519,10 @@ def comparison_by_cedante(
         analysis_group_no_year = df_analysis_no_year[df_analysis_no_year["INT_CEDANTE"] == cedante].copy()
         
         # Appliquer les mêmes filtres de branche/scope à analysis_group_no_year pour le graph évolution
-        if v_view == "VIE" and "INT_BRANCHE" in analysis_group_no_year.columns:
-            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"] == "VIE"]
-        elif v_view == "NON_VIE" and "INT_BRANCHE" in analysis_group_no_year.columns:
-            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"] != "VIE"]
+        if v_view == "VIE" and "VIE_NON_VIE" in analysis_group_no_year.columns:
+            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["VIE_NON_VIE"] == "VIE"]
+        elif v_view == "NON_VIE" and "VIE_NON_VIE" in analysis_group_no_year.columns:
+            analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["VIE_NON_VIE"] == "NON_VIE"]
         if br_list and "INT_BRANCHE" in analysis_group_no_year.columns:
             analysis_group_no_year = analysis_group_no_year[analysis_group_no_year["INT_BRANCHE"].isin(br_list)]
 

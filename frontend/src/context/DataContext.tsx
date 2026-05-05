@@ -34,6 +34,7 @@ export interface FilterState {
   courtage_min: number | null
   courtage_max: number | null
   african_markets_only: boolean   // UI flag: afficher un seul chip "Marchés Africains" au lieu de 52 chips
+  vie_non_vie_view: string         // "VIE" | "NON_VIE" | "" (all)
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -65,6 +66,7 @@ export const DEFAULT_FILTERS: FilterState = {
   courtage_min: null,
   courtage_max: null,
   african_markets_only: false,
+  vie_non_vie_view: '',
 }
 
 export interface KPISummary {
@@ -180,6 +182,7 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
   add('commission_max', filters.commission_max ?? undefined)
   add('courtage_min', filters.courtage_min ?? undefined)
   add('courtage_max', filters.courtage_max ?? undefined)
+  add('vie_non_vie_view', filters.vie_non_vie_view || undefined)
   return params
 }
 

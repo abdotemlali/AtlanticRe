@@ -125,12 +125,16 @@ def _get_ulr_col(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
-def _is_vie_series(branche_upper: "pd.Series") -> "pd.Series":
+def _is_vie_series(branche_upper: "pd.Series", df: "pd.DataFrame | None" = None) -> "pd.Series":
     """
-    Détection intelligente du segment Vie : retourne un masque booléen True
-    si la branche contient le mot 'VIE' (même en milieu de chaîne).
-    Exemples capturés : 'VIE', 'ASSURANCE VIE', 'VIE CREDIT', ' VIE ', 'VIE '
+    Détection du segment Vie.
+    Utilise la colonne VIE_NON_VIE (pré-calculée au chargement avec INT_BRANCHE + INT_SPC)
+    quand elle est disponible. Fallback sur regex INT_BRANCHE sinon.
     """
+    # Prefer the pre-computed column (combines INT_BRANCHE + INT_SPC)
+    if df is not None and "VIE_NON_VIE" in df.columns:
+        return df["VIE_NON_VIE"] == "VIE"
+    # Fallback: check branche_upper string
     return branche_upper.str.contains(r'\bVIE\b', regex=True, na=False)
 
 
@@ -327,9 +331,9 @@ def _compute_pays_kpis(
     else:
         df_pays = df_pays_all
 
-    # Split Vie / Non-Vie sur données internes (colonne INT_BRANCHE)
-    if "_BRANCHE_UPPER" in df_pays.columns:
-        vie_mask = _is_vie_series(df_pays["_BRANCHE_UPPER"])
+    # Split Vie / Non-Vie sur données internes (VIE_NON_VIE = INT_BRANCHE + INT_SPC)
+    if "VIE_NON_VIE" in df_pays.columns or "_BRANCHE_UPPER" in df_pays.columns:
+        vie_mask = _is_vie_series(df_pays.get("_BRANCHE_UPPER", pd.Series(dtype=str)), df_pays)
         df_vie = df_pays[vie_mask]
         df_nonvie = df_pays[~vie_mask]
     else:
@@ -699,8 +703,8 @@ def classements_global(
     # Agrégats totaux / Vie / Non-Vie
     agg_total = _agg_pays(df_year, "")
 
-    if has_branche and not df_year.empty:
-        mask_vie = _is_vie_series(df_year["_BRANCHE_UPPER"])
+    if (has_branche or "VIE_NON_VIE" in df_year.columns) and not df_year.empty:
+        mask_vie = _is_vie_series(df_year.get("_BRANCHE_UPPER", pd.Series(dtype=str)), df_year)
         agg_nv = _agg_pays(df_year[~mask_vie], "_nv")
         agg_v  = _agg_pays(df_year[mask_vie],  "_v")
     else:
@@ -940,8 +944,8 @@ def classements_global(
             return frame.groupby("UNDERWRITING_YEAR").agg(**agg_d).reset_index()
 
         evo_total_agg = _agg_year(df_ext, "")
-        if has_branche:
-            mask_vie_evo = _is_vie_series(df_ext["_BRANCHE_UPPER"])
+        if has_branche or "VIE_NON_VIE" in df_ext.columns:
+            mask_vie_evo = _is_vie_series(df_ext.get("_BRANCHE_UPPER", pd.Series(dtype=str)), df_ext)
             evo_nv_agg = _agg_year(df_ext[~mask_vie_evo], "_nv")
             evo_v_agg  = _agg_year(df_ext[mask_vie_evo],  "_v")
         else:
@@ -967,8 +971,8 @@ def classements_global(
             df_maroc_evo = df_ext[df_ext["_PAYS_UPPER"].isin(MAROC_KEYS)]
             if not df_maroc_evo.empty:
                 maroc_total_agg = _agg_year(df_maroc_evo, "")
-                if has_branche:
-                    mask_vie_maroc = _is_vie_series(df_maroc_evo["_BRANCHE_UPPER"])
+                if has_branche or "VIE_NON_VIE" in df_maroc_evo.columns:
+                    mask_vie_maroc = _is_vie_series(df_maroc_evo.get("_BRANCHE_UPPER", pd.Series(dtype=str)), df_maroc_evo)
                     maroc_nv_agg = _agg_year(df_maroc_evo[~mask_vie_maroc], "_nv")
                     maroc_v_agg  = _agg_year(df_maroc_evo[mask_vie_maroc],  "_v")
                 else:
@@ -1263,8 +1267,8 @@ def evolution_global(
             wp = _safe_float(grp["WRITTEN_PREMIUM"].sum()) or 0.0
             sw_vals = grp["SHARE_WRITTEN"].dropna().tolist()
             # Split Vie / Non-Vie
-            if "_BRANCHE_UPPER" in grp.columns:
-                vie_m = _is_vie_series(grp["_BRANCHE_UPPER"])
+            if "VIE_NON_VIE" in grp.columns or "_BRANCHE_UPPER" in grp.columns:
+                vie_m = _is_vie_series(grp.get("_BRANCHE_UPPER", pd.Series(dtype=str)), grp)
                 grp_vie = grp[vie_m]
                 grp_nv = grp[~vie_m]
             else:
@@ -1522,8 +1526,8 @@ def evolution_pays(
         wp = _safe_float(grp["WRITTEN_PREMIUM"].sum()) or 0.0
         sw_vals = grp["SHARE_WRITTEN"].dropna().tolist()
         # Split Vie / Non-Vie
-        if "_BRANCHE_UPPER" in grp.columns:
-            vie_m = grp["_BRANCHE_UPPER"] == "VIE"
+        if "VIE_NON_VIE" in grp.columns or "_BRANCHE_UPPER" in grp.columns:
+            vie_m = _is_vie_series(grp.get("_BRANCHE_UPPER", pd.Series(dtype=str)), grp)
             grp_vie = grp[vie_m]
             grp_nv = grp[~vie_m]
         else:
@@ -1779,8 +1783,8 @@ def _tableau_cedantes_for_pays(
         nb = len(grp)
         branches = sorted(grp["INT_BRANCHE"].dropna().str.strip().str.upper().unique().tolist()) if "INT_BRANCHE" in grp.columns else []
         # Split Vie / Non-Vie
-        if "_BRANCHE_UPPER" in grp.columns:
-            vie_m = grp["_BRANCHE_UPPER"] == "VIE"
+        if "VIE_NON_VIE" in grp.columns or "_BRANCHE_UPPER" in grp.columns:
+            vie_m = _is_vie_series(grp.get("_BRANCHE_UPPER", pd.Series(dtype=str)), grp)
             grp_vie = grp[vie_m]
             grp_nv = grp[~vie_m]
         else:
