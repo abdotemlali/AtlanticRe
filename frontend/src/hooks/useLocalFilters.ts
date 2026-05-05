@@ -25,6 +25,8 @@ export interface LocalFilterState {
   perimetre: string[]
   /** Toggle: filter on African markets (pays_risque) */
   africanMarketsOnly: boolean
+  /** Assuré normé (INSURED_NAME_NORM) */
+  insuredNames: string[]
 }
 
 export interface UseLocalFiltersReturn {
@@ -43,6 +45,7 @@ export interface UseLocalFiltersReturn {
   setBrancheScope: (v: { vie: boolean; nonVie: boolean }) => void
   setPerimetre: (v: string[]) => void
   setAfricanMarketsOnly: (v: boolean) => void
+  setInsuredNames: (v: string[]) => void
   // Convenience
   applyBrancheScope: (vie: boolean, nonVie: boolean) => void
   reset: () => void
@@ -69,12 +72,14 @@ export function useLocalFilters(): UseLocalFiltersReturn {
   const [brancheScope, setBrancheScope] = useState({ vie: true, nonVie: true })
   const [perimetre, setPerimetre] = useState<string[]>([])
   const [africanMarketsOnly, setAfricanMarketsOnly] = useState(false)
+  const [insuredNames, setInsuredNames] = useState<string[]>([])
 
   const state: LocalFilterState = {
     uwYears, uwYearMin, uwYearMax,
     branches, typeSpc, typeOfContract, brancheScope,
     cedantes, brokers, countries,
     perimetre, africanMarketsOnly,
+    insuredNames,
   }
 
   const reset = () => {
@@ -90,6 +95,7 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     setBrancheScope({ vie: true, nonVie: true })
     setPerimetre([])
     setAfricanMarketsOnly(false)
+    setInsuredNames([])
   }
 
   const applyBrancheScope = (vie: boolean, nonVie: boolean) => {
@@ -107,8 +113,9 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     if (brokers.length > 0) n++
     if (countries.length > 0) n++
     if (africanMarketsOnly) n++
+    if (insuredNames.length > 0) n++
     return n
-  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, perimetre, typeOfContract, cedantes, brokers, countries, africanMarketsOnly])
+  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, perimetre, typeOfContract, cedantes, brokers, countries, africanMarketsOnly, insuredNames])
 
   const hasFilters = activeCount > 0 || !brancheScope.vie || !brancheScope.nonVie
 
@@ -130,6 +137,8 @@ export function useLocalFilters(): UseLocalFiltersReturn {
       if (countries.length > 0) p['country'] = countries.join(',')
       if (brancheScope.vie && !brancheScope.nonVie) p['vie_non_vie_view'] = 'VIE'
       if (!brancheScope.vie && brancheScope.nonVie) p['vie_non_vie_view'] = 'NON_VIE'
+      // Assuré filter
+      if (insuredNames.length > 0) p['insured_name'] = insuredNames.join(',')
       // African markets filter
       if (africanMarketsOnly && availableCountries.length > 0) {
         const africanList = getAvailableAfricanMarkets(availableCountries)
@@ -137,7 +146,7 @@ export function useLocalFilters(): UseLocalFiltersReturn {
       }
       return p
     }
-  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, perimetre, typeOfContract, cedantes, brokers, countries, brancheScope, africanMarketsOnly])
+  }, [uwYears, uwYearMin, uwYearMax, branches, typeSpc, perimetre, typeOfContract, cedantes, brokers, countries, brancheScope, africanMarketsOnly, insuredNames])
 
   const buildParamsNoBranch = useMemo(() => {
     return (availableCountries: string[] = []): Record<string, string> => {
@@ -163,7 +172,7 @@ export function useLocalFilters(): UseLocalFiltersReturn {
     setUwYears, setUwYearMin, setUwYearMax,
     setBranches, setTypeSpc, setTypeOfContract, setBrancheScope,
     setCedantes, setBrokers, setCountries,
-    setPerimetre, setAfricanMarketsOnly,
+    setPerimetre, setAfricanMarketsOnly, setInsuredNames,
     applyBrancheScope, reset,
     activeCount, hasFilters,
     buildParams, buildParamsNoBranch,

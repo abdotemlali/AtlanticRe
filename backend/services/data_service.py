@@ -181,6 +181,11 @@ def load_excel(file_path: str = None) -> Dict[str, Any]:
             f"{before_unique_ced} → {after_unique_ced} cédantes distinctes."
         )
 
+    # ── Normalisation des noms d'assurés (InsuredNameService) ──
+    # Regex cleanup + fuzzy grouping → colonne INSURED_NAME_NORM
+    from services.insured_name_service import normalize_insured_names
+    raw = normalize_insured_names(raw)
+
     _df = raw
     _last_loaded = datetime.now()
     _row_count = len(_df)
@@ -256,6 +261,12 @@ def apply_identity_filters(df: pd.DataFrame, params: FilterParams) -> pd.DataFra
     if params.type_cedante:
         if "TYPE_CEDANTE" in df.columns:
             df = df[df["TYPE_CEDANTE"].isin(params.type_cedante)]
+
+    # Assuré (INSURED_NAME normalisé)
+    if params.insured_name:
+        col = "INSURED_NAME_NORM" if "INSURED_NAME_NORM" in df.columns else "INSURED_NAME"
+        if col in df.columns:
+            df = df[df[col].isin(params.insured_name)]
 
     return df
 
@@ -426,4 +437,6 @@ def get_filter_options(df: pd.DataFrame) -> Dict[str, Any]:
         "statuts": unique_sorted(df["CONTRACT_STATUS"]) if "CONTRACT_STATUS" in df.columns else [],
         "type_of_contract": unique_sorted(df["TYPE_OF_CONTRACT"]) if "TYPE_OF_CONTRACT" in df.columns else [],
         "type_cedante_options": type_cedante_options,
+        "insured_names": unique_sorted(df["INSURED_NAME_NORM"]) if "INSURED_NAME_NORM" in df.columns
+                         else (unique_sorted(df["INSURED_NAME"]) if "INSURED_NAME" in df.columns else []),
     }

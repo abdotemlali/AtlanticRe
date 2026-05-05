@@ -37,8 +37,10 @@ interface LocalFilterPanelProps {
   countryOptions?: string[]
   /** All available pays risque (for African markets filter) */
   availableCountries?: string[]
+  /** Assuré options (INSURED_NAME_NORM unique values) */
+  insuredNameOptions?: string[]
   /** Which filter controls to show (default: all) */
-  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope' | 'cedante' | 'broker' | 'country' | 'marketType' | 'africanMarkets')[]
+  features?: ('year' | 'branch' | 'typeSpc' | 'typeContract' | 'lifeScope' | 'cedante' | 'broker' | 'country' | 'marketType' | 'africanMarkets' | 'insuredName')[]
   /** Start open (default: false) */
   defaultOpen?: boolean
 }
@@ -53,6 +55,7 @@ export default function LocalFilterPanel({
   brokerOptions = [],
   countryOptions = [],
   availableCountries = [],
+  insuredNameOptions = [],
   features,
   defaultOpen = false,
 }: LocalFilterPanelProps) {
@@ -62,7 +65,7 @@ export default function LocalFilterPanel({
     state, setUwYears, setUwYearMin, setUwYearMax,
     setBranches, setTypeSpc, setTypeOfContract,
     setCedantes, setBrokers, setCountries,
-    setPerimetre, setAfricanMarketsOnly,
+    setPerimetre, setAfricanMarketsOnly, setInsuredNames,
     applyBrancheScope, reset, activeCount, hasFilters,
   } = filters
 
@@ -305,6 +308,21 @@ export default function LocalFilterPanel({
                   placeholder="Tous les pays..."
                   value={toOptions(state.countries)}
                   onChange={(v: any) => setCountries(v.map((x: any) => x.value))}
+                />
+              </div>
+            )}
+
+            {/* Assuré (INSURED_NAME_NORM) */}
+            {show('insuredName') && insuredNameOptions.length > 0 && (
+              <div>
+                <label className={LABEL_STYLE}>Assuré</label>
+                <Select
+                  isMulti
+                  options={toOptions(insuredNameOptions)}
+                  {...SHARED_SELECT_PROPS}
+                  placeholder="Rechercher un assuré..."
+                  value={toOptions(state.insuredNames)}
+                  onChange={(v: any) => setInsuredNames(v.map((x: any) => x.value))}
                 />
               </div>
             )}

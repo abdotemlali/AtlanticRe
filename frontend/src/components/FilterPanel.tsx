@@ -211,6 +211,7 @@ export default function FilterPanel() {
     if (filters.statuts.length) n++
     if (filters.type_of_contract.length) n++
     if (filters.type_cedante.length) n++
+    if (filters.insured_name?.length) n++
     return n
   }, [filters])
 
@@ -258,7 +259,7 @@ export default function FilterPanel() {
     })
   }
 
-  const arrayFilters: (keyof FilterState)[] = ['specialite', 'branche', 'sous_branche', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante']
+  const arrayFilters: (keyof FilterState)[] = ['specialite', 'branche', 'sous_branche', 'pays_cedante', 'courtier', 'cedante', 'underwriting_years', 'type_of_contract', 'statuts', 'type_cedante', 'insured_name']
   arrayFilters.forEach(k => {
     const vals = filters[k] as string[] | number[]
     if (vals && vals.length > 0) {
@@ -797,6 +798,22 @@ export default function FilterPanel() {
           <Select isMulti options={toOptions(filterOptions.courtiers)} {...selectStyles} placeholder="Courtier" value={toOptions(filters.courtier)} onChange={v => setFilters(f => ({ ...f, courtier: v.map(x => x.value) }))} />
           <Select isMulti options={toOptions(filterOptions.cedantes)} {...selectStyles} placeholder="Cédante" value={toOptions(filters.cedante)} onChange={v => setFilters(f => ({ ...f, cedante: v.map(x => x.value) }))} />
         </Section>
+
+        <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
+
+        {/* Assuré (INSURED_NAME_NORM) */}
+        {filterOptions.insured_names?.length > 0 && (
+          <Section title="Assuré" defaultOpen={false}>
+            <Select
+              isMulti
+              options={toOptions(filterOptions.insured_names)}
+              {...selectStyles}
+              placeholder="Rechercher un assuré..."
+              value={toOptions(filters.insured_name ?? [])}
+              onChange={v => setFilters(f => ({ ...f, insured_name: v.map((x: any) => x.value) }))}
+            />
+          </Section>
+        )}
 
         <div className="mx-4 my-1" style={{ borderTop: '1px solid var(--color-gray-100)' }} />
 
