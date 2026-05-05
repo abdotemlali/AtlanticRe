@@ -51,6 +51,7 @@ def parse_filter_params(
     courtage_max: Optional[float] = Query(None),
     type_cedante: Optional[str] = Query(None),
     vie_non_vie_view: Optional[str] = Query(None),
+    insured_name: Optional[str] = Query(None),
 ) -> FilterParams:
     return FilterParams(
         perimetre=_split_list(perimetre),
@@ -81,4 +82,5 @@ def parse_filter_params(
         courtage_min=courtage_min,
         courtage_max=courtage_max,
         vie_non_vie_view=vie_non_vie_view,
+        insured_name=_split_list(insured_name),
     )

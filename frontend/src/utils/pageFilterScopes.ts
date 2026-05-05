@@ -142,6 +142,9 @@ export function getScopedParams(
     commission_max: null,
     courtage_min: null,
     courtage_max: null,
+    african_markets_only: false,
+    vie_non_vie_view: '',
+    insured_name: [],
     ...partial,
   }
 

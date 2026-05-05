@@ -35,6 +35,7 @@ export interface FilterState {
   courtage_max: number | null
   african_markets_only: boolean   // UI flag: afficher un seul chip "Marchés Africains" au lieu de 52 chips
   vie_non_vie_view: string         // "VIE" | "NON_VIE" | "" (all)
+  insured_name: string[]           // Assuré (INSURED_NAME_NORM)
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -67,6 +68,7 @@ export const DEFAULT_FILTERS: FilterState = {
   courtage_max: null,
   african_markets_only: false,
   vie_non_vie_view: '',
+  insured_name: [],
 }
 
 export interface KPISummary {
@@ -93,6 +95,7 @@ export interface FilterOptions {
   statuts: string[]
   type_of_contract: string[]
   type_cedante_options: string[]
+  insured_names: string[]
 }
 
 export interface ScoringCriterion {
@@ -183,6 +186,7 @@ export function filtersToParams(filters: FilterState): Record<string, string> {
   add('courtage_min', filters.courtage_min ?? undefined)
   add('courtage_max', filters.courtage_max ?? undefined)
   add('vie_non_vie_view', filters.vie_non_vie_view || undefined)
+  add('insured_name', filters.insured_name)
   return params
 }
 

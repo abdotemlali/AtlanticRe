@@ -69,6 +69,7 @@ class FilterOptions(BaseModel):
     statuts: List[str]
     type_of_contract: List[str]
     type_cedante_options: List[str] = []
+    insured_names: List[str] = []
 
 class FilterParams(BaseModel):
     perimetre: Optional[List[str]] = None
@@ -99,6 +100,7 @@ class FilterParams(BaseModel):
     courtage_min: Optional[float] = None
     courtage_max: Optional[float] = None
     vie_non_vie_view: Optional[str] = None  # "VIE" | "NON_VIE" | None (all)
+    insured_name: Optional[List[str]] = None
 
 # ── KPI Models ────────────────────────────────────────────────────────────────
 class KPISummary(BaseModel):
