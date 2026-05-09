@@ -2363,9 +2363,20 @@ def refresh_cache(db: Session = Depends(get_db)):
         deleted = _invalidate_cache(db)
         logger.info("Cache prédictions invalidé (%d entrée(s) DB supprimée(s)) — recalcul en cours…", deleted)
         cache = _get_pipeline()
+
+        # Invalide + recalcule le scoring (dépend des prédictions)
+        try:
+            from routers.scoring_axe2 import invalidate_scoring_cache, _get_scoring as _warmup_scoring
+            invalidate_scoring_cache(db)
+            logger.info("Cache scoring invalidé — recalcul en cours…")
+            _warmup_scoring()
+            logger.info("Cache scoring recalculé")
+        except Exception as exc:
+            logger.warning("Erreur recalcul scoring après refresh prédictions : %s", exc)
+
         return {
             "status": "ok",
-            "message": f"Cache recalculé ({len(cache['pays_33'])} pays)",
+            "message": f"Cache recalculé ({len(cache['pays_33'])} pays, prédictions + scoring)",
             "elapsed_seconds": round(cache["elapsed_seconds"], 1),
             "axco_loaded": cache["axco_loaded"],
             "axco_filename": cache["axco_filename"],
