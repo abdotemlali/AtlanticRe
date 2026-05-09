@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import {
   BarChart2, ChevronDown, Database, LayoutDashboard, Map,
-  Network, Sparkles, Target, TrendingUp, Building2, Heart, Landmark, Combine, Shuffle,
+  Network, Sparkles, Target, TrendingUp, Building2, Heart, Landmark, Combine,
   LogOut, Settings,
 } from 'lucide-react'
 
@@ -20,10 +20,9 @@ const navItems: NavItem[] = [
   {
     label: 'Modélisation', icon: Target,
     children: [
-      { to: '/vue_ensemble#scoring', label: 'Scoring SCAR', icon: Target, enabled: true },
-      { to: '/vue_ensemble#criteres', label: 'Critères & poids', icon: Sparkles, enabled: true },
-      { to: '/modelisation/predictions',  label: 'Prédictions 2030',  icon: TrendingUp, enabled: true },
-      { to: '/modelisation/monte-carlo',  label: 'Monte Carlo',        icon: Shuffle,    enabled: true },
+      { to: '/modelisation/scoring',      label: 'Scoring',            icon: Target,     enabled: true },
+      { to: '/vue_ensemble#criteres',     label: 'Critères & poids',   icon: Sparkles,   enabled: true },
+      { to: '/modelisation/predictions',  label: 'Prédictions 2030',   icon: TrendingUp, enabled: true },
     ],
   },
   {

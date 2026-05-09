@@ -45,9 +45,11 @@ def init_db() -> None:
     try:
         # 1. Créer les tables
         db_models.Base.metadata.create_all(bind=database.engine)
-        # Table dédiée au cache persistant des prédictions Axe 2 (Base distinct)
+        # Tables de cache persistant (bases distinctes)
         from models.predictions_cache_model import Base as PredictionsCacheBase
         PredictionsCacheBase.metadata.create_all(bind=database.engine)
+        from models.scoring_cache_model import Base as ScoringCacheBase
+        ScoringCacheBase.metadata.create_all(bind=database.engine)
         logger.info("Tables BDD vérifiées / créées")
     except Exception as exc:
         logger.warning(f"⚠️  Impossible de créer les tables : {exc}")
@@ -201,6 +203,15 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"Impossible de préchauffer le cache Prédictions Axe 2 : {exc}")
 
+    # ── Préchauffage cache Scoring Axe 2 (DB persistant) ────────────────────
+    # Charge depuis DB si valide ; sinon recalcule TOPSIS + Clustering + MC.
+    try:
+        from routers.scoring_axe2 import _get_scoring as _scoring_warmup
+        _scoring_warmup()
+        logger.info("Scoring Axe 2 — cache prêt (chargé depuis DB ou recalculé)")
+    except Exception as exc:
+        logger.warning(f"Impossible de préchauffer le cache Scoring Axe 2 : {exc}")
+
     yield  # L'application tourne ici
 
     # ── Shutdown (facultatif) ────────────────────────────────────────────────
@@ -263,4 +274,7 @@ app.include_router(predictions_axe2_router, prefix="/api", tags=["Prédictions A
 
 from routers.monte_carlo_axe2 import router as monte_carlo_router
 app.include_router(monte_carlo_router, prefix="/api", tags=["Monte Carlo Axe 2"])
+
+from routers.scoring_axe2 import router as scoring_axe2_router
+app.include_router(scoring_axe2_router, prefix="/api", tags=["Scoring Axe 2"])
 
