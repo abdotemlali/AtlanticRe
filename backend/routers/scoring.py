@@ -49,7 +49,11 @@ def compute_scoring(request: dict, _: dict = Depends(get_current_user)):
         except Exception:
             pass
 
-    markets = scoring_service.compute_market_scores(df, criteria)
+    groupby = request.get("groupby", "market")
+    if groupby == "country":
+        markets = scoring_service.compute_country_scores(df, criteria)
+    else:
+        markets = scoring_service.compute_market_scores(df, criteria)
 
     def clean(m: dict) -> dict:
         return {k: (0.0 if isinstance(v, float) and v != v else v) for k, v in m.items()}

@@ -21,7 +21,6 @@ const navItems: NavItem[] = [
     label: 'Modélisation', icon: Target,
     children: [
       { to: '/modelisation/scoring',      label: 'Scoring',            icon: Target,     enabled: true },
-      { to: '/vue_ensemble#criteres',     label: 'Critères & poids',   icon: Sparkles,   enabled: true },
       { to: '/modelisation/predictions',  label: 'Prédictions 2030',   icon: TrendingUp, enabled: true },
     ],
   },

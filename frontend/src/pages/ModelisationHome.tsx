@@ -962,7 +962,7 @@ export default function ModelisationHome() {
             </div>
           </section>
 
-          {/* ── Section 3d : Monte Carlo — module card ── */}
+          {/* ── Section 3d : Scoring — module card ── */}
           <section>
             <div
               className="bg-white rounded-xl p-6 flex items-start gap-5"
@@ -981,7 +981,7 @@ export default function ModelisationHome() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <h2 className="text-lg font-bold" style={{ color: 'hsl(270,60%,40%)' }}>
-                    Monte Carlo
+                    Scoring & Classement
                   </h2>
                   <span
                     className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
@@ -997,18 +997,18 @@ export default function ModelisationHome() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                  Simulations stochastiques avancées de type Monte Carlo. Évaluez la distribution des probabilités
-                  des résultats futurs et modélisez les incertitudes sur les variables clés à l'horizon 2030.
+                  Évaluez et classez les cédantes selon un score composite multicritère. Analysez la performance,
+                  la qualité du portefeuille et le potentiel de développement des relations de réassurance.
                 </p>
                 <button
-                  onClick={() => navigate('/modelisation/monte-carlo')}
+                  onClick={() => navigate('/modelisation/scoring')}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-200"
                   style={{ background: 'linear-gradient(135deg, hsl(270,60%,50%), hsl(270,55%,60%))', boxShadow: '0 2px 12px hsla(270,55%,60%,0.35)' }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px hsla(270,55%,60%,0.45)' }}
                   onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 12px hsla(270,55%,60%,0.35)' }}
                 >
                   <Shuffle size={15} />
-                  Accéder à Monte Carlo →
+                  Accéder au Scoring →
                 </button>
               </div>
             </div>

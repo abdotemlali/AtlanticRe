@@ -117,3 +117,87 @@ def compute_market_scores(
     # Sort by score descending
     results.sort(key=lambda x: x.score, reverse=True)
     return results
+
+
+def compute_country_scores(
+    df: pd.DataFrame,
+    criteria: List[ScoringCriterion],
+) -> List[MarketScore]:
+    """Compute weighted scores for each PAYS_RISQUE (all branches aggregated)."""
+    if df.empty:
+        return []
+
+    if "PAYS_RISQUE" not in df.columns:
+        return []
+
+    grouped = df.groupby("PAYS_RISQUE")
+    results: List[MarketScore] = []
+
+    for pays, group in grouped:
+        if not pays:
+            continue
+
+        written_premium = float(group["WRITTEN_PREMIUM"].sum() if "WRITTEN_PREMIUM" in group.columns else 0)
+        total_resultat = float(group["RESULTAT"].sum() if "RESULTAT" in group.columns else 0)
+
+        if "ULR" in group.columns and "WRITTEN_PREMIUM" in group.columns:
+            wp = group["WRITTEN_PREMIUM"].fillna(0)
+            ulr_vals = group["ULR"].fillna(0)
+            total_wp = wp.sum()
+            avg_ulr = float((ulr_vals * wp).sum() / total_wp) if total_wp > 0 else float(ulr_vals.mean())
+        else:
+            avg_ulr = 0.0
+
+        avg_commission = float(group["COMMI"].mean() if "COMMI" in group.columns else 0) or 0.0
+        avg_share = float(group["SHARE_WRITTEN"].mean() if "SHARE_WRITTEN" in group.columns else 0) or 0.0
+        contract_count = len(group)
+
+        # Top branches by written premium for this country
+        top_branches: List[str] = []
+        if "INT_BRANCHE" in group.columns and "WRITTEN_PREMIUM" in group.columns:
+            branch_wp = group.groupby("INT_BRANCHE")["WRITTEN_PREMIUM"].sum().sort_values(ascending=False)
+            top_branches = [str(b) for b in branch_wp.head(3).index.tolist() if b]
+
+        kpi_values = {
+            "ulr": avg_ulr,
+            "written_premium": written_premium,
+            "resultat": total_resultat,
+            "commi": avg_commission,
+            "share_written": avg_share,
+        }
+
+        total_weight = sum(c.weight for c in criteria)
+        if total_weight == 0:
+            total_weight = 100
+
+        weighted_score = 0.0
+        for criterion in criteria:
+            kpi_val = kpi_values.get(criterion.key, 0.0)
+            norm_score = _normalize_score(kpi_val, criterion.threshold, criterion.direction)
+            weighted_score += norm_score * (criterion.weight / total_weight)
+
+        score = round(min(100.0, max(0.0, weighted_score)), 1)
+
+        if score >= 70:
+            badge = "ATTRACTIF"
+        elif score >= 40:
+            badge = "NEUTRE"
+        else:
+            badge = "A_EVITER"
+
+        results.append(MarketScore(
+            pays=str(pays),
+            branche="",
+            score=score,
+            badge=badge,
+            written_premium=round(written_premium, 2),
+            avg_ulr=round(avg_ulr, 2),
+            total_resultat=round(total_resultat, 2),
+            avg_commission=round(avg_commission, 2),
+            avg_share=round(avg_share, 2),
+            contract_count=contract_count,
+            top_branches=top_branches,
+        ))
+
+    results.sort(key=lambda x: x.score, reverse=True)
+    return results

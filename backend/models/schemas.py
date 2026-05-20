@@ -171,6 +171,7 @@ class MarketScore(BaseModel):
     avg_commission: float
     avg_share: float
     contract_count: int
+    top_branches: List[str] = []
 
 class ScoringResult(BaseModel):
     markets: List[MarketScore]
