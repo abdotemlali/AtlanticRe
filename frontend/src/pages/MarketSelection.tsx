@@ -1,25 +1,25 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, Fragment } from "react"
 import { useData, filtersToParams } from '../context/DataContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 import { formatCompact, formatPercent, BADGE_LABELS } from '../utils/formatters'
 import ExportButton from '../components/ExportButton'
-import { Save, RotateCcw, AlertTriangle, Target, CheckCircle, GitCompare } from 'lucide-react'
+import { Save, RotateCcw, AlertTriangle, Target, CheckCircle, GitCompare, ChevronRight, ChevronDown, Globe, LayoutGrid } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const SortHeader = ({ col, label, align = 'left', currentSort, currentDir, onSort }: any) => (
-  <th 
+  <th
     onClick={() => onSort(col)}
     className={`cursor-pointer group py-3 text-[var(--color-navy)] whitespace-nowrap px-3
-      ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'} 
+      ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}
       hover:bg-[var(--color-gray-100)] transition-colors`}
   >
     <div className={`flex items-center gap-1 inline-flex ${align === 'right' ? 'flex-row-reverse' : ''}`}>
       <span className="text-xs font-bold leading-tight uppercase tracking-wide">{label}</span>
       <span className="text-[var(--color-gray-500)] opacity-40 group-hover:opacity-100 transition-opacity">
-        {currentSort === col 
+        {currentSort === col
           ? (currentDir === 'asc' ? <ArrowUp size={12} className="text-[hsl(83,52%,36%)]" /> : <ArrowDown size={12} className="text-[hsl(83,52%,36%)]" />)
           : <ArrowUpDown size={12} />}
       </span>
@@ -31,6 +31,7 @@ interface MarketScore {
   pays: string; branche: string; score: number; badge: string
   written_premium: number; avg_ulr: number; total_resultat: number
   avg_commission: number; avg_share: number; contract_count: number
+  top_branches: string[]
 }
 
 interface Criterion {
@@ -46,6 +47,8 @@ const DEFAULT_CRITERIA: Criterion[] = [
   { key: 'share_written', label: 'Part souscrite (Share)', weight: 5, threshold: 5, direction: 'higher_is_better' },
 ]
 
+type ScoringMode = 'market' | 'country'
+
 export default function MarketSelection() {
   const { filters, scoringCriteria, setScoringCriteria } = useData()
   const { can } = useAuth()
@@ -58,6 +61,8 @@ export default function MarketSelection() {
   const [computed, setComputed] = useState(false)
   const [sortCol, setSortCol] = useState<keyof MarketScore>('score')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [expandedRow, setExpandedRow] = useState<number | null>(null)
+  const [scoringMode, setScoringMode] = useState<ScoringMode>('market')
 
   const totalWeight = criteria.reduce((s, c) => s + c.weight, 0)
   const weightOk = Math.abs(totalWeight - 100) <= 1
@@ -70,16 +75,18 @@ export default function MarketSelection() {
       const res = await api.post('/scoring/compute', {
         filters: params,
         criteria,
+        groupby: scoringMode,
       })
       setMarkets(res.data.markets)
       setComputed(true)
-      toast.success(`${res.data.markets.length} marchés scorés`)
+      const label = scoringMode === 'country' ? 'pays' : 'marchés'
+      toast.success(`${res.data.markets.length} ${label} scorés`)
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Erreur de calcul')
     } finally {
       setLoading(false)
     }
-  }, [filters, criteria, weightOk, totalWeight])
+  }, [filters, criteria, weightOk, totalWeight, scoringMode])
 
   const saveDefaults = async () => {
     try {
@@ -96,6 +103,16 @@ export default function MarketSelection() {
     else { setSortCol(col); setSortDir('desc') }
   }
 
+  // When mode changes, reset results so user reruns
+  const handleModeChange = (mode: ScoringMode) => {
+    if (mode === scoringMode) return
+    setScoringMode(mode)
+    setComputed(false)
+    setMarkets([])
+    setExpandedRow(null)
+    setBadgeFilter('ALL')
+  }
+
   const displayedMarkets = [...markets]
     .filter(m => badgeFilter === 'ALL' || m.badge === badgeFilter)
     .sort((a, b) => {
@@ -107,24 +124,27 @@ export default function MarketSelection() {
     .slice(0, topN)
 
   const getScoreGradient = (score: number) => {
-    if (score >= 70) return 'linear-gradient(135deg, hsl(83,54%,27%), hsl(83,52%,36%))' // Green
-    if (score >= 40) return 'linear-gradient(135deg, hsl(30,88%,40%), hsl(30,88%,56%))' // Orange
-    return 'linear-gradient(135deg, hsl(358,66%,40%), var(--color-red))' // Red
+    if (score >= 70) return 'linear-gradient(135deg, hsl(83,54%,27%), hsl(83,52%,36%))'
+    if (score >= 40) return 'linear-gradient(135deg, hsl(30,88%,40%), hsl(30,88%,56%))'
+    return 'linear-gradient(135deg, hsl(358,66%,40%), var(--color-red))'
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'hsl(83,52%,36%)' // ATTRACTIF
-    if (score >= 40) return 'hsl(30,88%,56%)' // NEUTRE
-    return 'hsl(358,66%,54%)' // A_EVITER
+    if (score >= 70) return 'hsl(83,52%,36%)'
+    if (score >= 40) return 'hsl(30,88%,56%)'
+    return 'hsl(358,66%,54%)'
   }
+
+  const isCountry = scoringMode === 'country'
+  const colSpanTotal = isCountry ? 8 : 9
 
   return (
     <div className="flex h-full min-h-screen bg-[var(--color-off-white)] p-6 gap-6">
       {/* Scoring Panel */}
-      <aside 
-        className="flex-shrink-0 p-5 space-y-5 h-fit sticky top-0" 
-        style={{ 
-          width: 360, 
+      <aside
+        className="flex-shrink-0 p-5 space-y-5 h-fit sticky top-0"
+        style={{
+          width: 360,
           background: 'linear-gradient(160deg, var(--color-off-white) 0%, var(--color-gray-100) 100%)',
           border: '1px solid var(--color-gray-200)',
           borderRadius: 14,
@@ -137,6 +157,34 @@ export default function MarketSelection() {
             <h2 className="text-base font-bold text-[var(--color-navy)]">Critères de scoring</h2>
             <p className="text-[10px] font-semibold tracking-wider uppercase text-[var(--color-gray-500)]">Poids ajustables = 100%</p>
           </div>
+        </div>
+
+        {/* Mode toggle */}
+        <div className="p-1 rounded-xl flex gap-1" style={{ background: 'var(--color-gray-200)' }}>
+          <button
+            onClick={() => handleModeChange('market')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
+            style={
+              !isCountry
+                ? { background: 'var(--color-navy)', color: '#fff', boxShadow: '0 2px 6px rgba(45,62,80,0.25)' }
+                : { color: 'var(--color-gray-500)', background: 'transparent' }
+            }
+          >
+            <LayoutGrid size={13} />
+            Pays + Branche
+          </button>
+          <button
+            onClick={() => handleModeChange('country')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
+            style={
+              isCountry
+                ? { background: 'var(--color-navy)', color: '#fff', boxShadow: '0 2px 6px rgba(45,62,80,0.25)' }
+                : { color: 'var(--color-gray-500)', background: 'transparent' }
+            }
+          >
+            <Globe size={13} />
+            Par Pays
+          </button>
         </div>
 
         {/* Weight validation Jauge */}
@@ -155,8 +203,8 @@ export default function MarketSelection() {
             </div>
           </div>
           <div className="overflow-hidden h-2 text-xs flex rounded-full bg-[var(--color-gray-200)]">
-            <div 
-              style={{ width: `${Math.min(totalWeight, 100)}%` }} 
+            <div
+              style={{ width: `${Math.min(totalWeight, 100)}%` }}
               className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-300 ${weightOk ? 'bg-[hsl(83,52%,36%)]' : 'bg-[var(--color-red)]'}`}
             ></div>
           </div>
@@ -177,22 +225,22 @@ export default function MarketSelection() {
                   <p className="text-[10px] uppercase font-semibold text-[var(--color-gray-500)] mb-1">Poids (%)</p>
                   <input type="number" min={0} max={100} value={c.weight}
                     onChange={e => setCriteria(prev => prev.map((x, j) => j === i ? { ...x, weight: Number(e.target.value) } : x))}
-                    className="w-full text-center text-sm font-semibold text-[var(--color-navy)] py-1.5 transition-colors outline-none" 
+                    className="w-full text-center text-sm font-semibold text-[var(--color-navy)] py-1.5 transition-colors outline-none"
                     style={{ border: '1px solid var(--color-gray-200)', borderRadius: 6 }}
                     onFocus={(e) => { e.currentTarget.style.borderColor = 'hsl(83,52%,36%)'; e.currentTarget.style.boxShadow = '0 0 0 3px hsla(83,52%,36%,0.15)' }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-gray-200)'; e.currentTarget.style.boxShadow = 'none' }}
-                    disabled={!can('modify_scoring')} 
+                    disabled={!can('modify_scoring')}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] uppercase font-semibold text-[var(--color-gray-500)] mb-1">Seuil cible</p>
                   <input type="number" value={c.threshold}
                     onChange={e => setCriteria(prev => prev.map((x, j) => j === i ? { ...x, threshold: Number(e.target.value) } : x))}
-                    className="w-full text-center text-sm font-semibold text-[var(--color-navy)] py-1.5 transition-colors outline-none" 
+                    className="w-full text-center text-sm font-semibold text-[var(--color-navy)] py-1.5 transition-colors outline-none"
                     style={{ border: '1px solid var(--color-gray-200)', borderRadius: 6 }}
                     onFocus={(e) => { e.currentTarget.style.borderColor = 'hsl(83,52%,36%)'; e.currentTarget.style.boxShadow = '0 0 0 3px hsla(83,52%,36%,0.15)' }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-gray-200)'; e.currentTarget.style.boxShadow = 'none' }}
-                    disabled={!can('modify_scoring')} 
+                    disabled={!can('modify_scoring')}
                   />
                 </div>
               </div>
@@ -227,7 +275,11 @@ export default function MarketSelection() {
         <div className="bg-white p-5 rounded-xl border border-[var(--color-gray-100)] shadow-sm flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[var(--color-navy)] mb-1">Résultats du Scoring</h1>
-            <p className="text-xs font-medium text-[var(--color-gray-500)]">Analyse multicritère dynamique par Marché (Pays + Branche)</p>
+            <p className="text-xs font-medium text-[var(--color-gray-500)]">
+              {isCountry
+                ? 'Analyse multicritère dynamique par Pays'
+                : 'Analyse multicritère dynamique par Marché (Pays + Branche)'}
+            </p>
           </div>
 
           {/* Filters row */}
@@ -247,7 +299,6 @@ export default function MarketSelection() {
               <input type="number" min={5} max={50} value={topN} onChange={e => setTopN(Number(e.target.value))}
                 className="input-dark text-xs py-1.5 px-2 text-center" style={{ width: 60 }} />
             </div>
-            {/* The ExportButton uses 'recommendations' internally which matches the valid values for this component prop */}
             <ExportButton markets={displayedMarkets} topN={topN} variant="recommendations" />
           </div>
         </div>
@@ -265,70 +316,117 @@ export default function MarketSelection() {
               <table className="data-table w-full">
                 <thead className="sticky top-0 z-10 bg-white shadow-sm">
                   <tr>
-                    <th className="w-10 text-center text-[var(--color-gray-500)] text-xs font-bold py-3">#</th>
+                    <th className="w-8 text-center text-[var(--color-gray-500)] text-xs font-bold py-3 px-2">#</th>
                     <SortHeader col="pays" label="Pays" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="branche" label="Branche" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="score" label="Score Global" align="center" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="badge" label="Recommandation" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="written_premium" label="Prime écrite" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
+                    {!isCountry && (
+                      <SortHeader col="branche" label="Branche" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
+                    )}
+                    <SortHeader col="score" label="Score" align="center" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
+                    <SortHeader col="badge" label="Recomm." currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
+                    <SortHeader col="written_premium" label="Prime" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
                     <SortHeader col="avg_ulr" label="LR %" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
                     <SortHeader col="total_resultat" label="Résultat" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="avg_commission" label="Commission" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="avg_share" label="Share %" align="right" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <SortHeader col="contract_count" label="Contrats" align="center" currentSort={sortCol} currentDir={sortDir} onSort={handleSort} />
-                    <th className="text-center text-[var(--color-gray-500)] text-xs font-bold py-3">Comparer</th>
+                    <th aria-label="expand" className="w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedMarkets.length === 0 ? (
-                    <tr><td colSpan={12} className="text-center py-10 text-[var(--color-gray-500)] font-medium">Aucun marché ne correspond aux critères</td></tr>
-                  ) : displayedMarkets.map((m, i) => (
-                    <tr key={i} className="hover:bg-[var(--color-off-white)] transition-colors animate-fade-in border-b border-[var(--color-gray-100)] last:border-0" style={{ animationDelay: `${i * 0.05}s` }}>
-                      <td className="text-center font-bold text-[var(--color-gray-500)] py-3">{i + 1}</td>
-                      <td className="font-bold text-[var(--color-navy)]">{m.pays}</td>
-                      <td className="font-medium text-[var(--color-gray-500)]">{m.branche}</td>
-                      <td>
-                        <div className="relative flex items-center justify-center h-8" title={`${m.score.toFixed(1)}/100`}>
-                          {/* Background Progress Bar */}
-                          <div className="absolute inset-0 rounded overflow-hidden bg-transparent" style={{ border: '1px solid var(--color-gray-100)' }}>
-                            <div className="h-full transition-all duration-1000 ease-out" style={{ width: `${m.score}%`, backgroundColor: getScoreColor(m.score), opacity: 0.15 }} />
-                          </div>
-                          {/* Score Badge */}
-                          <div className="relative z-10 text-white font-bold text-xs px-3 py-1 shadow-sm" style={{ background: getScoreGradient(m.score), borderRadius: 20 }}>
-                            {m.score.toFixed(1)} <span className="text-[9px] opacity-80 font-normal">pts</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="text-[10px] uppercase tracking-wider px-2.5 py-1 rounded font-bold" 
-                          style={{
-                            background: m.badge === 'ATTRACTIF' ? 'hsla(83,52%,36%,0.1)' : m.badge === 'A_EVITER' ? 'hsla(358,66%,54%,0.1)' : 'hsla(30,88%,56%,0.1)',
-                            color: m.badge === 'ATTRACTIF' ? 'hsl(83,52%,36%)' : m.badge === 'A_EVITER' ? 'hsl(358,66%,54%)' : 'hsl(30,88%,56%)',
-                            border: `1px solid ${getScoreColor(m.score)}`
-                          }}>
-                          {BADGE_LABELS[m.badge] || m.badge}
-                        </span>
-                      </td>
-                      <td className="text-right font-medium text-[var(--color-navy)]">{formatCompact(m.written_premium)}</td>
-                      <td className="text-right font-bold" style={{ color: m.avg_ulr > 100 ? 'hsl(358,66%,54%)' : m.avg_ulr > 70 ? 'hsl(30,88%,56%)' : 'hsl(83,52%,36%)' }}>{formatPercent(m.avg_ulr)}</td>
-                      <td className="text-right font-bold" style={{ color: m.total_resultat >= 0 ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)' }}>{formatCompact(m.total_resultat)}</td>
-                      <td className="text-right text-[var(--color-gray-500)]">{formatPercent(m.avg_commission)}</td>
-                      <td className="text-right text-[var(--color-gray-500)]">{formatPercent(m.avg_share)}</td>
-                      <td className="text-center font-medium text-[var(--color-gray-500)]">{m.contract_count}</td>
-                      <td className="text-center">
-                        <button
-                          onClick={() => {
-                            sessionStorage.setItem('compare_market_a', JSON.stringify({ pays: m.pays, branche: m.branche }))
-                            navigate('/comparaison')
-                          }}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--color-gray-400)] hover:text-[var(--color-navy)] hover:bg-[var(--color-navy-muted)] transition-all"
-                          title={`Comparer ${m.pays} — ${m.branche}`}
+                    <tr><td colSpan={colSpanTotal} className="text-center py-10 text-[var(--color-gray-500)] font-medium">Aucun résultat ne correspond aux critères</td></tr>
+                  ) : displayedMarkets.map((m, i) => {
+                    const isExpanded = expandedRow === i
+                    return (
+                      <Fragment key={i}>
+                        <tr
+                          onClick={() => setExpandedRow(isExpanded ? null : i)}
+                          className="hover:bg-[var(--color-off-white)] transition-colors animate-fade-in border-b border-[var(--color-gray-100)] last:border-0 cursor-pointer"
+                          style={{ animationDelay: `${i * 0.05}s`, background: isExpanded ? 'var(--color-off-white)' : undefined }}
                         >
-                          <GitCompare size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          <td className="text-center font-bold text-[var(--color-gray-500)] py-3 px-2 text-xs">{i + 1}</td>
+                          <td className="font-bold text-[var(--color-navy)] text-sm px-2 max-w-[120px] truncate" title={m.pays}>{m.pays}</td>
+                          {!isCountry && (
+                            <td className="font-medium text-[var(--color-gray-500)] text-xs px-2 max-w-[100px] truncate" title={m.branche}>{m.branche}</td>
+                          )}
+                          <td className="px-2">
+                            <div className="relative flex items-center justify-center h-7" title={`${m.score.toFixed(1)}/100`}>
+                              <div className="absolute inset-0 rounded overflow-hidden bg-transparent" style={{ border: '1px solid var(--color-gray-100)' }}>
+                                <div className="h-full transition-all duration-1000 ease-out" style={{ width: `${m.score}%`, backgroundColor: getScoreColor(m.score), opacity: 0.15 }} />
+                              </div>
+                              <div className="relative z-10 text-white font-bold text-xs px-2.5 py-0.5 shadow-sm" style={{ background: getScoreGradient(m.score), borderRadius: 20 }}>
+                                {m.score.toFixed(1)} <span className="text-[9px] opacity-80 font-normal">pts</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2">
+                            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold whitespace-nowrap"
+                              style={{
+                                background: m.badge === 'ATTRACTIF' ? 'hsla(83,52%,36%,0.1)' : m.badge === 'A_EVITER' ? 'hsla(358,66%,54%,0.1)' : 'hsla(30,88%,56%,0.1)',
+                                color: m.badge === 'ATTRACTIF' ? 'hsl(83,52%,36%)' : m.badge === 'A_EVITER' ? 'hsl(358,66%,54%)' : 'hsl(30,88%,56%)',
+                                border: `1px solid ${getScoreColor(m.score)}`
+                              }}>
+                              {BADGE_LABELS[m.badge] || m.badge}
+                            </span>
+                          </td>
+                          <td className="text-right font-medium text-[var(--color-navy)] text-xs px-2 whitespace-nowrap">{formatCompact(m.written_premium)}</td>
+                          <td className="text-right font-bold text-xs px-2 whitespace-nowrap" style={{ color: m.avg_ulr > 100 ? 'hsl(358,66%,54%)' : m.avg_ulr > 70 ? 'hsl(30,88%,56%)' : 'hsl(83,52%,36%)' }}>{formatPercent(m.avg_ulr)}</td>
+                          <td className="text-right font-bold text-xs px-2 whitespace-nowrap" style={{ color: m.total_resultat >= 0 ? 'hsl(83,52%,36%)' : 'hsl(358,66%,54%)' }}>{formatCompact(m.total_resultat)}</td>
+                          <td className="text-center text-[var(--color-gray-400)] px-2">
+                            {isExpanded ? <ChevronDown size={14} className="inline-block" /> : <ChevronRight size={14} className="inline-block" />}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b border-[var(--color-gray-100)]" style={{ background: 'var(--color-off-white)' }}>
+                            <td colSpan={colSpanTotal} className="px-4 pb-3 pt-1">
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-[var(--color-gray-100)] shadow-sm">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-gray-500)] mb-1 font-semibold">Commission moy.</p>
+                                  <p className="text-sm font-mono font-bold text-[var(--color-navy)]">{formatPercent(m.avg_commission)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-gray-500)] mb-1 font-semibold">Share moy.</p>
+                                  <p className="text-sm font-mono font-bold text-[var(--color-navy)]">{formatPercent(m.avg_share)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-gray-500)] mb-1 font-semibold">Nb. contrats</p>
+                                  <p className="text-sm font-mono font-bold text-[var(--color-navy)]">{m.contract_count}</p>
+                                </div>
+                                {isCountry ? (
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-[var(--color-gray-500)] mb-1 font-semibold">Top branches</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {m.top_branches.length > 0
+                                        ? m.top_branches.map(b => (
+                                          <span key={b} className="text-[10px] px-2 py-0.5 rounded font-semibold"
+                                            style={{ background: 'hsla(221,40%,20%,0.08)', color: 'var(--color-navy)' }}>
+                                            {b}
+                                          </span>
+                                        ))
+                                        : <span className="text-xs text-[var(--color-gray-500)]">—</span>
+                                      }
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center">
+                                    <button
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        sessionStorage.setItem('compare_market_a', JSON.stringify({ pays: m.pays, branche: m.branche }))
+                                        navigate('/comparaison')
+                                      }}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--color-navy)] hover:bg-[var(--color-navy-muted)] transition-all border border-[var(--color-gray-200)]"
+                                      title={`Comparer ${m.pays} — ${m.branche}`}
+                                    >
+                                      <GitCompare size={13} />
+                                      Comparer
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

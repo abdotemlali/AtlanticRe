@@ -25,6 +25,11 @@ import {
   NUMERIC_TO_ISO3, ISO3_NAMES, AFRICA_NUMERIC, interpolatePositioned,
 } from '../utils/cartographieConstants'
 
+// ISO3 codes mapped from multiple numeric IDs (e.g. MAR covers Morocco 504 + Western Sahara 732)
+const SHARED_ISO3 = new Set(
+  Object.values(NUMERIC_TO_ISO3).filter((v, _i, arr) => arr.indexOf(v) !== arr.lastIndexOf(v))
+)
+
 // Score TOPSIS: 0=rouge, 0.5=amber, 1=vert
 const SCORE_COLOR_STOPS: [number, string][] = [
   [0,    '#d32f2f'],
@@ -1244,7 +1249,7 @@ function CarteTab({ overview }: { overview: OverviewData }) {
                         : 'hsl(0,0%,88%)'
                       return (
                         <Geography key={geo.rsmKey} geography={geo}
-                          fill={fill} stroke="white" strokeWidth={0.5}
+                          fill={fill} stroke={iso3 && SHARED_ISO3.has(iso3) ? fill : 'white'} strokeWidth={0.5}
                           onMouseEnter={() => {
                             if (paysName && score != null && rang != null) {
                               setHovered({ pays: paysName, score, rang })

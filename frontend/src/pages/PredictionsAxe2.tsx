@@ -1830,6 +1830,11 @@ function ComparaisonTab({ metadata, cacheVersion = 0, isRefreshing: _isRefreshin
   )
 }
 
+// ISO3 codes mapped from multiple numeric IDs (e.g. MAR covers Morocco 504 + Western Sahara 732)
+const SHARED_ISO3 = new Set(
+  Object.values(NUMERIC_TO_ISO3).filter((v, _i, arr) => arr.indexOf(v) !== arr.lastIndexOf(v))
+)
+
 // ════════════════════════════════════════════════════════════════════════════
 // TAB 6 — CARTE 2030
 // ════════════════════════════════════════════════════════════════════════════
@@ -1961,7 +1966,7 @@ function CarteTab({ metadata, cacheVersion = 0, isRefreshing: _isRefreshing = fa
                         const v = iso ? ISO3_TO_VALUE[iso] : null
                         return (
                           <Geography key={geo.rsmKey} geography={geo}
-                            fill={fill} stroke="#fff" strokeWidth={0.5}
+                            fill={fill} stroke={iso && SHARED_ISO3.has(iso) ? fill : '#e0e0e0'} strokeWidth={0.5}
                             style={{
                               default: { outline: 'none' },
                               hover: { outline: 'none', filter: 'brightness(1.1)', cursor: 'pointer' },

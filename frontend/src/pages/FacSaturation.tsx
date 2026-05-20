@@ -159,10 +159,12 @@ function VueGlobale({
   seuilPrime,
   seuilAffaires,
   filterParams,
+  nonSatureOnly = false,
 }: {
   seuilPrime: number
   seuilAffaires: number
   filterParams: Record<string, string>
+  nonSatureOnly?: boolean
 }) {
   const [data, setData] = useState<CedanteGlobal[]>([])
   const [loading, setLoading] = useState(false)
@@ -184,10 +186,13 @@ function VueGlobale({
   }, [filterParams, seuilPrime, seuilAffaires])
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return data
-    const q = search.toLowerCase()
-    return data.filter(d => d.cedante.toLowerCase().includes(q))
-  }, [data, search])
+    let result = nonSatureOnly ? data.filter(d => d.nb_branches_saturees === 0) : data
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(d => d.cedante.toLowerCase().includes(q))
+    }
+    return result
+  }, [data, search, nonSatureOnly])
 
   function exportExcel() {
     import('xlsx').then(XLSX => {
@@ -518,7 +523,7 @@ function VueCedante({
 export default function FacSaturation() {
   const { filterOptions } = useData()
   const lf = useLocalFilters()
-  const [activeTab, setActiveTab] = useState<'global' | 'cedante'>('global')
+  const [activeTab, setActiveTab] = useState<'global' | 'cedante' | 'non_sature'>('global')
   const [seuilPrime, setSeuilPrime] = useState(1_000_000)
   const [seuilAffaires, setSeuilAffaires] = useState(5)
 
@@ -534,10 +539,13 @@ export default function FacSaturation() {
           filters={lf}
           allBranches={filterOptions?.branc ?? []}
           uwYears={filterOptions?.underwriting_years ?? []}
+          typeSpcOptions={filterOptions?.type_contrat_spc ?? []}
+          typeOfContractOptions={filterOptions?.type_of_contract ?? []}
           cedanteOptions={filterOptions?.cedantes ?? []}
+          brokerOptions={filterOptions?.courtiers ?? []}
           countryOptions={filterOptions?.pays_risque ?? []}
           availableCountries={availableCountries}
-          features={['africanMarkets', 'year', 'branch', 'lifeScope', 'cedante', 'country']}
+          features={['marketType', 'africanMarkets', 'year', 'branch', 'typeContract', 'lifeScope', 'cedante', 'broker', 'country']}
         />
       </div>
 
@@ -595,7 +603,7 @@ export default function FacSaturation() {
 
       {/* Onglets */}
       <div className="flex gap-1 bg-[var(--color-off-white)] p-1 rounded-xl border border-[var(--color-gray-100)] w-fit">
-        {(['global', 'cedante'] as const).map(tab => (
+        {(['global', 'non_sature', 'cedante'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -605,16 +613,20 @@ export default function FacSaturation() {
                 : 'text-[var(--color-gray-500)] hover:text-[var(--color-navy)]'
             }`}
           >
-            {tab === 'global' ? 'Vue Globale' : 'Vue par Cédante'}
+            {tab === 'global' ? 'Marchés Saturés' : tab === 'cedante' ? 'Vue par Cédante' : 'Marchés non saturés'}
           </button>
         ))}
       </div>
 
       {/* Contenu onglet */}
-      {activeTab === 'global' ? (
+      {activeTab === 'global' && (
         <VueGlobale seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} filterParams={filterParams} />
-      ) : (
+      )}
+      {activeTab === 'cedante' && (
         <VueCedante seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} filterParams={filterParams} />
+      )}
+      {activeTab === 'non_sature' && (
+        <VueGlobale seuilPrime={seuilPrime} seuilAffaires={seuilAffaires} filterParams={filterParams} nonSatureOnly />
       )}
       </div>
     </div>
